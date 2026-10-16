@@ -1,0 +1,182 @@
+{
+  "scenarios": {
+    "NORMAL_BASELINE": {
+      "preset": "NORMAL_BASELINE",
+      "surface_velocity_kmh": 14.5,
+      "surge_multiplier": 1.0,
+      "alerts": []
+    },
+    "PEAK_CRISIS_SURGE": {
+      "preset": "PEAK_CRISIS_SURGE",
+      "surface_velocity_kmh": 4.8,
+      "surge_multiplier": 1.8,
+      "alerts": [
+        {
+          "alert_id": "alert_farmgate_waterlogging",
+          "edge_id": "E_BUS_SURFACE_MIRPUR10_FARMGATE",
+          "hub_id": "H_FARMGATE",
+          "incident_type": "WATERLOGGING",
+          "status": "VERIFIED_ACTIVE",
+          "validation_status": "GRAPH_GROUNDED",
+          "severity_alpha": 2.4,
+          "confidence_pct": 91.8,
+          "half_life_remaining_ms": 1800000,
+          "created_timestamp_ms": 1773715200000,
+          "votes": [
+            {
+              "vote_id": "v1",
+              "voter_session_id": "s_demo1",
+              "direction": 1,
+              "reliability_weight": 0.85,
+              "timestamp_ms": 1773715200000
+            },
+            {
+              "vote_id": "v2",
+              "voter_session_id": "s_demo2",
+              "direction": 1,
+              "reliability_weight": 0.90,
+              "timestamp_ms": 1773715260000
+            },
+            {
+              "vote_id": "v3",
+              "voter_session_id": "s_demo3",
+              "direction": 1,
+              "reliability_weight": 0.75,
+              "timestamp_ms": 1773715320000
+            }
+          ]
+        },
+        {
+          "alert_id": "alert_malibagh_gridlock",
+          "edge_id": "E_BUS_MALIBAGH_MOTIJHEEL",
+          "hub_id": "H_MALIBAGH",
+          "incident_type": "SEVERE_GRIDLOCK",
+          "status": "VERIFIED_ACTIVE",
+          "validation_status": "GRAPH_GROUNDED",
+          "severity_alpha": 1.9,
+          "confidence_pct": 89.2,
+          "half_life_remaining_ms": 1800000,
+          "created_timestamp_ms": 1773715260000,
+          "votes": [
+            {
+              "vote_id": "v4",
+              "voter_session_id": "s_demo4",
+              "direction": 1,
+              "reliability_weight": 0.88,
+              "timestamp_ms": 1773715260000
+            }
+          ]
+        }
+      ]
+    },
+    "ADVERSARIAL_CORRUPT_INPUT": {
+      "preset": "ADVERSARIAL_CORRUPT_INPUT",
+      "surface_velocity_kmh": 8.5,
+      "surge_multiplier": 1.2,
+      "alerts": [
+        {
+          "alert_id": "alert_adversarial_shahbagh",
+          "edge_id": "E_BUS_SURFACE_FARMGATE_SHAHBAGH",
+          "hub_id": "H_SHAHBAGH",
+          "incident_type": "INTERSECTION_BLOCKADE",
+          "status": "PENDING_CORROBORATION",
+          "validation_status": "CONTRADICTORY_REPORT_QUARANTINED",
+          "severity_alpha": 1.2,
+          "confidence_pct": 24.3,
+          "half_life_remaining_ms": 600000,
+          "created_timestamp_ms": 1773715300000,
+          "votes": [
+            {
+              "vote_id": "v_fake",
+              "voter_session_id": "s_adversary",
+              "direction": 1,
+              "reliability_weight": 0.30,
+              "timestamp_ms": 1773715300000
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "sampleRoutes": [
+    {
+      "route_id": "route_optimal_mirpur_motijheel_pstar",
+      "total_regular_fare_bdt": 66,
+      "total_effective_fare_bdt": 48,
+      "total_duration_ms": 2880000,
+      "transfers_count": 1,
+      "generalized_cost_score": 0.241,
+      "grounding_status": "GRAPH_GROUNDED",
+      "legs": [
+        {
+          "edge_id": "E_WALK_MIRPUR10_BRIDGE",
+          "origin_hub_id": "H_MIRPUR10",
+          "dest_hub_id": "H_MIRPUR10",
+          "mode": "WALK",
+          "route_name": "Mirpur-10 Metro Footbridge Transfer",
+          "regular_fare_bdt": 0,
+          "effective_fare_bdt": 0,
+          "surge_multiplier": 1.0,
+          "pool_size_count": 1,
+          "effective_duration_ms": 180000,
+          "boarding_landmark": "Mirpur-10 Footbridge Escalator 1"
+        },
+        {
+          "edge_id": "E_MRT6_MIRPUR10_AGARGAON",
+          "origin_hub_id": "H_MIRPUR10",
+          "dest_hub_id": "H_AGARGAON",
+          "mode": "METRO",
+          "route_name": "DMTCL MRT-6 Metro Rail",
+          "regular_fare_bdt": 30,
+          "effective_fare_bdt": 30,
+          "surge_multiplier": 1.0,
+          "pool_size_count": 1,
+          "effective_duration_ms": 420000,
+          "boarding_landmark": "Mirpur-10 Metro Concourse Platform 2 (No Student Pass on Metro)"
+        },
+        {
+          "edge_id": "E_BUS_BIHANGA_AGARGAON_MOTIJHEEL",
+          "origin_hub_id": "H_AGARGAON",
+          "dest_hub_id": "H_MOTIJHEEL",
+          "mode": "BUS",
+          "route_name": "Bihanga Paribahan (Flyover Bypass)",
+          "regular_fare_bdt": 36,
+          "effective_fare_bdt": 18,
+          "surge_multiplier": 1.0,
+          "pool_size_count": 1,
+          "effective_duration_ms": 2280000,
+          "boarding_landmark": "Agargaon South Footbridge Bus Bay (Student 50% Verified)"
+        }
+      ]
+    }
+  ],
+  "sampleQueries": [
+    {
+      "label": "Student Pass Mirpur-10 to Motijheel (Avoid Farmgate Flood)",
+      "query_text": "Mirpur 10 theke Motijheel jabo, student id ache, 55 BDT, Farmgate avoid korbo",
+      "origin_hub_id": "H_MIRPUR10",
+      "dest_hub_id": "H_MOTIJHEEL",
+      "is_student": true,
+      "max_budget_bdt": 55,
+      "avoid_hub_ids": ["H_FARMGATE"]
+    },
+    {
+      "label": "Mohakhali to Science Lab (Rush Hour Surface)",
+      "query_text": "Mohakhali theke Science Lab jabo rush hour e",
+      "origin_hub_id": "H_MOHAKHALI",
+      "dest_hub_id": "H_SCIENCELAB",
+      "is_student": false,
+      "max_budget_bdt": 80,
+      "avoid_hub_ids": []
+    },
+    {
+      "label": "Uttara North to Motijheel (MRT-6 Express)",
+      "query_text": "Uttara North to Motijheel fastest route",
+      "origin_hub_id": "H_UTTARA",
+      "dest_hub_id": "H_MOTIJHEEL",
+      "is_student": false,
+      "max_budget_bdt": 100,
+      "avoid_hub_ids": []
+    }
+  ]
+}
