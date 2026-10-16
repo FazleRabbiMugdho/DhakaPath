@@ -6,7 +6,8 @@
 
 import { NextResponse } from "next/server";
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "@/contracts/canonicalGraph";
-import { ScenarioPreset } from "@/contracts/schema";
+import { HubId, ScenarioPreset } from "@/contracts/schema";
+import { DHAKA_CITY_BUS_RATE_BDT_PER_KM } from "@/engine/fareEngine";
 
 export const dynamic = "force-static";
 
@@ -15,8 +16,8 @@ const SCENARIO_TELEMETRY: Record<
   { surface_velocity_kmh: number; surge_multiplier: number; severed_hub_ids: string[] }
 > = {
   [ScenarioPreset.NORMAL_BASELINE]: { surface_velocity_kmh: 14.5, surge_multiplier: 1.0, severed_hub_ids: [] },
-  [ScenarioPreset.PEAK_CRISIS_SURGE]: { surface_velocity_kmh: 4.8, surge_multiplier: 1.8, severed_hub_ids: ["H_FARMGATE", "H_MALIBAGH"] },
-  [ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT]: { surface_velocity_kmh: 8.5, surge_multiplier: 1.2, severed_hub_ids: ["H_SHAHBAGH"] },
+  [ScenarioPreset.PEAK_CRISIS_SURGE]: { surface_velocity_kmh: 4.8, surge_multiplier: 1.8, severed_hub_ids: [HubId.H_FARMGATE, HubId.H_MALIBAGH] },
+  [ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT]: { surface_velocity_kmh: 8.5, surge_multiplier: 1.2, severed_hub_ids: [HubId.H_SHAHBAGH] },
 };
 
 export async function GET() {
@@ -32,15 +33,16 @@ export async function GET() {
       vertices_expanded: vExp,
       edges_expanded: eExp,
       generalized_cost_jstar: 0.241,
-      student_floor_active_bdt: 10,
-      grounding_verified: true, // V(P*) = 1
+      city_bus_rate_bdt_per_km: DHAKA_CITY_BUS_RATE_BDT_PER_KM,
+      regular_city_bus_minimum_bdt: 10,
+      student_bus_half_fare: true,
+      metro_student_half_fare: false,
+      grounding_verifier_available: true,
     },
     benchmark: {
       manual_fb_check_ms: 510000, // 8.5 min
       dhakapath_engine_ms: 1400, // 1.4 sec
-      time_saved_ms: 3840000, // +64 min
-      cost_saved_bdt: 28,
-      risk_reduction_pct: 82.0,
+      note: "Illustrative latency benchmark only; route-specific savings come from the Track 1 API.",
     },
     scenarios: SCENARIO_TELEMETRY,
     generated_at_label: "canonical-static",

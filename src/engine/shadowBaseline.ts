@@ -57,7 +57,7 @@ function findSurfacePath(origin: HubId, destination: HubId, busOnly: boolean): T
   return path;
 }
 
-function naiveSurfacePath(origin: HubId, destination: HubId): TransitEdge[] {
+export function computeNaiveSurfacePath(origin: HubId, destination: HubId): TransitEdge[] {
   const busPath = findSurfacePath(origin, destination, true);
   return busPath.length > 0 ? busPath : findSurfacePath(origin, destination, false);
 }
@@ -98,7 +98,7 @@ export function computeCounterfactualRoi(
   };
   if (!optimalRoute?.legs.length) return empty;
 
-  const surfacePath = naiveSurfacePath(query.origin_hub_id, query.dest_hub_id);
+  const surfacePath = computeNaiveSurfacePath(query.origin_hub_id, query.dest_hub_id);
   const surge = preset === ScenarioPreset.PEAK_CRISIS_SURGE ? 1.8 : 1;
   let shadowDurationMs = 0;
   let shadowFareBdt = 0;

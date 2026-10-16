@@ -56,6 +56,12 @@ export default function RootLayout({
         {/* Global Reactive Store Bridge */}
         <DhakaPathProvider>
           <div className="relative z-10 min-h-screen flex flex-col">
+            <div
+              role="note"
+              className="sticky top-0 z-50 flex h-8 shrink-0 items-center justify-center whitespace-nowrap border-b border-cyan-400/30 bg-[#081725] px-3 text-center font-mono text-[10px] font-semibold tracking-wide text-cyan-100 sm:text-xs"
+            >
+              [SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY]
+            </div>
             {children}
           </div>
         </DhakaPathProvider>

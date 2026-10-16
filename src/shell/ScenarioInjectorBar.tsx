@@ -47,7 +47,7 @@ export function ScenarioInjectorBar({ injector, className }: ScenarioInjectorBar
         className
       )}
     >
-      {/* Left 25% — Brand, live velocity, honesty badge */}
+      {/* Left 25% — Brand and live velocity; the disclosure lives in RootLayout. */}
       <div className="flex min-w-[220px] flex-1 items-center gap-3">
         <div className="flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-xl border-[1.5px] border-[#06B6D4]/60 bg-[#06B6D4]/10 text-[#06B6D4] shadow-[0_0_18px_rgba(6,182,212,0.25)]">
@@ -66,12 +66,6 @@ export function ScenarioInjectorBar({ injector, className }: ScenarioInjectorBar
             </div>
           </div>
         </div>
-        <DualCodedStatusPill
-          status="SIMULATED_DEMO_TELEMETRY"
-          label="SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY"
-          size="sm"
-          className="hidden xl:inline-flex"
-        />
       </div>
 
       {/* Center 50% — Preset segments + decay scrub */}
