@@ -15,6 +15,7 @@ import { PitchOverlay } from "@/ui/PitchOverlay";
 import { PlanTab } from "@/ui/plan/PlanTab";
 import { AlertsTab } from "@/ui/alerts/AlertsTab";
 import { NetworkTab } from "@/ui/network/NetworkTab";
+import { AssistantDock } from "@/ui/assistant/AssistantDock";
 
 const TABS: TabId[] = ["plan", "alerts", "network"];
 
@@ -73,6 +74,7 @@ export default function AppPage() {
       </footer>
 
       <BottomNav tab={tab} onTab={goTab} />
+      <AssistantDock />
       <MathDrawer open={mathOpen} onClose={() => setMathOpen(false)} />
       <PitchOverlay open={storyOpen} onClose={() => setStoryOpen(false)} />
     </div>

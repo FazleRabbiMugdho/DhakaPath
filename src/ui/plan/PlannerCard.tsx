@@ -5,12 +5,23 @@
 // "fake route blocked" notice when a prompt asks for a route that does not exist.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, Footprints, GraduationCap, Info, Mic, MicOff, Search, ShieldAlert, Waves } from "lucide-react";
+import { ArrowLeftRight, Footprints, GraduationCap, Info, LocateFixed, Mic, MicOff, Search, ShieldAlert, Waves } from "lucide-react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
 import { HubId } from "@/contracts/schema";
+import { CANONICAL_HUBS } from "@/contracts/canonicalGraph";
 import { Btn, Card, Pill, Toggle, inputCls } from "../kit";
 import { HUB_IDS, hubName } from "../labels";
+
+function nearestHub(lat: number, lng: number): HubId {
+  let best = HubId.H_MIRPUR10;
+  let bestD = Infinity;
+  for (const h of Object.values(CANONICAL_HUBS)) {
+    const d = (h.lat - lat) ** 2 + (h.lng - lng) ** 2;
+    if (d < bestD) { bestD = d; best = h.hub_id; }
+  }
+  return best;
+}
 
 interface RecognitionLike {
   lang: string;
@@ -44,6 +55,30 @@ const EXAMPLES: ReadonlyArray<{ id: string; bn: string; en: string; text: string
     trap: true,
   },
 ];
+
+function LocateButton({ onLocate }: { onLocate: (hub: HubId) => void }) {
+  const { t } = useLang();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const locate = () => {
+    if (!("geolocation" in navigator)) { setErr(t("লোকেশন সাপোর্ট নেই", "Location not supported")); return; }
+    setBusy(true); setErr(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setBusy(false); onLocate(nearestHub(pos.coords.latitude, pos.coords.longitude)); },
+      () => { setBusy(false); setErr(t("লোকেশন পাওয়া যায়নি", "Could not get location")); },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  };
+  return (
+    <div className="flex items-center gap-2">
+      {err && <span className="text-[11px] font-semibold text-warn">{err}</span>}
+      <button type="button" onClick={locate} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-bold text-brand-dark transition-colors hover:border-brand disabled:opacity-60">
+        <LocateFixed className={`h-3.5 w-3.5 ${busy ? "animate-pulse" : ""}`} />
+        {t("আমার অবস্থান", "My location")}
+      </button>
+    </div>
+  );
+}
 
 export function PlannerCard() {
   const { lang, t, n } = useLang();
@@ -152,8 +187,13 @@ export function PlannerCard() {
         </div>
       )}
 
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">{t("শুরু ও গন্তব্য", "Start & destination")}</span>
+        <LocateButton onLocate={(hub) => store.planDirect(hub, activeQuery.dest_hub_id)} />
+      </div>
+
       {/* Always-reliable origin/destination selectors (no parsing involved) */}
-      <div className="mt-4 rounded-2xl border border-line bg-brand-mint p-3">
+      <div className="mt-2 rounded-2xl border border-line bg-brand-mint p-3">
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-bold text-ink-soft">{t("শুরু", "From")}</span>
