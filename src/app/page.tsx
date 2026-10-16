@@ -12,13 +12,13 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { animate, useReducedMotion } from "framer-motion";
+import { Lang, useLang } from "@/lib/i18n";
 import {
   Menu, X, ArrowRight, GraduationCap, ShieldCheck, WifiOff, Users,
   Route, Zap, Gauge, CheckCircle2, Languages,
   Clock, Wallet, ChevronRight, Sparkles,
 } from "lucide-react";
 
-type Lang = "bn" | "en";
 
 // Western → Bangla digit localisation for dynamic numbers.
 const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
@@ -170,13 +170,13 @@ const T = {
 };
 
 const FOOTER_COLS = [
-  { h: { bn: "প্ল্যাটফর্ম", en: "Platform" }, items: { bn: ["মাল্টি-লেগ রুট", "স্টুডেন্ট ফেয়ার", "মেট্রো MRT-6", "রাইড-শেয়ার পুল"], en: ["Multi-leg routing", "Student fares", "MRT-6 metro", "Ride-share pool"] } },
-  { h: { bn: "ট্রাস্ট", en: "Trust" }, items: { bn: ["ক্রাউড অ্যালার্ট", "বেইজিয়ান ডিকে", "স্যানিটি গেট", "সাবগ্রাফ গ্রাউন্ডিং"], en: ["Crowd alerts", "Bayesian decay", "Sanity gate", "Subgraph grounding"] } },
-  { h: { bn: "ট্র্যাক", en: "Tracks" }, items: { bn: ["Pareto ইঞ্জিন", "ট্রাস্ট CMS", "বাংলিশ কমিউট", "ম্যাপ শেল"], en: ["Pareto engine", "Trust CMS", "Banglish commute", "Map shell"] } },
+  { h: { bn: "প্ল্যাটফর্ম", en: "Platform" }, hrefs: ["/app#plan", "/app#plan", "/app#network", "/app#plan"], items: { bn: ["মাল্টি-লেগ রুট", "স্টুডেন্ট ফেয়ার", "মেট্রো MRT-6", "রাইড-শেয়ার পুল"], en: ["Multi-leg routing", "Student fares", "MRT-6 metro", "Ride-share pool"] } },
+  { h: { bn: "ট্রাস্ট", en: "Trust" }, hrefs: ["/app#alerts", "/app#alerts", "/app#alerts", "/app#network"], items: { bn: ["ক্রাউড অ্যালার্ট", "বেইজিয়ান ডিকে", "ভাড়া যাচাই", "রুট গ্রাউন্ডিং"], en: ["Crowd alerts", "Bayesian decay", "Fare sanity check", "Route grounding"] } },
+  { h: { bn: "অ্যাপ", en: "App" }, hrefs: ["/app#plan", "/app#alerts", "/app#network", "/app#plan"], items: { bn: ["ট্রিপ প্ল্যান", "লাইভ অ্যালার্ট", "ট্রানজিট নেটওয়ার্ক", "অফলাইন কার্ড"], en: ["Plan a trip", "Live alerts", "Transit network", "Offline card"] } },
 ];
 
 export default function LandingPage() {
-  const [lang, setLang] = useState<Lang>("bn");
+  const { lang, toggleLang } = useLang();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const bn = lang === "bn";
@@ -189,10 +189,10 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div lang={lang} className={`relative z-10 w-full bg-[#F6FBF4] text-[#0E2A1A] ${bn ? "font-bangla" : "font-sans"}`}>
+    <div lang={lang} className={`relative z-10 w-full overflow-x-clip bg-[#F6FBF4] text-[#0E2A1A] ${bn ? "font-bangla" : "font-sans"}`}>
       {/* ===================== HEADER ===================== */}
       <header
-        className={`sticky top-0 z-50 w-full border-b transition-all ${
+        className={`sticky top-8 z-50 w-full border-b transition-all ${
           scrolled ? "border-[#DCEDE2] bg-white/90 shadow-[0_6px_24px_-16px_rgba(16,42,26,0.4)] backdrop-blur-md" : "border-transparent bg-white/70 backdrop-blur-sm"
         }`}
       >
@@ -216,13 +216,13 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setLang(bn ? "en" : "bn")}
+              onClick={toggleLang}
               className="inline-flex items-center gap-1.5 rounded-full border border-[#DCEDE2] px-3 py-2 text-[13px] font-semibold text-[#4C6356] transition-colors hover:border-[#1BA94B] hover:text-[#15863B]"
               aria-label="Toggle language"
             >
               <Languages className="h-3.5 w-3.5" /> {T.langLabel[lang]}
             </button>
-            <Link href="/command-center" className="inline-flex items-center gap-1.5 rounded-full bg-[#1BA94B] px-4 py-2.5 text-[14px] font-bold text-white shadow-[0_10px_26px_-10px_rgba(27,169,75,0.8)] transition-all hover:bg-[#15863B] active:scale-95">
+            <Link href="/app" className="inline-flex items-center gap-1.5 rounded-full bg-[#1BA94B] px-4 py-2.5 text-[14px] font-bold text-white shadow-[0_10px_26px_-10px_rgba(27,169,75,0.8)] transition-all hover:bg-[#15863B] active:scale-95">
               {T.headerCta[lang]}
               <ArrowRight className="h-4 w-4" />
             </Link>
@@ -261,7 +261,7 @@ export default function LandingPage() {
             </h1>
             <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-[#4C6356]">{T.heroP[lang]}</p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link href="/command-center" className="group inline-flex items-center gap-2 rounded-full bg-[#1BA94B] px-6 py-3.5 text-[16px] font-bold text-white shadow-[0_16px_36px_-12px_rgba(27,169,75,0.85)] transition-all hover:bg-[#15863B] active:scale-95">
+              <Link href="/app" className="group inline-flex items-center gap-2 rounded-full bg-[#1BA94B] px-6 py-3.5 text-[16px] font-bold text-white shadow-[0_16px_36px_-12px_rgba(27,169,75,0.85)] transition-all hover:bg-[#15863B] active:scale-95">
                 {T.heroCta1[lang]}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Link>
@@ -339,7 +339,7 @@ export default function LandingPage() {
             <span className="text-[13px] font-bold uppercase tracking-wider text-[#1BA94B]">{T.trustEyebrow[lang]}</span>
             <h2 className="mt-2 text-[32px] font-extrabold leading-tight tracking-tight text-[#0E2A1A] sm:text-[40px]">{T.trustTitle[lang]}</h2>
             <p className="mt-4 text-[16px] leading-relaxed text-[#4C6356]">{T.trustP[lang]}</p>
-            <Link href="/command-center" className="mt-6 inline-flex items-center gap-2 text-[15px] font-bold text-[#15863B] hover:gap-3">
+            <Link href="/app#alerts" className="mt-6 inline-flex items-center gap-2 text-[15px] font-bold text-[#15863B] hover:gap-3">
               {T.trustLink[lang]} <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -356,7 +356,7 @@ export default function LandingPage() {
               </span>
               <h2 className="mt-4 text-[30px] font-extrabold leading-tight tracking-tight text-[#0E2A1A] sm:text-[38px]">{T.poolTitle[lang]}</h2>
               <p className="mt-4 text-[16px] leading-relaxed text-[#4C6356]">{T.poolP[lang]}</p>
-              <Link href="/command-center" className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#1BA94B] px-6 py-3 text-[15px] font-bold text-white shadow-[0_14px_32px_-12px_rgba(27,169,75,0.8)] transition-all hover:bg-[#15863B] active:scale-95">
+              <Link href="/app#plan" className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#1BA94B] px-6 py-3 text-[15px] font-bold text-white shadow-[0_14px_32px_-12px_rgba(27,169,75,0.8)] transition-all hover:bg-[#15863B] active:scale-95">
                 {T.poolCta[lang]} <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -377,10 +377,10 @@ export default function LandingPage() {
               <p className="mt-3 max-w-xl text-[16px] leading-relaxed text-[#B7D7C3]">{T.dlP[lang]}</p>
             </div>
             <div className="flex flex-wrap gap-3 lg:justify-end">
-              <Link href="/command-center" className="inline-flex items-center gap-2 rounded-full bg-[#1BA94B] px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:bg-[#22C55E] active:scale-95">
+              <Link href="/app" className="inline-flex items-center gap-2 rounded-full bg-[#1BA94B] px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:bg-[#22C55E] active:scale-95">
                 {T.dlCta1[lang]} <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/track-4-map-shell" className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-white/25 px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:border-white/60 active:scale-95">
+              <Link href="/app#plan" className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-white/25 px-6 py-3.5 text-[15px] font-bold text-white transition-all hover:border-white/60 active:scale-95">
                 {T.dlCta2[lang]}
               </Link>
             </div>
@@ -413,9 +413,9 @@ export default function LandingPage() {
               <div key={col.h.en}>
                 <h3 className="text-[14px] font-bold uppercase tracking-wide text-white">{col.h[lang]}</h3>
                 <ul className="mt-4 space-y-2.5">
-                  {col.items[lang].map((it) => (
+                  {col.items[lang].map((it, idx) => (
                     <li key={it}>
-                      <Link href="/command-center" className="text-[14px] text-[#8FB8A0] transition-colors hover:text-white">{it}</Link>
+                      <Link href={col.hrefs[idx]} className="text-[14px] text-[#8FB8A0] transition-colors hover:text-white">{it}</Link>
                     </li>
                   ))}
                 </ul>
