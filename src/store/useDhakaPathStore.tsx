@@ -130,6 +130,7 @@ interface DhakaPathStoreState {
   roi: CounterfactualRoiMetrics;
   // alerts + trust
   alerts: ReadonlyArray<StreetAlert>;
+  activeAlerts: ReadonlyArray<StreetAlert>;
   disruptedHubIds: ReadonlyArray<HubId>;
   interceptionLogs: ReadonlyArray<AuditInterceptionEvent>;
   // ride-share
@@ -150,8 +151,10 @@ interface DhakaPathStoreState {
   setOptions: (options: SearchOptions) => void;
   selectRoute: (routeId: string) => void;
   voteAlert: (alertId: string, direction: 1 | -1) => ActionResult;
+  corroborateAlert: (alertId: string, direction: 1 | -1) => ActionResult;
   overrideAlert: (alertId: string) => void;
   reportIncident: (hub: HubId, incident: IncidentType, severity: 1 | 2 | 3, guestWeight?: number) => ActionResult;
+  addStreetAlert: (alert: StreetAlert) => void;
   checkFare: (edgeId: string, fareBdt: number) => FareValidationResult;
   joinPool: (edgeId: string) => void;
   joinRideSharePool: (edgeId: string) => Promise<void> | void;
@@ -679,6 +682,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     [activeQuery.raw_query_text, options, search]
   );
 
+
   const addInterceptionLog = useCallback(
     (event: Omit<AuditInterceptionEvent, "event_id" | "timestamp_ms"> | AuditInterceptionEvent) => {
       if ("event_id" in event && "timestamp_ms" in event) {
@@ -783,6 +787,21 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       return { ok: true, message: "created" };
     },
     [crowdAlerts, overridden, simNow, prior, voteAlert, addLog]
+  );
+
+  const corroborateAlert = useCallback(
+    (alertId: string, direction: 1 | -1) => {
+      return voteAlert(alertId, direction);
+    },
+    [voteAlert]
+  );
+
+  const addStreetAlert = useCallback(
+    (alert: StreetAlert) => {
+      const severity = alert.severity_alpha >= 2.0 ? 3 : alert.severity_alpha >= 1.4 ? 2 : 1;
+      reportIncident(alert.hub_id, alert.incident_type, severity, 0.4);
+    },
+    [reportIncident]
   );
 
   const checkFare = useCallback(
@@ -1045,6 +1064,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       shadowHubPath,
       roi,
       alerts,
+      activeAlerts: alerts,
       disruptedHubIds,
       interceptionLogs: logs,
       poolBoard,
@@ -1058,6 +1078,8 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       planDirect,
       dismissNotice: () => setSearchNotice(null),
       submitCommuterSearch,
+      corroborateAlert,
+      addStreetAlert,
       updateCommuterQuery,
       setOptions: setOptionsState,
       selectRoute,
@@ -1080,8 +1102,8 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       activePreset, simOffsetMs, simNow, scenarioLocked, scenario, engineLatencyMs, lastActionId, activeQuery, lastParse,
       isParsing, options, interception, searchNotice, routing, selectedRoute, shadowHubPath, roi, alerts, disruptedHubIds, logs,
       poolBoard, extraEdges, ocrResult, ocrBusy, setScenarioPreset, setSimOffsetMs, resetAll, search, planDirect, submitCommuterSearch,
-      updateCommuterQuery, selectRoute, voteAlert, overrideAlert, reportIncident, checkFare, joinPool, joinRideSharePool,
-      leavePool, scanSignboard, commitOcrEdges, discardOcrEdges, addLink, removeLink, addLog, addInterceptionLog,
+      corroborateAlert, addStreetAlert, updateCommuterQuery, selectRoute, voteAlert, overrideAlert, reportIncident, checkFare,
+      joinPool, joinRideSharePool, leavePool, scanSignboard, commitOcrEdges, discardOcrEdges, addLink, removeLink, addLog, addInterceptionLog,
     ]
   );
 

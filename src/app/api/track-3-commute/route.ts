@@ -16,7 +16,16 @@ import {
 import {
   digitizeSignboardImage,
 } from "../../../features/feature-1-commute/signboardVision";
-import { ParetoRouteOption } from "../../../contracts/schema";
+import {
+  processConversationTurn,
+  ConversationContext,
+} from "../../../features/feature-1-commute/conversationEngine";
+import {
+  ParetoRouteOption,
+  HubId,
+  ScenarioPreset,
+  StreetAlert,
+} from "../../../contracts/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +151,32 @@ Return ONLY valid JSON with keys:
     }
 
     // --------------------------------------------------------------------------
-    // ACTION 4: SIGNBOARD PHOTO -> TEXT (Gemini free-tier vision). The client then
+    // ACTION 4: CONVERSATIONAL CHAT TURN ("Ask DhakaPath")
+    // --------------------------------------------------------------------------
+    if (action === "chat_turn") {
+      const rawQuery = String(body.query || "");
+      const context: ConversationContext = body.context || {
+        last_origin_hub_id: HubId.H_MIRPUR10,
+        last_dest_hub_id: HubId.H_MOTIJHEEL,
+        last_budget_bdt: 55,
+        is_student: true,
+        avoid_hub_ids: [],
+        selected_route: null,
+      };
+      const preset: ScenarioPreset = body.preset || ScenarioPreset.NORMAL_BASELINE;
+      const activeAlerts: StreetAlert[] = body.activeAlerts || [];
+
+      // Run deterministic conversation engine turn
+      const turnResult = processConversationTurn(rawQuery, context, preset, activeAlerts);
+
+      return NextResponse.json({
+        ...turnResult,
+        latency_ms: Number((performance.now() - startTime).toFixed(2)),
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // ACTION 5: SIGNBOARD PHOTO -> TEXT (Gemini free-tier vision). The client then
     // runs the deterministic digitizer on the transcript, so grounding still applies.
     // --------------------------------------------------------------------------
     if (action === "ocr_image") {
