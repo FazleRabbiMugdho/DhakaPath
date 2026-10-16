@@ -173,6 +173,51 @@ Return ONLY valid JSON with keys:
       });
     }
 
+    // --------------------------------------------------------------------------
+    // ACTION 5: SIGNBOARD PHOTO -> TEXT (Gemini free-tier vision). The client then
+    // runs the deterministic digitizer on the transcript, so grounding still applies.
+    // --------------------------------------------------------------------------
+    if (action === "ocr_image") {
+      const geminiKey = process.env.GEMINI_API_KEY;
+      const dataUrl = String(body.base64Image || "");
+      const match = dataUrl.match(/^data:(image\/[a-z+.-]+);base64,(.+)$/i);
+      if (!geminiKey || !match) return NextResponse.json({ ok: false, reason: "vision unavailable" });
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text:
+                        "This is a Dhaka bus signboard, printed fare chart or handwritten route note. " +
+                        "Transcribe every route as one line in the exact form: <Origin> -> <Destination> : <fare> BDT. " +
+                        "Add the word metro if it is a metro rail fare. Output only those lines, no commentary.",
+                    },
+                    { inline_data: { mime_type: match[1], data: match[2] } },
+                  ],
+                },
+              ],
+            }),
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeoutId);
+        if (!res.ok) return NextResponse.json({ ok: false, reason: "vision error" });
+        const data = await res.json();
+        const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        return NextResponse.json({ ok: text.trim().length > 0, rawOcrText: text.trim() });
+      } catch {
+        return NextResponse.json({ ok: false, reason: "vision timeout" });
+      }
+    }
+
     return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

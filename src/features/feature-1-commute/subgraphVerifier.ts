@@ -12,6 +12,8 @@ import {
   ValidationStatus,
 } from "../../contracts/schema";
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../../contracts/canonicalGraph";
+import { computeLegCost, computeMrt6FareBdt } from "../../engine/fareEngine";
+import { getExtraEdges } from "../../engine/graphExtensions";
 
 export interface SubgraphVerificationResult {
   isValid: boolean;
@@ -60,14 +62,21 @@ export function verifyCandidateEdge(edge: Partial<TransitEdge>): {
     return { isValid: false, reason: `Unsupported transport mode: ${edge.mode}` };
   }
 
-  // Match against canonical edge ID if present
-  if (edge.edge_id && CANONICAL_EDGE_MAP.has(edge.edge_id)) {
-    return { isValid: true, groundedEdge: CANONICAL_EDGE_MAP.get(edge.edge_id) };
+  // Match against canonical (or committed extension) edge ID if present
+  const extras = getExtraEdges();
+  const idMatch = edge.edge_id
+    ? CANONICAL_EDGE_MAP.get(edge.edge_id) ?? extras.find((e) => e.edge_id === edge.edge_id)
+    : undefined;
+  if (idMatch) {
+    return { isValid: true, groundedEdge: idMatch };
   }
 
-  // Match against origin-destination hub pairs in G_0
+  // Match against origin-destination hub pairs in G_0 + committed extensions
   const pairKey = `${edge.origin_hub_id}->${edge.dest_hub_id}`;
-  const matchingEdges = CANONICAL_PAIR_MAP.get(pairKey);
+  const matchingEdges = [
+    ...(CANONICAL_PAIR_MAP.get(pairKey) ?? []),
+    ...extras.filter((e) => `${e.origin_hub_id}->${e.dest_hub_id}` === pairKey),
+  ];
 
   if (matchingEdges && matchingEdges.length > 0) {
     const modeMatch = matchingEdges.find((e) => e.mode === edge.mode);
@@ -156,36 +165,30 @@ export function verifySubgraphTrajectory(
 
     const canonicalEdge = edgeVerification.groundedEdge;
 
-    // Check 3: Statutory Fare Grounding Law
-    // Metro MRT-6: Statutory rule: NO student discount on Dhaka Metro
-    if (leg.mode === TransportMode.METRO) {
-      if (canonicalEdge && leg.effective_fare_bdt < canonicalEdge.base_fare_bdt) {
+    // Check 3: Statutory Fare Grounding Law — |C_hat_j - C_fare(e_j, u_stu, t)| < 1e-6.
+    // The fare is recomputed independently from the fare engine, never trusted from the leg.
+    if (canonicalEdge) {
+      let expectedFare: number;
+      if (leg.mode === TransportMode.METRO) {
+        // MRT-6 is a station-to-station ticket with zero student discount: continuation
+        // legs only pay the incremental fare from the boarding station.
+        let boardIdx = i;
+        while (boardIdx > 0 && route.legs[boardIdx - 1].mode === TransportMode.METRO) boardIdx--;
+        const board = route.legs[boardIdx].origin_hub_id;
+        try {
+          expectedFare = computeMrt6FareBdt(board, leg.dest_hub_id) - computeMrt6FareBdt(board, leg.origin_hub_id);
+        } catch {
+          expectedFare = Number.NaN; // no official MRT-6 fare for this station pair: ungrounded
+        }
+      } else {
+        expectedFare = computeLegCost(canonicalEdge, isStudent, leg.surge_multiplier, leg.pool_size_count);
+      }
+      if (!(Math.abs(leg.effective_fare_bdt - expectedFare) < 1e-6)) {
         faresGrounded = false;
-        violationReason = `Leg ${i + 1}: Metro MRT-6 illegal fare (${leg.effective_fare_bdt} BDT). Dhaka Metro grants 0% student pass. Statutory fare: ${canonicalEdge.base_fare_bdt} BDT`;
+        violationReason = `Leg ${i + 1}: ${leg.mode} fare ${leg.effective_fare_bdt} BDT does not match statutory fare ${expectedFare} BDT`;
         failedIndex = i;
         break;
       }
-    }
-
-    // Bus: Student half-fare floor of 10 BDT
-    if (leg.mode === TransportMode.BUS && isStudent) {
-      if (canonicalEdge?.student_half_fare_eligible) {
-        const statutoryStudentFloor = Math.max(10, Math.ceil(canonicalEdge.base_fare_bdt / 2));
-        if (leg.effective_fare_bdt < statutoryStudentFloor) {
-          faresGrounded = false;
-          violationReason = `Leg ${i + 1}: Bus fare (${leg.effective_fare_bdt} BDT) violates statutory 10 BDT minimum floor (Expected: ${statutoryStudentFloor} BDT)`;
-          failedIndex = i;
-          break;
-        }
-      }
-    }
-
-    // Anomalous Fare Cap: Fare cannot exceed 3x base fare (anti-scalping / anti-hallucination)
-    if (canonicalEdge && leg.regular_fare_bdt > canonicalEdge.base_fare_bdt * 3.5) {
-      faresGrounded = false;
-      violationReason = `Leg ${i + 1}: Anomalous fare ${leg.regular_fare_bdt} BDT exceeds 3.5x statutory cap (${canonicalEdge.base_fare_bdt} BDT)`;
-      failedIndex = i;
-      break;
     }
 
     // Check 4: Path Continuity (leg[i].dest === leg[i+1].origin)

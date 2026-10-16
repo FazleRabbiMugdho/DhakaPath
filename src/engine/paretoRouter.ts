@@ -13,6 +13,7 @@ import {
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../contracts/canonicalGraph";
 import { computeEffectiveDurationMs, computeLegCost, computeMrt6FareBdt, computeRegularFareBdt } from "./fareEngine";
 import { EPSILON } from "../lib/utils";
+import { getExtraEdges, getGraphVersion } from "./graphExtensions";
 
 interface ParetoLabel {
   readonly current_hub: HubId;
@@ -74,18 +75,28 @@ class MinHeap {
   }
 }
 
-const adjacency = new Map<HubId, TransitEdge[]>();
-const connectorHubs = new Set<HubId>();
-for (const edge of CANONICAL_GRAPH_G0) {
-  const outgoing = adjacency.get(edge.origin_hub_id) ?? [];
-  outgoing.push(edge);
-  adjacency.set(edge.origin_hub_id, outgoing);
-  if (edge.mode === TransportMode.WALK && edge.origin_hub_id === edge.dest_hub_id) {
-    connectorHubs.add(edge.origin_hub_id);
-  }
-}
-
+let adjacency = new Map<HubId, TransitEdge[]>();
+let connectorHubs = new Set<HubId>();
+let builtGraphVersion = -1;
 const routeCache = new Map<string, ParetoSearchResult>();
+
+// G_0 plus any committed extension edges; rebuilt only when the extension set changes.
+function syncAdjacency(): void {
+  const version = getGraphVersion();
+  if (version === builtGraphVersion) return;
+  adjacency = new Map();
+  connectorHubs = new Set();
+  for (const edge of [...CANONICAL_GRAPH_G0, ...getExtraEdges()]) {
+    const outgoing = adjacency.get(edge.origin_hub_id) ?? [];
+    outgoing.push(edge);
+    adjacency.set(edge.origin_hub_id, outgoing);
+    if (edge.mode === TransportMode.WALK && edge.origin_hub_id === edge.dest_hub_id) {
+      connectorHubs.add(edge.origin_hub_id);
+    }
+  }
+  routeCache.clear();
+  builtGraphVersion = version;
+}
 
 export function computeGeneralizedCost(durationMs: number, fareBdt: number, transfersCount: number): number {
   return 0.45 * durationMs / (180 * 60000 + EPSILON)
@@ -128,6 +139,7 @@ export function executeParetoSearch(
   poolSizes: Readonly<Record<string, number>> = {}
 ): ParetoSearchResult {
   const startTime = performance.now();
+  syncAdjacency();
   const cacheKey = JSON.stringify([
     query.origin_hub_id, query.dest_hub_id, query.is_student, query.max_budget_bdt,
     [...query.avoid_hub_ids].sort(), preset,
