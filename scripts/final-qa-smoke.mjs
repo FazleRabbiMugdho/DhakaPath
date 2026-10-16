@@ -120,6 +120,71 @@ try {
     }
   });
 
+  await check("Track 3 Conversational Commute Assistant (5-Turn Contextual Grounding)", async () => {
+    let context = {
+      last_origin_hub_id: "H_MIRPUR10",
+      last_dest_hub_id: "H_MOTIJHEEL",
+      last_budget_bdt: 55,
+      is_student: true,
+      avoid_hub_ids: [],
+      selected_route: null,
+    };
+    const activeAlerts = [];
+
+    // Turn 1: Initial trip
+    const turn1 = await post("/api/track-3-commute", {
+      action: "chat_turn", query: "Mirpur 10 theke Motijheel jabo, student id ache, 55 BDT", context, activeAlerts,
+    });
+    assert.equal(turn1.intent, "ROUTE_SEARCH");
+    assert.equal(turn1.updatedContext.last_origin_hub_id, "H_MIRPUR10");
+    assert.equal(turn1.updatedContext.last_dest_hub_id, "H_MOTIJHEEL");
+    assert.equal(turn1.updatedContext.is_student, true);
+    assert.ok(turn1.replyText.includes(`${turn1.updatedContext.selected_route.total_effective_fare_bdt} BDT`));
+    assert.ok(turn1.replyText.includes("10 BDT floor"));
+    context = turn1.updatedContext;
+
+    // Turn 2: Detour (Context Reuse)
+    const turn2 = await post("/api/track-3-commute", {
+      action: "chat_turn", query: "What if Farmgate floods? avoid Farmgate", context, activeAlerts,
+    });
+    assert.equal(turn2.intent, "ALTERNATIVE_ROUTE");
+    assert.equal(turn2.updatedContext.last_origin_hub_id, "H_MIRPUR10");
+    assert.ok(turn2.updatedContext.avoid_hub_ids.includes("H_FARMGATE"));
+    assert.ok(turn2.replyText.includes("bypass Farmgate") || turn2.replyText.includes("Farmgate"));
+    context = turn2.updatedContext;
+
+    // Turn 3: Fare Audit
+    const turn3 = await post("/api/track-3-commute", {
+      action: "chat_turn", query: "Why that fare?", context, activeAlerts,
+    });
+    assert.equal(turn3.intent, "FARE_QUESTION");
+    assert.ok(turn3.replyText.includes("MRT-6") || turn3.replyText.includes("Metro"));
+    assert.ok(turn3.replyText.includes("10 BDT floor"));
+    assert.ok(turn3.replyText.includes("GRAPH_GROUNDED"));
+
+    // Turn 4: Incident Report
+    const turn4 = await post("/api/track-3-commute", {
+      action: "chat_turn", query: "Shahbagh e pani uthse", context, activeAlerts,
+    });
+    assert.equal(turn4.intent, "REPORT_INCIDENT");
+    assert.ok(turn4.newAlertToSubmit);
+    assert.equal(turn4.newAlertToSubmit.hub_id, "H_SHAHBAGH");
+    assert.equal(turn4.newAlertToSubmit.status, "PENDING_CORROBORATION");
+    assert.equal(turn4.newAlertToSubmit.confidence_pct, 24.3);
+    assert.ok(turn4.replyText.includes("Sanity Gate"));
+    activeAlerts.push(turn4.newAlertToSubmit);
+    context = turn4.updatedContext;
+
+    // Turn 5: Trust Audit
+    const turn5 = await post("/api/track-3-commute", {
+      action: "chat_turn", query: "Can I trust that report?", context, activeAlerts,
+    });
+    assert.equal(turn5.intent, "ALERT_QUESTION");
+    assert.ok(turn5.replyText.includes("24.3%"));
+    assert.ok(turn5.replyText.includes("30-Min Exponential Decay"));
+    assert.ok(turn5.replyText.includes("Passable with Delay"));
+  });
+
   await check("Track 4 telemetry uses the current city-bus fare basis", async () => {
     const data = await (await get("/api/track-4-map-shell")).json();
     assert.equal(data.engine.vertices_expanded, 75);

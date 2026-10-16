@@ -40,8 +40,9 @@ interface DhakaPathStoreState {
   setSimOffsetMs: (offsetMs: number) => void;
   updateCommuterQuery: (updates: Partial<CommuterQuery>) => void;
   selectRoute: (routeId: string) => void;
-  submitCommuterSearch: (rawQuery?: string) => Promise<void>;
+  submitCommuterSearch: (rawQueryOrOverride?: string | Partial<CommuterQuery>) => Promise<ReadonlyArray<ParetoRouteOption>>;
   corroborateAlert: (alertId: string, direction: 1 | -1) => void;
+  addStreetAlert: (alert: StreetAlert) => void;
   joinRideSharePool: (edgeId: string) => Promise<void>;
   addInterceptionLog: (event: Omit<AuditInterceptionEvent, "event_id" | "timestamp_ms">) => void;
   resetToCanonicalG0: () => void;
@@ -156,10 +157,20 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const submitCommuterSearch = useCallback(
-    async (rawQuery?: string) => {
+    async (rawQueryOrOverride?: string | Partial<CommuterQuery>): Promise<ReadonlyArray<ParetoRouteOption>> => {
+      const overrides: Partial<CommuterQuery> =
+        typeof rawQueryOrOverride === "object" && rawQueryOrOverride !== null
+          ? rawQueryOrOverride
+          : {};
+      const rawText: string =
+        typeof rawQueryOrOverride === "string"
+          ? rawQueryOrOverride
+          : overrides.raw_query_text || activeQuery.raw_query_text;
+
       const q: CommuterQuery = {
         ...activeQuery,
-        raw_query_text: rawQuery || activeQuery.raw_query_text,
+        ...overrides,
+        raw_query_text: rawText,
         action_id: `SEARCH_${Date.now()}`,
         timestamp_ms: Date.now(),
       };
@@ -173,9 +184,17 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       }
       const endTime = performance.now();
       setEngineRecomputeLatencyMs(Math.max(0.3, Number((endTime - startTime).toFixed(2))));
+      return routes;
     },
     [activeQuery, activePreset]
   );
+
+  const addStreetAlert = useCallback((alert: StreetAlert) => {
+    setActiveAlerts((prev) => {
+      const filtered = prev.filter((a) => a.alert_id !== alert.alert_id);
+      return [alert, ...filtered];
+    });
+  }, []);
 
   const corroborateAlert = useCallback((alertId: string, direction: 1 | -1) => {
     setActiveAlerts((prev) =>
@@ -273,6 +292,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       selectRoute,
       submitCommuterSearch,
       corroborateAlert,
+      addStreetAlert,
       joinRideSharePool,
       addInterceptionLog,
       resetToCanonicalG0,
@@ -296,6 +316,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       selectRoute,
       submitCommuterSearch,
       corroborateAlert,
+      addStreetAlert,
       joinRideSharePool,
       addInterceptionLog,
       resetToCanonicalG0,
