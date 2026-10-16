@@ -54,6 +54,25 @@ function slicePolyline(line: LL[], a: LL, b: LL): LL[] {
   return [a, ...seg, b];
 }
 
+// A gently bowed polyline so surface legs read as a route, not a ruler-straight diagonal.
+function curve(a: LL, b: LL, bow = 0.14): LL[] {
+  const mx = (a[0] + b[0]) / 2;
+  const my = (a[1] + b[1]) / 2;
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  // control point offset perpendicular to the chord
+  const cx = mx - dy * bow;
+  const cy = my + dx * bow;
+  const pts: LL[] = [];
+  for (let s = 0; s <= 16; s++) {
+    const tt = s / 16;
+    const x = (1 - tt) ** 2 * a[0] + 2 * (1 - tt) * tt * cx + tt ** 2 * b[0];
+    const y = (1 - tt) ** 2 * a[1] + 2 * (1 - tt) * tt * cy + tt ** 2 * b[1];
+    pts.push([x, y]);
+  }
+  return pts;
+}
+
 function pin(letter: string, color: string): L.DivIcon {
   return L.divIcon({
     className: "",
@@ -89,9 +108,10 @@ export default function AppMap({
       .map((leg) => {
         const a: LL = [CANONICAL_HUBS[leg.origin_hub_id].lat, CANONICAL_HUBS[leg.origin_hub_id].lng];
         const b: LL = [CANONICAL_HUBS[leg.dest_hub_id].lat, CANONICAL_HUBS[leg.dest_hub_id].lng];
-        // Metro legs follow the actual MRT-6 alignment; other modes use a direct link.
-        const pts = leg.mode === TransportMode.METRO ? slicePolyline(METRO_MRT6.fullPolyline as LL[], a, b) : [a, b];
-        return { leg, pts, km: polylineKm(pts) };
+        // Metro legs follow the actual MRT-6 alignment; surface modes use a bowed link
+        // so they never render as a dead-straight diagonal across the city.
+        const pts = leg.mode === TransportMode.METRO ? slicePolyline(METRO_MRT6.fullPolyline as LL[], a, b) : curve(a, b);
+        return { leg, pts, km: polylineKm([a, b]) };
       });
   }, [selectedRoute]);
 
@@ -107,6 +127,14 @@ export default function AppMap({
   const dest = CANONICAL_HUBS[activeQuery.dest_hub_id];
   const originIcon = useMemo(() => pin("A", "#1BA94B"), []);
   const destIcon = useMemo(() => pin("B", "#0E2A1A"), []);
+
+  // Numbered boarding pins at every hub the route touches (origin + transfers + dest).
+  const routeStops = useMemo(() => {
+    if (!selectedRoute) return [] as HubId[];
+    const ids: HubId[] = [selectedRoute.legs[0]?.origin_hub_id].filter(Boolean) as HubId[];
+    for (const leg of selectedRoute.legs) if (leg.dest_hub_id !== ids[ids.length - 1]) ids.push(leg.dest_hub_id);
+    return ids;
+  }, [selectedRoute]);
 
   return (
     <MapContainer center={CENTER} zoom={12} minZoom={10} maxZoom={18} scrollWheelZoom zoomControl={false} className="h-full w-full">
@@ -197,10 +225,24 @@ export default function AppMap({
         );
       })}
 
+      {/* numbered boarding pins for every transfer hub between A and B */}
+      {routeStops.slice(1, -1).map((h, i) => {
+        const hub = CANONICAL_HUBS[h];
+        return (
+          <Marker key={`stop-${h}`} position={[hub.lat, hub.lng]} icon={pin(String(i + 1), "#15863B")} zIndexOffset={900}>
+            <Tooltip direction="top" offset={[0, -28]}>{hubName(h, lang)}</Tooltip>
+          </Marker>
+        );
+      })}
+
       {fitPoints.length > 1 && (
         <>
-          <Marker position={[origin.lat, origin.lng]} icon={originIcon} zIndexOffset={1000} />
-          <Marker position={[dest.lat, dest.lng]} icon={destIcon} zIndexOffset={1000} />
+          <Marker position={[origin.lat, origin.lng]} icon={originIcon} zIndexOffset={1000}>
+            <Tooltip direction="top" offset={[0, -28]}>{hubName(activeQuery.origin_hub_id, lang)}</Tooltip>
+          </Marker>
+          <Marker position={[dest.lat, dest.lng]} icon={destIcon} zIndexOffset={1000}>
+            <Tooltip direction="top" offset={[0, -28]}>{hubName(activeQuery.dest_hub_id, lang)}</Tooltip>
+          </Marker>
         </>
       )}
     </MapContainer>

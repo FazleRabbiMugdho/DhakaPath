@@ -142,10 +142,13 @@ function SignboardScanner() {
   const [drag, setDrag] = useState(false);
   const [committed, setCommitted] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const camRef = useRef<HTMLInputElement>(null);
 
+  const [preview, setPreview] = useState<string | null>(null);
   const scanFile = (f: File | undefined) => {
     if (f && f.type.startsWith("image/")) {
       setCommitted(null);
+      setPreview(URL.createObjectURL(f));
       void scanSignboard({ file: f });
     }
   };
@@ -162,10 +165,18 @@ function SignboardScanner() {
       >
         <FileImage className="h-8 w-8 text-brand" />
         <p className="mt-2 text-[14px] font-bold text-ink">{t("ছবি এখানে ছেড়ে দিন", "Drop a photo here")}</p>
-        <Btn size="sm" variant="outline" className="mt-3" busy={ocrBusy} icon={<Camera className="h-4 w-4" />} onClick={() => fileRef.current?.click()}>
-          {t("ছবি বা ক্যামেরা", "Choose photo / camera")}
-        </Btn>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="sr-only" aria-label={t("সাইনবোর্ডের ছবি", "Signboard photo")} onChange={(e) => { scanFile(e.target.files?.[0]); e.target.value = ""; }} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {preview && <img src={preview} alt={t("তোলা ছবি", "Captured photo")} className="mt-3 h-24 w-full rounded-xl border border-line object-cover" />}
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          <Btn size="sm" variant="outline" busy={ocrBusy} icon={<Camera className="h-4 w-4" />} onClick={() => fileRef.current?.click()}>
+            {t("ছবি বাছুন", "Choose photo")}
+          </Btn>
+          <Btn size="sm" variant="outline" busy={ocrBusy} icon={<Camera className="h-4 w-4" />} onClick={() => camRef.current?.click()}>
+            {t("ক্যামেরা", "Camera")}
+          </Btn>
+        </div>
+        <input ref={camRef} type="file" accept="image/*" capture="environment" className="sr-only" aria-label={t("ক্যামেরা", "Camera")} onChange={(e) => { scanFile(e.target.files?.[0]); e.target.value = ""; }} />
+        <input ref={fileRef} type="file" accept="image/*" className="sr-only" aria-label={t("সাইনবোর্ডের ছবি", "Signboard photo")} onChange={(e) => { scanFile(e.target.files?.[0]); e.target.value = ""; }} />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -296,7 +307,7 @@ function AddLinkForm() {
 }
 
 // ---------------------------------------------------------------------------
-export function NetworkTab() {
+export function NetworkTab({ admin = false }: { admin?: boolean }) {
   const { t, n } = useLang();
   const { extraEdges } = useDhakaPathStore();
   const [hub, setHub] = useState<HubId | null>(null);
@@ -309,10 +320,12 @@ export function NetworkTab() {
       />
       <HubGrid selected={hub} onSelect={setHub} />
       <LinkList hub={hub} />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SignboardScanner />
-        <AddLinkForm />
-      </div>
+      {admin && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <SignboardScanner />
+          <AddLinkForm />
+        </div>
+      )}
     </div>
   );
 }
