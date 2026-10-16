@@ -4,7 +4,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Bell, Languages, Network, RotateCcw, Route, Sigma, Sparkles } from "lucide-react";
+import { Bell, Languages, Lock, Network, RotateCcw, Route, Sigma, Sparkles } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { cn } from "@/lib/utils";
@@ -73,6 +73,9 @@ export function AppHeader({
             <Sigma className="h-4 w-4" />
             {t("গণিত", "Math")}
           </button>
+          <Link href="/admin" title={t("অ্যাডমিন", "Admin")} aria-label={t("অ্যাডমিন", "Admin")} className="hidden h-10 w-10 place-items-center rounded-full border border-line text-ink-soft transition-colors hover:border-brand hover:text-brand-dark sm:grid">
+            <Lock className="h-4 w-4" />
+          </Link>
           <button type="button" onClick={toggleLang} aria-label={t("ভাষা বদলান", "Switch language")} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-2 text-[13px] font-bold text-ink-soft transition-colors hover:border-brand hover:text-brand-dark">
             <Languages className="h-4 w-4" />
             {lang === "bn" ? "English" : "বাংলা"}

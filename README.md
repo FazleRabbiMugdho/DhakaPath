@@ -117,3 +117,13 @@ Maps fall back automatically to a 15-hub schematic when tiles cannot load. The r
 ## Honest limits
 
 All telemetry in the demo is simulated and labelled as such on every screen. Supabase is written to but not read back, so the demo stays deterministic. Photo transcription needs a Gemini key and a connection; presets and typed text work offline.
+
+
+## Update — conversational assistant, admin console, PWA
+
+- **Ask DhakaPath (Part 5):** a floating multi-turn assistant on every screen (bottom-right, or Ctrl+/). It understands Banglish/Bangla/English, plans routes, submits street reports through conversation, answers fare and reliability follow-ups, and keeps context. Replies are grounded by the same engine; LaTeX/markdown is rendered as clean text.
+- **Admin console (`/admin`):** passcode-gated (`NEXT_PUBLIC_ADMIN_PASSCODE`, default `dhakapath2026`). Admins manage the transit network (add/remove links, signboard digitiser) and moderate alerts (confirm/clear/override), fare sanity, and the safety log. The public `/app` stays anonymous.
+- **PWA / offline:** installable (`manifest.webmanifest`) with a service worker that precaches the shell and serves it offline; the map falls back to the 15-hub schematic when tiles can't load.
+- **Current location:** "My location" uses the browser geolocation API to pick the nearest hub as the origin.
+- **LLM fallback chain:** Groq → OpenRouter (`OPENROUTER_API_KEY`, free model) → deterministic lexer, so parsing degrades gracefully.
+- **Fares:** the statutory 10 BDT student bus floor is enforced (`max(10, ceil(0.5 × fare))`); duplicate routes are collapsed by leg/metric signature.

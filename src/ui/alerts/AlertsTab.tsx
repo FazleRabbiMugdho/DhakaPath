@@ -13,7 +13,7 @@ import type { StreetAlert } from "@/contracts/schema";
 import { CANONICAL_GRAPH_G0 } from "@/contracts/canonicalGraph";
 import type { FareValidationResult } from "@/features/feature-3-trust-cms/sanityFilter";
 import { Btn, Card, Field, Meter, Pill, Segmented, SectionTitle, inputCls } from "../kit";
-import { HUB_IDS, INCIDENTS, alertStatusName, hubName, incidentName, validationName } from "../labels";
+import { HUB_IDS, INCIDENTS, alertStatusName, hubName, incidentName, modeName, validationName } from "../labels";
 
 const INCIDENT_ICON: Record<IncidentType, React.ReactNode> = {
   [IncidentType.WATERLOGGING]: <Waves className="h-5 w-5" />,
@@ -147,29 +147,48 @@ function ReportForm() {
   );
 }
 
-const CHECKABLE = CANONICAL_GRAPH_G0.filter((e) => e.mode === TransportMode.BUS || e.mode === TransportMode.LEGUNA || e.mode === TransportMode.RICKSHAW);
+const CHECK_MODES = [TransportMode.BUS, TransportMode.LEGUNA, TransportMode.RICKSHAW] as const;
 
 function FareChecker() {
   const { lang, t, n } = useLang();
   const { checkFare } = useDhakaPathStore();
-  const [edgeId, setEdgeId] = useState("E_BUS_SURFACE_MIRPUR10_FARMGATE");
+  const [from, setFrom] = useState<HubId>(HubId.H_MIRPUR10);
+  const [to, setTo] = useState<HubId>(HubId.H_FARMGATE);
+  const [mode, setMode] = useState<TransportMode>(TransportMode.BUS);
   const [fare, setFare] = useState("500");
   const [res, setRes] = useState<FareValidationResult | null>(null);
+  const [noEdge, setNoEdge] = useState(false);
 
-  const run = (id = edgeId, f = Number(fare)) => {
-    if (!Number.isFinite(f)) return;
-    setRes(checkFare(id, f));
+  // Resolve the canonical link for this From/To/mode (either direction).
+  const resolveEdge = (f: HubId, tt: HubId, m: TransportMode) =>
+    CANONICAL_GRAPH_G0.find((e) => e.mode === m && ((e.origin_hub_id === f && e.dest_hub_id === tt) || (e.origin_hub_id === tt && e.dest_hub_id === f)));
+
+  const run = (f = from, tt = to, m = mode, amount = Number(fare)) => {
+    const edge = resolveEdge(f, tt, m);
+    setNoEdge(!edge);
+    if (!edge || !Number.isFinite(amount)) { setRes(null); return; }
+    setRes(checkFare(edge.edge_id, amount));
   };
 
   return (
     <Card className="p-5">
       <SectionTitle title={t("ভাড়া যাচাই", "Fare sanity check")} sub={t("১০৳-এর নিচে বা ২.৫× বেস ভাড়ার ওপরে হলে আটকে যায়।", "Anything under 10 BDT or over 2.5× the base fare is blocked.")} />
       <div className="mt-4 space-y-3">
-        <Field label={t("কোন রুট?", "Which link?")}>
-          <select value={edgeId} onChange={(e) => setEdgeId(e.target.value)} className={inputCls}>
-            {CHECKABLE.map((e) => (
-              <option key={e.edge_id} value={e.edge_id}>{hubName(e.origin_hub_id, lang)} → {hubName(e.dest_hub_id, lang)} · {e.route_name}</option>
-            ))}
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t("শুরু", "From")}>
+            <select value={from} onChange={(e) => { setFrom(e.target.value as HubId); setRes(null); }} className={inputCls}>
+              {HUB_IDS.map((h) => <option key={h} value={h} disabled={h === to}>{hubName(h, lang)}</option>)}
+            </select>
+          </Field>
+          <Field label={t("গন্তব্য", "To")}>
+            <select value={to} onChange={(e) => { setTo(e.target.value as HubId); setRes(null); }} className={inputCls}>
+              {HUB_IDS.map((h) => <option key={h} value={h} disabled={h === from}>{hubName(h, lang)}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label={t("মাধ্যম", "Mode")}>
+          <select value={mode} onChange={(e) => { setMode(e.target.value as TransportMode); setRes(null); }} className={inputCls}>
+            {CHECK_MODES.map((m) => <option key={m} value={m}>{modeName(m, lang)}</option>)}
           </select>
         </Field>
         <Field label={t("জমা দেওয়া ভাড়া (৳)", "Submitted fare (BDT)")}>
@@ -177,9 +196,10 @@ function FareChecker() {
         </Field>
         <Btn className="w-full" onClick={() => run()}>{t("যাচাই করুন", "Check fare")}</Btn>
         <div className="flex gap-2">
-          <Btn size="sm" variant="danger" className="flex-1" onClick={() => { setEdgeId("E_BUS_SURFACE_MIRPUR10_FARMGATE"); setFare("400"); run("E_BUS_SURFACE_MIRPUR10_FARMGATE", 400); }}>{t("৪০০৳ ভুয়া ভাড়া", "Inject 400 BDT")}</Btn>
-          <Btn size="sm" variant="danger" className="flex-1" onClick={() => { setEdgeId("E_BUS_SURFACE_MIRPUR10_FARMGATE"); setFare("500"); run("E_BUS_SURFACE_MIRPUR10_FARMGATE", 500); }}>{t("৫০০৳ ভুয়া ভাড়া", "Inject 500 BDT")}</Btn>
+          <Btn size="sm" variant="danger" className="flex-1" onClick={() => { setFrom(HubId.H_MIRPUR10); setTo(HubId.H_FARMGATE); setMode(TransportMode.BUS); setFare("400"); run(HubId.H_MIRPUR10, HubId.H_FARMGATE, TransportMode.BUS, 400); }}>{t("৪০০৳ ভুয়া ভাড়া", "Inject 400 BDT")}</Btn>
+          <Btn size="sm" variant="danger" className="flex-1" onClick={() => { setFrom(HubId.H_MIRPUR10); setTo(HubId.H_FARMGATE); setMode(TransportMode.BUS); setFare("500"); run(HubId.H_MIRPUR10, HubId.H_FARMGATE, TransportMode.BUS, 500); }}>{t("৫০০৳ ভুয়া ভাড়া", "Inject 500 BDT")}</Btn>
         </div>
+        {noEdge && <p role="status" className="rounded-xl bg-warn-bg px-3 py-2 text-[12.5px] font-semibold text-warn">{t("এই দুই হাবের মধ্যে এই মাধ্যমে সরাসরি রুট নেই।", "No direct link between these hubs on this mode.")}</p>}
         {res && (
           <div role="status" className={`rounded-2xl border p-3.5 ${res.isValid ? "border-[#CDEBD7] bg-brand-mint" : "border-danger-line bg-danger-bg"}`}>
             <div className={`flex items-center gap-2 text-[14px] font-extrabold ${res.isValid ? "text-brand-dark" : "text-danger"}`}>

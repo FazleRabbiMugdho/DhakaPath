@@ -15,7 +15,6 @@ import { RouteCard } from "./RouteCard";
 import { RoiStrip } from "./RoiStrip";
 import { PoolBoard } from "./PoolBoard";
 import { OfflineSheet } from "./OfflineSheet";
-import { AskDhakaPathChat } from "./AskDhakaPathChat";
 
 export function PlanTab() {
   const { t, n } = useLang();
@@ -36,9 +35,8 @@ export function PlanTab() {
   };
 
   return (
-    <div id="plan" className="grid grid-cols-1 gap-6 lg:grid-cols-[430px_minmax(0,1fr)]">
+    <div id="plan" className="grid grid-cols-1 gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
       <div className="space-y-5">
-        <AskDhakaPathChat />
         <PlannerCard />
 
         <section aria-live="polite" className="space-y-4">
@@ -76,8 +74,8 @@ export function PlanTab() {
         <PoolBoard />
       </div>
 
-      <div className="space-y-5 lg:sticky lg:top-[7.25rem] lg:self-start">
-        <MapPanel className="h-[520px] lg:h-[calc(100vh-33rem)] lg:min-h-[360px]" />
+      <div className="space-y-4 lg:sticky lg:top-[6rem] lg:self-start">
+        <MapPanel className="h-[70vh] min-h-[460px] lg:h-[calc(100vh-18rem)] lg:min-h-[520px]" />
         <RoiStrip />
       </div>
 

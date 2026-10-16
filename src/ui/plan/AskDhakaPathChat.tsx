@@ -13,10 +13,6 @@ import {
   Bot,
   User,
   RotateCcw,
-  CheckCircle2,
-  AlertTriangle,
-  HelpCircle,
-  ShieldCheck,
   Loader2,
 } from "lucide-react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
@@ -25,7 +21,6 @@ import { Btn, Pill, inputCls, Tone } from "../kit";
 import {
   ChatMessage,
   ConversationContext,
-  ChatBadge,
 } from "@/features/feature-1-commute/conversationEngine";
 import { HubId, IncidentType } from "@/contracts/schema";
 
@@ -77,8 +72,22 @@ function badgeVariantToTone(variant?: string): Tone {
   }
 }
 
+// Strip LaTeX math ($...$, \(...\), \ge, \le) down to plain readable text.
+function deLatex(s: string): string {
+  return s
+    .replace(/\$\$?([^$]*)\$\$?/g, "$1")
+    .replace(/\\\(([^)]*)\\\)/g, "$1")
+    .replace(/\\\[([^\]]*)\\\]/g, "$1")
+    .replace(/\\ge\b/g, "≥")
+    .replace(/\\le\b/g, "≤")
+    .replace(/\\times\b/g, "×")
+    .replace(/\\[a-zA-Z]+\b/g, "")
+    .replace(/[_^]\{([^}]*)\}/g, "$1")
+    .replace(/[_^]([A-Za-z0-9])/g, "$1");
+}
+
 function FormattedChatText({ text }: { text: string }) {
-  const lines = text.split("\n");
+  const lines = deLatex(text).split("\n");
   return (
     <div className="space-y-1 text-[13.5px] leading-relaxed">
       {lines.map((line, idx) => {
@@ -123,7 +132,7 @@ function FormattedChatText({ text }: { text: string }) {
   );
 }
 
-export function AskDhakaPathChat() {
+export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
   const { lang, t } = useLang();
   const store = useDhakaPathStore();
   const { activeQuery, activePreset, alerts, reportIncident, search, options } = store;
@@ -217,7 +226,7 @@ export function AskDhakaPathChat() {
         if (data.intent === "ROUTE_SEARCH" || data.intent === "ALTERNATIVE_ROUTE") {
           await search(trimmed, options);
         }
-      } catch (err) {
+      } catch {
         setMessages((prev) => [
           ...prev,
           {
@@ -262,7 +271,7 @@ export function AskDhakaPathChat() {
   };
 
   return (
-    <div className="flex flex-col rounded-2xl border border-line bg-white shadow-sm overflow-hidden">
+    <div className={`flex flex-col overflow-hidden bg-white ${fill ? "h-full" : "rounded-2xl border border-line shadow-sm"}`}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-line bg-brand-soft/40 px-4 py-2.5">
         <div className="flex items-center gap-2">
@@ -292,7 +301,7 @@ export function AskDhakaPathChat() {
       {/* Message List */}
       <div
         ref={scrollRef}
-        className="h-80 overflow-y-auto p-4 space-y-3 bg-[#FBFDFB]"
+        className={`overflow-y-auto p-4 space-y-3 bg-[#FBFDFB] ${fill ? "flex-1 min-h-0" : "h-80"}`}
         aria-live="polite"
       >
         {messages.map((m) => {

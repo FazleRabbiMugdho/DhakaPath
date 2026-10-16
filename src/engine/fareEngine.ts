@@ -75,9 +75,9 @@ export function computeLegCost(
     case TransportMode.BUS: {
       const regularFare = computeApprovedBusFareBdt(edge.distance_km);
       if (isStudent && edge.student_half_fare_eligible) {
-        // The 10 BDT minimum is for a full-price bus ticket, not a second
-        // minimum imposed after the published student half-fare concession.
-        return Math.ceil(0.5 * regularFare);
+        // Statutory 50% student concession, but never below the 10 BDT minimum
+        // bus fare floor (problem statement Part 3).
+        return Math.max(10, Math.ceil(0.5 * regularFare));
       }
       return regularFare;
     }

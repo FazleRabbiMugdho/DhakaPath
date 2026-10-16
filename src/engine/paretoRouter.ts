@@ -295,7 +295,18 @@ export function executeParetoSearch(
     walkBridgeActive = solutions.some((solution) => solution.legs.some((leg) =>
       leg.mode === TransportMode.WALK && leg.origin_hub_id !== leg.dest_hub_id));
   }
-  const routes: ParetoRouteOption[] = solutions.slice(0, 3).map((solution, index) => ({
+  // Collapse routes that share the same ordered edge sequence or land on identical
+  // (duration, fare, transfers) — the user never wants to see the same path twice.
+  const seenSig = new Set<string>();
+  const uniqueSolutions = solutions.filter((s) => {
+    const edgeSig = s.legs.map((leg) => leg.edge_id).join(">");
+    const metricSig = `${s.total_duration_ms}|${s.total_effective_fare_bdt}|${s.transfers_count}`;
+    if (seenSig.has(edgeSig) || seenSig.has(metricSig)) return false;
+    seenSig.add(edgeSig);
+    seenSig.add(metricSig);
+    return true;
+  });
+  const routes: ParetoRouteOption[] = uniqueSolutions.slice(0, 3).map((solution, index) => ({
     route_id: `pareto_route_${index + 1}_${solution.legs.map((leg) => leg.edge_id).join("_")}`,
     legs: solution.legs,
     total_regular_fare_bdt: solution.total_regular_fare_bdt,
