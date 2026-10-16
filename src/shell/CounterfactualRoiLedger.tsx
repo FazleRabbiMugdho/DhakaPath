@@ -9,12 +9,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { animate, useReducedMotion } from "framer-motion";
 import { cn, clampFinite } from "@/lib/utils";
-import type { CounterfactualRoiMetrics } from "@/contracts/schema";
+import type { CounterfactualRoiMetrics, ParetoRouteOption } from "@/contracts/schema";
 import { SCENE_ART, SceneArt } from "./transitArt";
 import { Clock, Wallet, ShieldOff, Timer, UserRound, Cpu, ArrowRight } from "lucide-react";
 
 interface CounterfactualRoiLedgerProps {
   roi: CounterfactualRoiMetrics;
+  optimalRoute: ParetoRouteOption | null;
   className?: string;
 }
 
@@ -47,13 +48,13 @@ function Ticker({ value, decimals = 0, prefix = "", suffix = "" }: { value: numb
   );
 }
 
-export function CounterfactualRoiLedger({ roi, className }: CounterfactualRoiLedgerProps) {
+export function CounterfactualRoiLedger({ roi, optimalRoute, className }: CounterfactualRoiLedgerProps) {
   const savedMin = useMemo(() => clampFinite(Math.round(roi.time_saved_ms / 60000), 0, 600, 0), [roi.time_saved_ms]);
   const savedBdt = useMemo(() => clampFinite(roi.cost_saved_bdt, 0, 500, 0), [roi.cost_saved_bdt]);
   const riskPct = useMemo(() => clampFinite(roi.risk_reduction_pct, 0, 99.9, 0), [roi.risk_reduction_pct]);
   const shadowMin = Math.round(roi.shadow_duration_ms / 60000);
-  const optimalMin = Math.round((roi.shadow_duration_ms - roi.time_saved_ms) / 60000);
-  const optimalBdt = roi.shadow_fare_bdt - roi.cost_saved_bdt;
+  const optimalMin = optimalRoute ? Math.round(optimalRoute.total_duration_ms / 60000) : 0;
+  const optimalBdt = optimalRoute?.total_effective_fare_bdt ?? 0;
   const manualSec = (roi.benchmark_manual_latency_ms / 1000).toFixed(0);
   const manualMin = (roi.benchmark_manual_latency_ms / 60000).toFixed(1);
   const engineSec = (roi.benchmark_engine_latency_ms / 1000).toFixed(1);
@@ -64,7 +65,7 @@ export function CounterfactualRoiLedger({ roi, className }: CounterfactualRoiLed
       icon: <Clock className="h-4 w-4" />,
       label: "Commute Time Saved",
       ticker: <Ticker value={savedMin} prefix="+" suffix="m" />,
-      sub: `${shadowMin} min flooded surface stall → ${optimalMin} min DhakaPath detour`,
+      sub: `${shadowMin} min bus-first baseline → ${optimalMin} min selected route`,
       accent: "#10B981",
       glow: "rgba(16,185,129,0.22)",
     },
@@ -73,7 +74,7 @@ export function CounterfactualRoiLedger({ roi, className }: CounterfactualRoiLed
       icon: <Wallet className="h-4 w-4" />,
       label: "Fare Saved (BDT)",
       ticker: <Ticker value={savedBdt} prefix="+" suffix=" ৳" />,
-      sub: `${roi.shadow_fare_bdt} BDT regular/surge → ${optimalBdt} BDT student multi-leg`,
+      sub: `${roi.shadow_fare_bdt} BDT bus-first estimate → ${optimalBdt} BDT selected route`,
       accent: "#06B6D4",
       glow: "rgba(6,182,212,0.22)",
     },
@@ -82,7 +83,7 @@ export function CounterfactualRoiLedger({ roi, className }: CounterfactualRoiLed
       icon: <ShieldOff className="h-4 w-4" />,
       label: "Blockade Risk Cut",
       ticker: <Ticker value={riskPct} decimals={1} prefix="−" suffix="%" />,
-      sub: "Severed surface corridors avoided via grounded Pareto detour",
+      sub: "Estimated alert exposure versus the bus-first baseline",
       accent: "#F43F5E",
       glow: "rgba(244,63,94,0.2)",
     },

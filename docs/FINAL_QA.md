@@ -1,0 +1,16 @@
+# Section 6 — All-Hands Final QA
+
+Run the repeatable checks against a running app with `npm run qa:smoke` (or set `QA_BASE_URL` to the deployed URL). Run `npm run lint`, `npx tsc --noEmit`, and `npm run build` before the code freeze. The smoke suite covers server-rendered disclosures and deterministic API behavior; it does not replace a real-browser or deployment check.
+
+The organizer's later fare instruction supersedes the old fixed amounts in Build Prompt section 6. Current Track 1 uses the DMTCL MRT-6 station-pair matrix (Mirpur-10 to Agargaon **20 BDT**, not 30) and the approved Dhaka non-AC diesel city-bus rate (**2.70 BDT/km**, regular minimum **10 BDT**, eligible student half-fare). These are estimates on the demo graph, not operator quotes. Do not change them back to make an obsolete checkbox pass.
+
+| Area | Verified here | Still needs a team check |
+| --- | --- | --- |
+| Wave 0 / architecture | No `/login` or `/signup` app routes found; exact simulated-telemetry disclosure now renders globally on all six pages; frozen graph is exercised by five simultaneous route requests without fare drift. | Audit all remaining enum usages and inspect the UI for CRUD-table creep. |
+| Track 1 | MRT student and regular fare both 20 BDT for Mirpur-10–Agargaon; repeat fares stay stable; ROI numbers remain finite and the severed baseline is bounded at 112 minutes. | Confirm other MRT station pairs against the official chart and check the selected route visually after each scenario. |
+| Track 2 | 9 and 500 BDT bus submissions are rejected; the demo alert remains pending; a 90-minute-old single vote falls below 25%; pool join/repeat/leave preserves the 90 → 45 → 30 BDT split. | **Open math defect:** the demo alert says 24.3% for prior 15% and vote weight 0.30, while `computePosteriorConfidence` returns **19.2%** for that input. Decide whether the vote model or the demo expectation changes; do not present both as the same calculation. Verify the >=3-vote severance condition and slider behavior in a browser. |
+| Track 3 | Banglish intent fields parse; a fabricated ferry leg is intercepted; all three OCR presets yield graph-grounded edges, with corrected MRT fares. | Test configured Groq/Gemini, genuine image OCR, and the offline fallback with network disabled. The measured fallback is not guaranteed to take 0.2 ms end-to-end. |
+| Track 4 | Telemetry reports 15 hubs/75 expanded vertices and the current fare basis; map ROI now uses the Track 1 counterfactual calculation rather than fixed savings. | In a browser, test Alt+1/2/3, Alt+R, Ctrl+Shift+D; disable OSM tiles and click all 15 schematic hubs; export a PNG and confirm it is <45 KB, CORS-free, and speech plays. Test at 375 px and in landscape. |
+| Build / deployment | TypeScript, lint, smoke suite, and production build pass locally. | Vercel is not linked in this checkout and no CLI is installed; connect the Vercel integration, configure server env vars, deploy, then rerun smoke tests against the live URL. Record and save a 90-second offline backup video on the presentation laptop. |
+
+The `benchmark` fields in the map telemetry endpoint are explicitly illustrative; route-specific fare, time, and alert-exposure estimates come from the Track 1 engine. Do not advertise fixed 48/76 BDT or +28 BDT savings after the fare update.

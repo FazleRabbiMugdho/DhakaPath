@@ -6,6 +6,7 @@
 
 import { HubId, TransitEdge, TransportMode } from "../../contracts/schema";
 import { CANONICAL_HUBS } from "../../contracts/canonicalGraph";
+import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../../engine/fareEngine";
 import { verifyCandidateEdge } from "./subgraphVerifier";
 
 export interface SignboardDigitizeResult {
@@ -149,14 +150,14 @@ export function resolveFuzzyHubName(rawInput: string): HubId | null {
 // ------------------------------------------------------------------------------
 const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: TransitEdge[] }> = {
   BIHANGA_TARIFF: {
-    title: "Bihanga Paribahan — BRTA Mirpur-Motijheel Route 17",
+    title: "Bihanga Bus — Simulated Signboard Fixture",
     rawText: `
-      বিহঙ্গ পরিবহন (রুট নং ১৭)
-      ভাড়া তালিকা (BRTA অনুমোদিত)
-      মিরপুর ১০ -> আগারগাঁও: ১৫ টাকা (Half Pass ৮ টাকা)
-      আগারগাঁও -> ফার্মগেট: ১০ টাকা
-      ফার্মগেট -> শাহবাগ: ১২ টাকা (Half Pass ১০ টাকা)
-      শাহবাগ -> মতিঝিল শাপলা: ১২ টাকা (Half Pass ১০ টাকা)
+      SIMULATED SIGNBOARD OCR FIXTURE — NOT AN OPERATOR FARE CHART
+      Mirpur-10 -> Agargaon: estimated 10 BDT (3.8 km)
+      Agargaon -> Farmgate: estimated 10 BDT (2.8 km)
+      Farmgate -> Shahbagh: estimated 10 BDT (2.5 km)
+      Shahbagh -> Motijheel: estimated 10 BDT (3.1 km)
+      Student half-fare applies to eligible city buses.
     `,
     edges: [
       {
@@ -166,7 +167,7 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
         mode: TransportMode.BUS,
         route_name: "Bihanga Paribahan Line 17",
         distance_km: 3.8,
-        base_fare_bdt: 15,
+        base_fare_bdt: computeApprovedBusFareBdt(3.8),
         base_duration_ms: 900000,
         student_half_fare_eligible: true,
         boarding_landmark: "Mirpur-10 Roundabout Bus Bay",
@@ -178,7 +179,7 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
         mode: TransportMode.BUS,
         route_name: "Bihanga Paribahan Line 17",
         distance_km: 2.8,
-        base_fare_bdt: 10,
+        base_fare_bdt: computeApprovedBusFareBdt(2.8),
         base_duration_ms: 720000,
         student_half_fare_eligible: true,
         boarding_landmark: "Agargaon Passport Office Bay",
@@ -190,7 +191,7 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
         mode: TransportMode.BUS,
         route_name: "Bihanga Paribahan Line 17",
         distance_km: 2.5,
-        base_fare_bdt: 12,
+        base_fare_bdt: computeApprovedBusFareBdt(2.5),
         base_duration_ms: 600000,
         student_half_fare_eligible: true,
         boarding_landmark: "Farmgate Ananda Hall Gate",
@@ -202,7 +203,7 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
         mode: TransportMode.BUS,
         route_name: "Bihanga Paribahan Line 17",
         distance_km: 3.1,
-        base_fare_bdt: 12,
+        base_fare_bdt: computeApprovedBusFareBdt(3.1),
         base_duration_ms: 780000,
         student_half_fare_eligible: true,
         boarding_landmark: "Shahbagh DU Central Library Gate",
@@ -214,10 +215,10 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
     rawText: `
       DHAKA MASS TRANSIT COMPANY LIMITED (DMTCL)
       MRT LINE-6 FARE MATRIX
-      Uttora North to Mirpur-10: 30 BDT (Rapid Pass 10% Discount)
+      Uttara North to Mirpur-10: 40 BDT (single-journey ticket)
       Mirpur-10 to Agargao Metro: 20 BDT
-      Agargao to Motijheel Shapla: 30 BDT
-      NO STUDENT HALF FARE ON MRT-6 (ACT 2015)
+      Agargaon to Motijheel Shapla: 50 BDT
+      No regular student half-fare on MRT-6.
     `,
     edges: [
       {
@@ -227,7 +228,7 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
         mode: TransportMode.METRO,
         route_name: "MRT-6 Express",
         distance_km: 8.5,
-        base_fare_bdt: 30,
+        base_fare_bdt: computeMrt6FareBdt(HubId.H_UTTARA, HubId.H_MIRPUR10),
         base_duration_ms: 600000,
         student_half_fare_eligible: false,
         boarding_landmark: "Uttara North Station Concourse",
@@ -239,7 +240,7 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
         mode: TransportMode.METRO,
         route_name: "MRT-6 Express",
         distance_km: 4.2,
-        base_fare_bdt: 20,
+        base_fare_bdt: computeMrt6FareBdt(HubId.H_MIRPUR10, HubId.H_AGARGAON),
         base_duration_ms: 420000,
         student_half_fare_eligible: false,
         boarding_landmark: "Mirpur-10 Platform Gate 3",
@@ -251,7 +252,7 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
         mode: TransportMode.METRO,
         route_name: "MRT-6 Express",
         distance_km: 8.2,
-        base_fare_bdt: 30,
+        base_fare_bdt: computeMrt6FareBdt(HubId.H_AGARGAON, HubId.H_MOTIJHEEL),
         base_duration_ms: 840000,
         student_half_fare_eligible: false,
         boarding_landmark: "Agargaon Station Gate 2",
@@ -259,34 +260,47 @@ const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: Trans
     ],
   },
   RAIDA_ENTERPRISE: {
-    title: "Raida Enterprise Bus Route 21 Tariff",
+    title: "Badda Corridor — Simulated Signboard Fixture",
     rawText: `
-      রাইদা এন্টারপ্রাইজ
-      Badda Link -> Malibag Railgate: 20 BDT
-      Malibag Railgate -> Motijheel Shapla: 15 BDT
-      Half Pass Accepted with Student ID
+      SIMULATED SIGNBOARD OCR FIXTURE — NOT AN OPERATOR FARE CHART
+      Badda Link -> Banasree: estimated 10 BDT (2.9 km)
+      Banasree -> Malibag Railgate: estimated 10 BDT (2.6 km)
+      Malibag Railgate -> Motijheel Shapla: estimated 10 BDT (2.8 km)
+      Student half-fare applies to eligible city buses.
     `,
     edges: [
       {
         edge_id: "OCR_RAIDA_1",
         origin_hub_id: HubId.H_BADDA,
-        dest_hub_id: HubId.H_MALIBAGH,
+        dest_hub_id: HubId.H_BANASREE,
         mode: TransportMode.BUS,
-        route_name: "Raida Enterprise Route 21",
-        distance_km: 4.5,
-        base_fare_bdt: 20,
-        base_duration_ms: 1200000,
+        route_name: "Simulated Badda Corridor",
+        distance_km: 2.9,
+        base_fare_bdt: computeApprovedBusFareBdt(2.9),
+        base_duration_ms: 960000,
         student_half_fare_eligible: true,
         boarding_landmark: "Badda Link Road Footbridge",
       },
       {
         edge_id: "OCR_RAIDA_2",
+        origin_hub_id: HubId.H_BANASREE,
+        dest_hub_id: HubId.H_MALIBAGH,
+        mode: TransportMode.BUS,
+        route_name: "Simulated Badda Corridor",
+        distance_km: 2.6,
+        base_fare_bdt: computeApprovedBusFareBdt(2.6),
+        base_duration_ms: 900000,
+        student_half_fare_eligible: true,
+        boarding_landmark: "Banasree Rampura Bridge Bay",
+      },
+      {
+        edge_id: "OCR_RAIDA_3",
         origin_hub_id: HubId.H_MALIBAGH,
         dest_hub_id: HubId.H_MOTIJHEEL,
         mode: TransportMode.BUS,
-        route_name: "Raida Enterprise Route 21",
+        route_name: "Simulated Badda Corridor",
         distance_km: 2.8,
-        base_fare_bdt: 15,
+        base_fare_bdt: computeApprovedBusFareBdt(2.8),
         base_duration_ms: 780000,
         student_half_fare_eligible: true,
         boarding_landmark: "Mouchak Flyover Pillar 14",

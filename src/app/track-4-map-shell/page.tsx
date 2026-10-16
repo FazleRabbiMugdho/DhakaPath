@@ -56,7 +56,7 @@ export default function Track4MapShellPage() {
             <XRayMathDrawer open={injector.xrayOpen} onClose={() => injector.setXray(false)} roiState={roiState} />
           </div>
           <div className="min-h-[300px] lg:min-h-0">
-            <CounterfactualRoiLedger roi={roiState.roi} />
+            <CounterfactualRoiLedger roi={roiState.roi} optimalRoute={roiState.optimalRoute} />
           </div>
         </div>
 

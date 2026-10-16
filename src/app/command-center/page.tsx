@@ -8,7 +8,7 @@
 // 2 map + ROI ledger, Zone 3 trust/CMS. Responsive mobile tabs under 1024px.
 // ==============================================================================
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { registerRouteDelegate } from "@/contracts/adapter";
 import { executeParetoSearch } from "@/engine/paretoRouter";
@@ -23,12 +23,15 @@ import { TrustShieldAndCmsPanel } from "@/features/feature-3-trust-cms/TrustShie
 import { PitchIntroOverlay } from "./PitchIntroOverlay";
 import { ArrowLeft, Sparkles, UserRound, Map, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 
 type MobileTab = "commute" | "map" | "trust";
 
 export default function CommandCenterPage() {
   const injector = useScenarioInjector();
   const roiState = useTopologicalRoi();
+  const { submitCommuterSearch } = useDhakaPathStore();
+  const initialSearchStarted = useRef(false);
   const [pitchOpen, setPitchOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("map");
 
@@ -38,8 +41,16 @@ export default function CommandCenterPage() {
     registerRouteDelegate(async (query, preset) => executeParetoSearch(query, preset).routes);
   }, []);
 
+  // Replace Wave 0's sample route with a route computed from the current fare
+  // engine before the first scenario click or search.
+  useEffect(() => {
+    if (initialSearchStarted.current) return;
+    initialSearchStarted.current = true;
+    void submitCommuterSearch();
+  }, [submitCommuterSearch]);
+
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-y-auto lg:h-screen lg:overflow-hidden">
+    <div className="flex min-h-[calc(100dvh-2rem)] w-full flex-col overflow-y-auto lg:h-[calc(100dvh-2rem)] lg:overflow-hidden">
       {/* Zone 0 — Top Global Bar + pitch + back */}
       <div className="relative z-30 flex items-stretch">
         <ScenarioInjectorBar injector={injector} className="flex-1" />
@@ -99,7 +110,7 @@ export default function CommandCenterPage() {
             <XRayMathDrawer open={injector.xrayOpen} onClose={() => injector.setXray(false)} roiState={roiState} />
           </div>
           <div className="min-h-[300px] lg:min-h-0">
-            <CounterfactualRoiLedger roi={roiState.roi} />
+            <CounterfactualRoiLedger roi={roiState.roi} optimalRoute={roiState.optimalRoute} />
           </div>
         </section>
 
