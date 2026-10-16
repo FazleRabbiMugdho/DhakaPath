@@ -6,7 +6,6 @@
 // ==============================================================================
 
 import {
-  ActionLockState,
   AlertStatus,
   HubId,
   IncidentType,
@@ -14,8 +13,6 @@ import {
   StreetAlert,
   ValidationStatus,
 } from "../contracts/schema";
-import { CANONICAL_GRAPH_G0 } from "../contracts/canonicalGraph";
-import { clearRouteCache } from "./paretoRouter";
 
 export interface ProjectedScenarioState {
   readonly action_id: string;
@@ -26,11 +23,6 @@ export interface ProjectedScenarioState {
   readonly active_alerts: ReadonlyArray<StreetAlert>;
   readonly is_demo_telemetry: true;
 }
-
-// 150ms Debounce & Idempotency Lock Tracking
-let lastResolvedActionId: string = "";
-let lastExecutionTimestamp: number = 0;
-const DEBOUNCE_LOCK_MS = 150;
 
 /**
  * Baseline Street Alerts for Peak Crisis Surge
@@ -100,17 +92,7 @@ export function projectScenario(
   preset: ScenarioPreset,
   simOffsetMs: number = 0
 ): ProjectedScenarioState {
-  const now = performance.now();
   const actionId = `SCENARIO_${preset}_${simOffsetMs}`;
-
-  // Idempotency: Check if currently locked
-  if (actionId === lastResolvedActionId && now - lastExecutionTimestamp < DEBOUNCE_LOCK_MS) {
-    // Return idempotent snapshot without re-clearing caches
-  } else {
-    lastResolvedActionId = actionId;
-    lastExecutionTimestamp = now;
-    clearRouteCache();
-  }
 
   // Pure functional mapping based on preset
   let surfaceVelocityKmh = 14.5;

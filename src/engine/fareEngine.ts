@@ -10,6 +10,7 @@ import {
   StreetAlert,
   IncidentType,
   ScenarioPreset,
+  AlertStatus,
 } from "../contracts/schema";
 import { EPSILON, clampFinite } from "../lib/utils";
 
@@ -54,7 +55,7 @@ export function computeLegCost(
     case TransportMode.RICKSHAW: {
       // Surged non-metered connector with dynamic hub pool splitting
       const safeSurge = clampFinite(surgeMultiplier, 1.0, 3.0, 1.0);
-      const safePoolSize = clampFinite(poolSizeCount, 1, 4, 1);
+      const safePoolSize = Math.trunc(clampFinite(poolSizeCount, 1, 4, 1));
       return Math.ceil((edge.base_fare_bdt * safeSurge) / (safePoolSize + EPSILON));
     }
 
@@ -92,17 +93,15 @@ export function computeEffectiveDurationMs(
   alert: StreetAlert | undefined,
   preset: ScenarioPreset = ScenarioPreset.NORMAL_BASELINE
 ): number {
-  // 1. Grade-separated MRT-6 and walking bridges are immune to surface waterlogging
+  // The preset supplies alerts and fares; it must not silently change a graph edge's duration.
+  void preset;
+  // Grade-separated MRT-6 and walking bridges are immune to surface disruption.
   if (edge.mode === TransportMode.METRO || edge.mode === TransportMode.WALK) {
-    if (preset === ScenarioPreset.PEAK_CRISIS_SURGE && edge.mode === TransportMode.METRO) {
-      // Minor dwell time increase at peak rush hour (10% extra)
-      return Math.round(edge.base_duration_ms * 1.10);
-    }
     return edge.base_duration_ms;
   }
 
-  // 2. Active street disruption check
-  if (alert) {
+  // Expired and resolved reports cannot delay or sever an edge.
+  if (alert && alert.status !== AlertStatus.EXPIRED && alert.status !== AlertStatus.RESOLVED) {
     const isSeveringType =
       alert.incident_type === IncidentType.WATERLOGGING ||
       alert.incident_type === IncidentType.INTERSECTION_BLOCKADE;
@@ -117,12 +116,6 @@ export function computeEffectiveDurationMs(
     const delayMultiplier = 1.0 + alert.severity_alpha * confidenceFraction;
     const computedDuration = Math.round(edge.base_duration_ms * delayMultiplier);
     return Number.isFinite(computedDuration) ? computedDuration : edge.base_duration_ms;
-  }
-
-  // 3. Peak crisis general surface velocity slowdown (if no specific alert)
-  if (preset === ScenarioPreset.PEAK_CRISIS_SURGE) {
-    // Surface velocity collapse from 14.5 km/h to 4.8 km/h (~3.0x duration)
-    return Math.round(edge.base_duration_ms * 1.85);
   }
 
   return edge.base_duration_ms;

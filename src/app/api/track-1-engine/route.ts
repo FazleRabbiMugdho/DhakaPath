@@ -15,23 +15,41 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ success: false, error: "Invalid request body" }, { status: 400 });
+    }
 
-    const preset: ScenarioPreset = body.preset || ScenarioPreset.NORMAL_BASELINE;
-    const simOffsetMs: number = Number(body.simOffsetMs) || 0;
-    const poolSizes: Record<string, number> = body.poolSizes || {};
+    const preset: ScenarioPreset = body.preset ?? ScenarioPreset.NORMAL_BASELINE;
+    const simOffsetMs: number = body.simOffsetMs ?? 0;
+    const poolSizes: Record<string, number> = body.poolSizes ?? {};
+    const input = body.query ?? {};
+    const hubs = new Set(Object.values(HubId));
+    if (!Object.values(ScenarioPreset).includes(preset)
+      || !Number.isFinite(simOffsetMs) || simOffsetMs < 0
+      || !input || typeof input !== "object" || Array.isArray(input)
+      || (input.origin_hub_id !== undefined && !hubs.has(input.origin_hub_id))
+      || (input.dest_hub_id !== undefined && !hubs.has(input.dest_hub_id))
+      || (input.is_student !== undefined && typeof input.is_student !== "boolean")
+      || (input.max_budget_bdt !== undefined && (!Number.isFinite(input.max_budget_bdt) || input.max_budget_bdt < 0))
+      || (input.avoid_hub_ids !== undefined && (!Array.isArray(input.avoid_hub_ids)
+        || !input.avoid_hub_ids.every((hub: HubId) => hubs.has(hub))))
+      || !poolSizes || typeof poolSizes !== "object" || Array.isArray(poolSizes)
+      || Object.values(poolSizes).some((size) => !Number.isFinite(size) || size < 1 || size > 4)) {
+      return NextResponse.json({ success: false, error: "Invalid routing parameters" }, { status: 400 });
+    }
 
     // 1. Pure Functional Scenario Projection
     const scenario = projectScenario(preset, simOffsetMs);
 
     // 2. Build or Fallback Commuter Query
     const query: CommuterQuery = {
-      action_id: body.query?.action_id || `API_QUERY_${Date.now()}`,
-      raw_query_text: body.query?.raw_query_text || "Mirpur 10 to Motijheel",
-      origin_hub_id: (body.query?.origin_hub_id as HubId) || HubId.H_MIRPUR10,
-      dest_hub_id: (body.query?.dest_hub_id as HubId) || HubId.H_MOTIJHEEL,
-      is_student: body.query?.is_student !== undefined ? Boolean(body.query.is_student) : true,
-      max_budget_bdt: Number(body.query?.max_budget_bdt) || 55,
-      avoid_hub_ids: Array.isArray(body.query?.avoid_hub_ids) ? body.query.avoid_hub_ids : [],
+      action_id: input.action_id ?? `API_QUERY_${Date.now()}`,
+      raw_query_text: input.raw_query_text ?? "Mirpur 10 to Motijheel",
+      origin_hub_id: input.origin_hub_id ?? HubId.H_MIRPUR10,
+      dest_hub_id: input.dest_hub_id ?? HubId.H_MOTIJHEEL,
+      is_student: input.is_student ?? true,
+      max_budget_bdt: input.max_budget_bdt ?? 55,
+      avoid_hub_ids: input.avoid_hub_ids ?? [],
       timestamp_ms: Date.now(),
     };
 

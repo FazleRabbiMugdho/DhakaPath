@@ -13,7 +13,6 @@ import {
   TransportMode,
   ValidationStatus,
   CommuterQuery,
-  ParetoRouteOption,
 } from "../../contracts/schema";
 import { CANONICAL_HUBS, CANONICAL_GRAPH_G0 } from "../../contracts/canonicalGraph";
 import { executeParetoSearch, ParetoSearchResult } from "../../engine/paretoRouter";
@@ -27,15 +26,11 @@ import {
   Zap,
   Cpu,
   Clock,
-  ArrowRight,
   ShieldCheck,
-  CheckCircle2,
   AlertTriangle,
-  RotateCcw,
   Sparkles,
   Layers,
   Scale,
-  DollarSign,
   TrendingUp,
 } from "lucide-react";
 
@@ -164,14 +159,14 @@ export default function Track1EngineVerificationPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <IdempotentActionButton
             variant="primary"
-            onClick={setGoldenTrace}
+            onAction={setGoldenTrace}
             icon={<Sparkles className="w-4 h-4" />}
           >
             [1-Tap Golden Trace (48 BDT)]
           </IdempotentActionButton>
           <IdempotentActionButton
             variant="outline"
-            onClick={runIdempotencyStressTest}
+            onAction={runIdempotencyStressTest}
             icon={<Zap className="w-4 h-4 text-[#F59E0B]" />}
           >
             [Run 5x Stress Test]
