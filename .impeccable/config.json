@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "src/app/command-center/PitchIntroOverlay.tsx"
+        ],
+        "createdAt": "2026-10-16T07:23:53.822Z",
+        "reason": "Build Prompt section 2.1 pitch overlay spec mandates a 64px headline with a gradient word"
+      }
+    ]
+  }
+}

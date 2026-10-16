@@ -130,7 +130,7 @@ export function ScenarioInjectorBar({ injector, className }: ScenarioInjectorBar
           aria-pressed={xrayOpen}
           title="Toggle X-Ray math drawer (Ctrl+Shift+D)"
           className={cn(
-            "group hidden items-center gap-2 rounded-full border-[1.5px] px-3 py-1.5 font-mono text-[11px] font-semibold tabular-nums transition-all duration-150 md:inline-flex",
+            "group hidden items-center gap-2 rounded-full border-[1.5px] px-3 py-1.5 font-mono text-[11px] font-semibold tabular-nums transition-all duration-150 2xl:inline-flex",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#06B6D4]",
             xrayOpen
               ? "border-[#06B6D4] bg-[#083344]/70 text-[#67E8F9] shadow-[0_0_20px_rgba(6,182,212,0.3)]"
