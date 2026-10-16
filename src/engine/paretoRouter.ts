@@ -11,13 +11,14 @@ import {
   ValidationStatus,
 } from "../contracts/schema";
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../contracts/canonicalGraph";
-import { computeEffectiveDurationMs, computeLegCost, computeRegularFareBdt } from "./fareEngine";
+import { computeEffectiveDurationMs, computeLegCost, computeMrt6FareBdt, computeRegularFareBdt } from "./fareEngine";
 import { EPSILON } from "../lib/utils";
 
 interface ParetoLabel {
   readonly current_hub: HubId;
   readonly visited_hub_mask: number;
   readonly connector_used: boolean;
+  readonly metro_boarding_hub: HubId | null;
   readonly last_motorized_mode: TransportMode | null;
   readonly last_motorized_route: string | null;
   readonly legs: ReadonlyArray<RouteLeg>;
@@ -111,6 +112,7 @@ function stateKey(label: ParetoLabel): string {
   // Visited-set and boarding state affect future legal edges and transfer costs.
   return [
     label.current_hub, label.visited_hub_mask, Number(label.connector_used),
+    label.metro_boarding_hub ?? "",
     label.last_motorized_mode ?? "", label.last_motorized_route ?? "",
   ].join("|");
 }
@@ -158,6 +160,7 @@ export function executeParetoSearch(
       current_hub: query.origin_hub_id,
       visited_hub_mask: 1 << originIndex,
       connector_used: false,
+      metro_boarding_hub: null,
       last_motorized_mode: null,
       last_motorized_route: null,
       legs: [],
@@ -189,11 +192,11 @@ export function executeParetoSearch(
       for (const edge of adjacency.get(current.current_hub) ?? []) {
         const isConnector = edge.mode === TransportMode.WALK
           && edge.origin_hub_id === edge.dest_hub_id;
-        if (isConnector && current.connector_used) continue;
+        if (isConnector && (current.connector_used || current.metro_boarding_hub !== null)) continue;
         if (edge.mode === TransportMode.WALK && !isConnector && !allowWalkBypass) continue;
         // The canonical Mirpur-10 footbridge is the access leg for MRT boarding.
         if (edge.mode === TransportMode.METRO && connectorHubs.has(current.current_hub)
-          && !current.connector_used) continue;
+          && !current.connector_used && current.metro_boarding_hub === null) continue;
 
         const nextHub = edge.dest_hub_id;
         const nextIndex = CANONICAL_HUBS[nextHub]?.index;
@@ -209,15 +212,27 @@ export function executeParetoSearch(
 
         const rawPoolSize = poolSizes[edge.edge_id];
         const poolSize = Number.isFinite(rawPoolSize) ? Math.trunc(Math.max(1, Math.min(4, rawPoolSize))) : 1;
-        const effectiveFare = computeLegCost(edge, query.is_student, surgeMultiplier, poolSize);
+        // MRT-6 charges a station-to-station ticket, not one minimum fare per
+        // graph segment. Charge only the incremental fare while staying onboard.
+        const metroBoardingHub = edge.mode === TransportMode.METRO
+          ? current.metro_boarding_hub ?? edge.origin_hub_id : null;
+        const metroFareIncrement = metroBoardingHub
+          ? computeMrt6FareBdt(metroBoardingHub, nextHub)
+            - computeMrt6FareBdt(metroBoardingHub, edge.origin_hub_id)
+          : 0;
+        if (metroFareIncrement < 0) continue;
+        const effectiveFare = edge.mode === TransportMode.METRO
+          ? metroFareIncrement : computeLegCost(edge, query.is_student, surgeMultiplier, poolSize);
         const totalFare = current.total_effective_fare_bdt + effectiveFare;
         if (query.max_budget_bdt > 0 && totalFare > query.max_budget_bdt) continue;
 
         const transfer = edge.mode !== TransportMode.WALK && current.last_motorized_mode !== null
-          && (current.last_motorized_mode !== edge.mode || current.last_motorized_route !== edge.route_name);
+          && (current.last_motorized_mode !== edge.mode
+            || (edge.mode !== TransportMode.METRO && current.last_motorized_route !== edge.route_name));
         const transfers = current.transfers_count + Number(transfer);
         if (transfers > 4) continue;
-        const regularFare = computeRegularFareBdt(edge, surgeMultiplier);
+        const regularFare = edge.mode === TransportMode.METRO
+          ? metroFareIncrement : computeRegularFareBdt(edge, surgeMultiplier);
         const totalDuration = current.total_duration_ms + duration;
         const leg: RouteLeg = {
           edge_id: edge.edge_id,
@@ -236,6 +251,7 @@ export function executeParetoSearch(
           current_hub: nextHub,
           visited_hub_mask: isConnector ? current.visited_hub_mask : current.visited_hub_mask | nextBit,
           connector_used: isConnector,
+          metro_boarding_hub: metroBoardingHub,
           last_motorized_mode: edge.mode === TransportMode.WALK ? current.last_motorized_mode : edge.mode,
           last_motorized_route: edge.mode === TransportMode.WALK ? current.last_motorized_route : edge.route_name,
           legs: [...current.legs, leg],
