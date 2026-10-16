@@ -73,7 +73,8 @@ function LinkList({ hub }: { hub: HubId | null }) {
   const [showAll, setShowAll] = useState(false);
 
   const rows = useMemo(() => {
-    const all = [...CANONICAL_GRAPH_G0, ...extraEdges].filter((e) => e.origin_hub_id !== e.dest_hub_id);
+    // Committed (admin / signboard) links first, so a fresh commit is visible without scrolling.
+    const all = [...extraEdges, ...CANONICAL_GRAPH_G0].filter((e) => e.origin_hub_id !== e.dest_hub_id);
     return all.filter((e) => (mode === "ALL" || e.mode === mode) && (!hub || e.origin_hub_id === hub || e.dest_hub_id === hub));
   }, [extraEdges, mode, hub]);
 

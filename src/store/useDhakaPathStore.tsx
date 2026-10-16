@@ -118,6 +118,7 @@ interface DhakaPathStoreState {
   isParsing: boolean;
   options: SearchOptions;
   interception: InterceptionBanner | null;
+  searchNotice: string | null;
   rankedRoutes: ReadonlyArray<RankedRoute>;
   paretoRoutes: ReadonlyArray<ParetoRouteOption>;
   selectedRoute: ParetoRouteOption | null;
@@ -142,6 +143,8 @@ interface DhakaPathStoreState {
   setSimOffsetMs: (offsetMs: number) => void;
   resetAll: () => void;
   search: (rawText: string, options: SearchOptions) => Promise<void>;
+  planDirect: (origin: HubId, dest: HubId, patch?: { student?: boolean; budget?: number }) => void;
+  dismissNotice: () => void;
   submitCommuterSearch: (rawText?: string) => Promise<void>;
   updateCommuterQuery: (patch: Partial<CommuterQuery>) => void;
   setOptions: (options: SearchOptions) => void;
@@ -400,6 +403,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   const [isParsing, setIsParsing] = useState<boolean>(false);
   const [options, setOptionsState] = useState<SearchOptions>(DEFAULT_OPTIONS);
   const [interception, setInterception] = useState<InterceptionBanner | null>(null);
+  const [searchNotice, setSearchNotice] = useState<string | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string>("");
 
   const [crowdAlerts, setCrowdAlerts] = useState<ReadonlyArray<StreetAlert>>(() => seedAlerts(t0));
@@ -421,6 +425,8 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   const [ocrBusy, setOcrBusy] = useState<boolean>(false);
 
   const lockUntil = useRef<number>(0);
+  const activeQueryRef = useRef(activeQuery);
+  activeQueryRef.current = activeQuery;
   const loggedGrounding = useRef<Set<string>>(new Set());
 
   // ---- logging -----------------------------------------------------------
@@ -559,6 +565,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     setLastParse(null);
     setOptionsState(DEFAULT_OPTIONS);
     setInterception(null);
+    setSearchNotice(null);
     setSelectedRouteId("");
     setCrowdAlerts(seedAlerts(t0));
     setOverridden(new Set());
@@ -606,14 +613,28 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
         }
 
         setInterception(null);
+
+        // Unknown place names: do not fabricate the demo route. Keep the current
+        // trip and tell the user to pick the hubs from the selectors below.
+        if (!finalParsed.origin_resolved && !finalParsed.dest_resolved) {
+          setSearchNotice(text);
+          return;
+        }
+        setSearchNotice(null);
+
+        // One side understood: keep the other side's current hub so a route still shows.
+        const origin = finalParsed.origin_resolved ? finalParsed.origin_hub_id : activeQueryRef.current.origin_hub_id;
+        let dest = finalParsed.dest_resolved ? finalParsed.dest_hub_id : activeQueryRef.current.dest_hub_id;
+        if (origin === dest) dest = finalParsed.dest_resolved ? dest : activeQueryRef.current.dest_hub_id;
+
         setActiveQuery({
           action_id: uid("SEARCH"),
           raw_query_text: text,
-          origin_hub_id: finalParsed.origin_hub_id,
-          dest_hub_id: finalParsed.dest_hub_id,
+          origin_hub_id: origin,
+          dest_hub_id: dest,
           is_student: student,
           max_budget_bdt: finalParsed.max_budget_bdt,
-          avoid_hub_ids: finalParsed.avoid_hub_ids,
+          avoid_hub_ids: finalParsed.avoid_hub_ids.filter((h) => h !== origin && h !== dest),
           timestamp_ms: Date.now(),
         });
         setSelectedRouteId("");
@@ -622,6 +643,28 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [disruptedHubIds, pushLog]
+  );
+
+  // Pick origin/destination directly (the always-reliable path, no NL parsing).
+  const planDirect = useCallback(
+    (origin: HubId, dest: HubId, patch?: { student?: boolean; budget?: number }) => {
+      if (origin === dest) return;
+      setSearchNotice(null);
+      setInterception(null);
+      setActiveQuery((prev) => ({
+        ...prev,
+        action_id: uid("PLAN"),
+        raw_query_text: `${CANONICAL_HUBS[origin].name_en} to ${CANONICAL_HUBS[dest].name_en}`,
+        origin_hub_id: origin,
+        dest_hub_id: dest,
+        is_student: patch?.student ?? prev.is_student,
+        max_budget_bdt: patch?.budget ?? prev.max_budget_bdt,
+        avoid_hub_ids: prev.avoid_hub_ids.filter((h) => h !== origin && h !== dest),
+        timestamp_ms: Date.now(),
+      }));
+      setSelectedRouteId("");
+    },
+    []
   );
 
   const updateCommuterQuery = useCallback((patch: Partial<CommuterQuery>) => {
@@ -991,6 +1034,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       isParsing,
       options,
       interception,
+      searchNotice,
       rankedRoutes: routing.ranked,
       paretoRoutes: routing.ranked.map((r) => r.route),
       selectedRoute,
@@ -1011,6 +1055,8 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       setSimOffsetMs,
       resetAll,
       search,
+      planDirect,
+      dismissNotice: () => setSearchNotice(null),
       submitCommuterSearch,
       updateCommuterQuery,
       setOptions: setOptionsState,
@@ -1032,8 +1078,8 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       activePreset, simOffsetMs, simNow, scenarioLocked, scenario, engineLatencyMs, lastActionId, activeQuery, lastParse,
-      isParsing, options, interception, routing, selectedRoute, shadowHubPath, roi, alerts, disruptedHubIds, logs,
-      poolBoard, extraEdges, ocrResult, ocrBusy, setScenarioPreset, setSimOffsetMs, resetAll, search, submitCommuterSearch,
+      isParsing, options, interception, searchNotice, routing, selectedRoute, shadowHubPath, roi, alerts, disruptedHubIds, logs,
+      poolBoard, extraEdges, ocrResult, ocrBusy, setScenarioPreset, setSimOffsetMs, resetAll, search, planDirect, submitCommuterSearch,
       updateCommuterQuery, selectRoute, voteAlert, overrideAlert, reportIncident, checkFare, joinPool, joinRideSharePool,
       leavePool, scanSignboard, commitOcrEdges, discardOcrEdges, addLink, removeLink, addLog, addInterceptionLog,
     ]

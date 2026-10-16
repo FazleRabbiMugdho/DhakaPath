@@ -95,6 +95,8 @@ Return ONLY valid JSON with keys:
                 max_budget_bdt: parsedJson.max_budget_bdt || deterministicResult.max_budget_bdt,
                 avoid_hub_ids: parsedJson.avoid_hub_ids || deterministicResult.avoid_hub_ids,
                 adversarialHallucinationDetected: Boolean(parsedJson.adversarialHallucinationDetected),
+                origin_resolved: true,
+                dest_resolved: true,
                 parser_source: "LLM_SANDBOX",
                 latency_ms,
               });
