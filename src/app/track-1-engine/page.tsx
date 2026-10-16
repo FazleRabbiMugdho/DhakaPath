@@ -112,7 +112,7 @@ export default function Track1EngineVerificationPage() {
     }
 
     // Verify all fares match exactly with zero compounding drift
-    const allMatch = testFares.every((f) => f === testFares[0] && f === 48);
+    const allMatch = testFares[0] > 0 && testFares.every((f) => f === testFares[0]);
     if (allMatch) {
       logs.push("VERIFIED: Zero cumulative fare drift. Pure functional projection G(t) is immutable.");
       setStressSuccess(true);
@@ -125,7 +125,7 @@ export default function Track1EngineVerificationPage() {
   }, []);
 
   // Preset quick triggers
-  const setGoldenTrace = () => {
+  const setFareCheck = () => {
     setOriginHub(HubId.H_MIRPUR10);
     setDestHub(HubId.H_MOTIJHEEL);
     setIsStudent(true);
@@ -159,10 +159,10 @@ export default function Track1EngineVerificationPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <IdempotentActionButton
             variant="primary"
-            onAction={setGoldenTrace}
+            onAction={setFareCheck}
             icon={<Sparkles className="w-4 h-4" />}
           >
-            [1-Tap Golden Trace (48 BDT)]
+            [1-Tap Fare Estimate]
           </IdempotentActionButton>
           <IdempotentActionButton
             variant="outline"
@@ -173,6 +173,12 @@ export default function Track1EngineVerificationPage() {
           </IdempotentActionButton>
         </div>
       </div>
+
+      <p className="text-xs leading-relaxed text-[#CBD5E1]">
+        MRT-6 uses DMTCL station-pair ticket fares. Non-AC diesel bus fares are
+        estimates from the announced BRTA city rate of 2.70 BDT/km; route distances
+        and other modes remain demo graph data, not an operator fare quote.
+      </p>
 
       {/* Top Telemetry Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -371,7 +377,7 @@ export default function Track1EngineVerificationPage() {
                         </span>
                         <DualCodedStatusPill
                           status={ValidationStatus.GRAPH_GROUNDED}
-                          label="GRAPH_GROUNDED: 100% VERIFIED"
+                          label="GRAPH-GROUNDED ROUTE"
                           size="sm"
                         />
                         <span className="text-xs font-mono text-[#94A3B8]">
@@ -455,7 +461,7 @@ export default function Track1EngineVerificationPage() {
                 <span>Counterfactual Shadow Baseline vs. DhakaPath Optimal Detour</span>
               </h3>
               <span className="text-xs font-mono text-[#10B981] font-semibold">
-                Grounding Confidence 100%
+                Graph-based comparison
               </span>
             </div>
 
@@ -468,31 +474,31 @@ export default function Track1EngineVerificationPage() {
                   +{Math.round(roiMetrics.time_saved_ms / 60000)} mins
                 </div>
                 <div className="text-[11px] text-[#CBD5E1] mt-0.5">
-                  Naive Stall: {Math.round(roiMetrics.shadow_duration_ms / 60000)}m vs Optimal: {optimalRoute ? Math.round(optimalRoute.total_duration_ms / 60000) : 0}m
+                  Surface baseline: {Math.round(roiMetrics.shadow_duration_ms / 60000)}m vs Route: {optimalRoute ? Math.round(optimalRoute.total_duration_ms / 60000) : 0}m
                 </div>
               </div>
 
               <div className="rounded-xl p-3.5 bg-[#1E293B] border border-[#334155]">
                 <div className="text-[11px] font-semibold text-[#94A3B8] uppercase">
-                  Cost Saved
+                  Estimated Fare Difference
                 </div>
                 <div className="text-2xl font-extrabold font-mono text-[#10B981] tabular-nums mt-0.5">
                   +{roiMetrics.cost_saved_bdt} BDT
                 </div>
                 <div className="text-[11px] text-[#CBD5E1] mt-0.5">
-                  Shadow: {roiMetrics.shadow_fare_bdt} BDT vs Optimal: {optimalRoute?.total_effective_fare_bdt ?? 0} BDT
+                  Bus-first baseline: {roiMetrics.shadow_fare_bdt} BDT vs Route: {optimalRoute?.total_effective_fare_bdt ?? 0} BDT
                 </div>
               </div>
 
               <div className="rounded-xl p-3.5 bg-[#1E293B] border border-[#334155]">
                 <div className="text-[11px] font-semibold text-[#94A3B8] uppercase">
-                  Blockade Risk
+                  Alert Exposure Reduction
                 </div>
                 <div className="text-2xl font-extrabold font-mono text-[#06B6D4] tabular-nums mt-0.5">
                   -{roiMetrics.risk_reduction_pct.toFixed(1)}%
                 </div>
                 <div className="text-[11px] text-[#CBD5E1] mt-0.5">
-                  Manual: 8.5m → Engine: 1.4s
+                  Demo benchmark: Manual 8.5m → Engine 1.4s
                 </div>
               </div>
             </div>

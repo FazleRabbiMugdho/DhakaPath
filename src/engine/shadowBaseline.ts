@@ -13,7 +13,6 @@ import { CANONICAL_GRAPH_G0 } from "../contracts/canonicalGraph";
 import { computeEffectiveDurationMs, computeRegularFareBdt } from "./fareEngine";
 
 const STALL_BOUND_MS = 112 * 60000;
-const GOLDEN_SHADOW_FARE_BDT = 76;
 
 export function computeSafeTimeDeltaMin(shadowMin: number, optimalMin: number): number {
   const safeShadow = Number.isFinite(shadowMin) ? shadowMin : 112;
@@ -21,9 +20,9 @@ export function computeSafeTimeDeltaMin(shadowMin: number, optimalMin: number): 
   return Math.max(0, Math.round(safeShadow - safeOptimal));
 }
 
-function naiveSurfacePath(origin: HubId, destination: HubId): TransitEdge[] {
-  // Static, unalerted shortest surface path represents a commuter who does not
-  // check reports before departing. No student discount or shared pool applies.
+function findSurfacePath(origin: HubId, destination: HubId, busOnly: boolean): TransitEdge[] {
+  // Geographic bus-first baseline, without live disruption avoidance. A solo
+  // connector is considered only when no all-bus path exists.
   const distance = new Map<HubId, number>([[origin, 0]]);
   const previous = new Map<HubId, TransitEdge>();
   const pending = new Set<HubId>([origin]);
@@ -37,8 +36,9 @@ function naiveSurfacePath(origin: HubId, destination: HubId): TransitEdge[] {
     if (current === destination) break;
     for (const edge of CANONICAL_GRAPH_G0) {
       if (edge.origin_hub_id !== current || edge.mode === TransportMode.METRO
+        || (busOnly && edge.mode !== TransportMode.BUS)
         || edge.origin_hub_id === edge.dest_hub_id) continue;
-      const nextDistance = (distance.get(current) ?? Infinity) + edge.base_duration_ms;
+      const nextDistance = (distance.get(current) ?? Infinity) + edge.distance_km;
       if (nextDistance < (distance.get(edge.dest_hub_id) ?? Infinity)) {
         distance.set(edge.dest_hub_id, nextDistance);
         previous.set(edge.dest_hub_id, edge);
@@ -55,6 +55,11 @@ function naiveSurfacePath(origin: HubId, destination: HubId): TransitEdge[] {
     current = edge.origin_hub_id;
   }
   return path;
+}
+
+function naiveSurfacePath(origin: HubId, destination: HubId): TransitEdge[] {
+  const busPath = findSurfacePath(origin, destination, true);
+  return busPath.length > 0 ? busPath : findSurfacePath(origin, destination, false);
 }
 
 function alertForEdge(edge: TransitEdge, alerts: ReadonlyArray<StreetAlert>): StreetAlert | undefined {
@@ -112,25 +117,14 @@ export function computeCounterfactualRoi(
     baselineRisk = routeRisk(optimalRoute.legs, alerts);
   }
 
-  const goldenReplay = preset === ScenarioPreset.PEAK_CRISIS_SURGE
-    && query.origin_hub_id === HubId.H_MIRPUR10
-    && query.dest_hub_id === HubId.H_MOTIJHEEL
-    && alerts.some((alert) => alert.hub_id === HubId.H_FARMGATE
-      && alert.status === AlertStatus.VERIFIED_ACTIVE && alert.confidence_pct >= 85);
-  if (goldenReplay) {
-    // Published benchmark snapshot for this specific flooded-corridor replay.
-    shadowDurationMs = STALL_BOUND_MS;
-    shadowFareBdt = GOLDEN_SHADOW_FARE_BDT;
-    baselineRisk = Math.min(100, routeRisk(surfacePath, alerts));
-  } else if (!Number.isFinite(shadowDurationMs)) {
+  if (!Number.isFinite(shadowDurationMs)) {
     shadowDurationMs = STALL_BOUND_MS;
   }
   shadowDurationMs = Math.max(0, shadowDurationMs);
   const optimalRisk = routeRisk(optimalRoute.legs, alerts);
   const measuredReduction = baselineRisk > 0
     ? Math.max(0, (baselineRisk - optimalRisk) / baselineRisk * 100) : 0;
-  // The replay's 82% is an empirical benchmark; generic queries use alert exposure.
-  const riskReductionPct = goldenReplay ? 82 : +measuredReduction.toFixed(1);
+  const riskReductionPct = +measuredReduction.toFixed(1);
   return {
     time_saved_ms: Math.max(0, shadowDurationMs - optimalRoute.total_duration_ms),
     cost_saved_bdt: Math.max(0, shadowFareBdt - optimalRoute.total_effective_fare_bdt),

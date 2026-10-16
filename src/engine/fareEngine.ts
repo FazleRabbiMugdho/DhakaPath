@@ -11,15 +11,56 @@ import {
   IncidentType,
   ScenarioPreset,
   AlertStatus,
+  HubId,
 } from "../contracts/schema";
 import { EPSILON, clampFinite } from "../lib/utils";
+
+// MRT-6 single-journey fares for the stations represented in the locked G0 graph.
+// DMTCL fare chart: https://dmtcl.gov.bd/pages/static-pages/6922df5a933eb65569e2169f
+// H_UTTARA denotes Uttara North; the chart is symmetric by journey direction.
+const MRT6_FARES: ReadonlyArray<readonly [HubId, HubId, number]> = [
+  [HubId.H_UTTARA, HubId.H_MIRPUR10, 40],
+  [HubId.H_UTTARA, HubId.H_AGARGAON, 60],
+  [HubId.H_UTTARA, HubId.H_FARMGATE, 70],
+  [HubId.H_UTTARA, HubId.H_SHAHBAGH, 80],
+  [HubId.H_UTTARA, HubId.H_MOTIJHEEL, 100],
+  [HubId.H_MIRPUR10, HubId.H_AGARGAON, 20],
+  [HubId.H_MIRPUR10, HubId.H_FARMGATE, 30],
+  [HubId.H_MIRPUR10, HubId.H_SHAHBAGH, 50],
+  [HubId.H_MIRPUR10, HubId.H_MOTIJHEEL, 60],
+  [HubId.H_AGARGAON, HubId.H_FARMGATE, 20],
+  [HubId.H_AGARGAON, HubId.H_SHAHBAGH, 30],
+  [HubId.H_AGARGAON, HubId.H_MOTIJHEEL, 50],
+  [HubId.H_FARMGATE, HubId.H_SHAHBAGH, 20],
+  [HubId.H_FARMGATE, HubId.H_MOTIJHEEL, 30],
+  [HubId.H_SHAHBAGH, HubId.H_MOTIJHEEL, 20],
+];
+
+export function computeMrt6FareBdt(origin: HubId, destination: HubId): number {
+  if (origin === destination) return 0;
+  const pair = MRT6_FARES.find(([a, b]) =>
+    (a === origin && b === destination) || (a === destination && b === origin));
+  if (!pair) throw new RangeError(`No official MRT-6 fare for ${origin} to ${destination}`);
+  return pair[2];
+}
+
+// Road Transport and Highways Division's 22 Sep 2026 city-bus notification.
+// https://www.bssnews.net/bangla/news-flash/343623
+export const DHAKA_CITY_BUS_RATE_BDT_PER_KM = 2.70;
+
+export function computeApprovedBusFareBdt(distanceKm: number): number {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
+    throw new RangeError("Bus distance must be positive and finite");
+  }
+  return Math.max(10, Math.round(distanceKm * DHAKA_CITY_BUS_RATE_BDT_PER_KM));
+}
 
 /**
  * Computes exact monetary fare in BDT for a single transit edge.
  *
  * Piecewise Tariff Formulation:
- * - BUS (Student): max(10, ceil(0.5 * F_base)) if eligible, else F_base
- * - METRO (MRT-6): min(100, max(20, 10 * ceil(5.0 * distance_km / 10.0))) [Zero student discount]
+ * - BUS: 2.70 BDT/km (minimum 10 BDT); eligible students pay half
+ * - METRO (MRT-6): official station-pair fare; no student discount is assumed
  * - LEGUNA: F_base [Zero student discount]
  * - RICKSHAW/CNG: ceil((F_base * safeSurge) / (safePoolSize + EPSILON))
  * - WALK: 0 BDT
@@ -32,19 +73,17 @@ export function computeLegCost(
 ): number {
   switch (edge.mode) {
     case TransportMode.BUS: {
+      const regularFare = computeApprovedBusFareBdt(edge.distance_km);
       if (isStudent && edge.student_half_fare_eligible) {
-        // Enforces statutory 50% student discount with a strict 10 BDT floor
-        return Math.max(10, Math.ceil(0.5 * edge.base_fare_bdt));
+        // The 10 BDT minimum is for a full-price bus ticket, not a second
+        // minimum imposed after the published student half-fare concession.
+        return Math.ceil(0.5 * regularFare);
       }
-      return edge.base_fare_bdt;
+      return regularFare;
     }
 
     case TransportMode.METRO: {
-      // DMTCL MRT-6 20-100 BDT step matrix at 5 BDT/km, stepped in 10 BDT increments
-      // Strictly ZERO student half-pass discount per DMTCL statutory rules
-      const rawDistanceTariff = 5.0 * edge.distance_km;
-      const steppedFare = 10 * Math.ceil(rawDistanceTariff / 10.0);
-      return Math.min(100, Math.max(20, steppedFare));
+      return computeMrt6FareBdt(edge.origin_hub_id, edge.dest_hub_id);
     }
 
     case TransportMode.LEGUNA: {
