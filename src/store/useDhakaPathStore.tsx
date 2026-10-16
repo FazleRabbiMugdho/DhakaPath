@@ -639,19 +639,6 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     [activeQuery.raw_query_text, options, search]
   );
 
-  const corroborateAlert = useCallback(
-    (alertId: string, direction: 1 | -1) => {
-      return voteAlert(alertId, direction);
-    },
-    [voteAlert]
-  );
-
-  const addStreetAlert = useCallback(
-    (alert: StreetAlert) => {
-      reportIncident(alert.hub_id, alert.incident_type, alert.severity, 0.4);
-    },
-    [reportIncident]
-  );
 
   const addInterceptionLog = useCallback(
     (event: Omit<AuditInterceptionEvent, "event_id" | "timestamp_ms"> | AuditInterceptionEvent) => {
@@ -757,6 +744,21 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       return { ok: true, message: "created" };
     },
     [crowdAlerts, overridden, simNow, prior, voteAlert, addLog]
+  );
+
+  const corroborateAlert = useCallback(
+    (alertId: string, direction: 1 | -1) => {
+      return voteAlert(alertId, direction);
+    },
+    [voteAlert]
+  );
+
+  const addStreetAlert = useCallback(
+    (alert: StreetAlert) => {
+      const severity = alert.severity_alpha >= 2.0 ? 3 : alert.severity_alpha >= 1.4 ? 2 : 1;
+      reportIncident(alert.hub_id, alert.incident_type, severity, 0.4);
+    },
+    [reportIncident]
   );
 
   const checkFare = useCallback(
