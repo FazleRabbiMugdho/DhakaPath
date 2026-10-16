@@ -27,7 +27,9 @@ export function MapPanel({ className }: { className?: string }) {
   const { disruptedHubIds, walkBridgeActive, selectedRoute, rankedRoutes } = useDhakaPathStore();
   const [view, setView] = useState<View>("osm");
   const [offline, setOffline] = useState(false);
-  const [layers, setLayers] = useState<MapLayers>({ metro: true, bikolpo: false, uttara: false });
+  // Full network lines are off by default so the map focuses on the active route
+  // (drawing the whole MRT-6 line made Uttara always appear). Toggle them on to browse.
+  const [layers, setLayers] = useState<MapLayers>({ metro: false, bikolpo: false, uttara: false });
   const okTiles = useRef(0);
   const badTiles = useRef(0);
 

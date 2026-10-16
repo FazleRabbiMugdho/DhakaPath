@@ -109,14 +109,17 @@ export default function AdminPage() {
     <div className="min-h-screen bg-brand-canvas">
       <header className="sticky top-8 z-50 border-b border-line bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-ink text-white"><Network className="h-5 w-5" /></span>
-            <span className="text-[18px] font-extrabold tracking-tight text-ink">DhakaPath <span className="text-ink-soft">{t("অ্যাডমিন", "Admin")}</span></span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink text-white"><Network className="h-5 w-5" /></span>
+            <span className="truncate text-[16px] font-extrabold tracking-tight text-ink sm:text-[18px]">DhakaPath <span className="hidden text-ink-soft sm:inline">{t("অ্যাডমিন", "Admin")}</span></span>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/app" className="rounded-full border border-line px-3 py-2 text-[13px] font-bold text-ink-soft hover:border-brand hover:text-brand-dark">{t("পাবলিক অ্যাপ", "Public app")}</Link>
-            <button type="button" onClick={toggleLang} className="rounded-full border border-line px-3 py-2 text-[13px] font-bold text-ink-soft hover:border-brand hover:text-brand-dark">{lang === "bn" ? "English" : "বাংলা"}</button>
-            <button type="button" onClick={logout} className="inline-flex items-center gap-1.5 rounded-full border border-danger-line bg-danger-bg px-3 py-2 text-[13px] font-bold text-danger"><LogOut className="h-4 w-4" />{t("লগআউট", "Log out")}</button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Link href="/app" title={t("পাবলিক অ্যাপ", "Public app")} className="grid h-9 w-9 place-items-center rounded-full border border-line text-ink-soft hover:border-brand hover:text-brand-dark sm:h-auto sm:w-auto sm:px-3 sm:py-2 sm:text-[13px] sm:font-bold">
+              <ArrowLeft className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">{t("পাবলিক অ্যাপ", "Public app")}</span>
+            </Link>
+            <button type="button" onClick={toggleLang} className="rounded-full border border-line px-2.5 py-2 text-[12px] font-bold text-ink-soft hover:border-brand hover:text-brand-dark sm:px-3 sm:text-[13px]">{lang === "bn" ? "EN" : "বাং"}</button>
+            <button type="button" onClick={logout} title={t("লগআউট", "Log out")} className="inline-flex items-center gap-1.5 rounded-full border border-danger-line bg-danger-bg px-2.5 py-2 text-[12px] font-bold text-danger sm:px-3 sm:text-[13px]"><LogOut className="h-4 w-4" /><span className="hidden sm:inline">{t("লগআউট", "Log out")}</span></button>
           </div>
         </div>
       </header>
@@ -125,7 +128,7 @@ export default function AdminPage() {
         <SectionTitle title={t("অ্যাডমিন কনসোল", "Admin console")} sub={t("ট্রানজিট নেটওয়ার্ক ও ক্রাউড রিপোর্ট পরিচালনা করুন।", "Manage the transit network and moderate crowd reports.")} />
         <AdminStats />
         <ScenarioBar />
-        <NetworkTab />
+        <NetworkTab admin />
         <AlertsTab />
       </main>
     </div>
