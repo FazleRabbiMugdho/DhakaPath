@@ -25,8 +25,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "Plus Jakarta Sans", "Inter", "sans-serif"],
-        mono: ["var(--font-mono)", "JetBrains Mono", "monospace"],
+        sans: ["var(--font-sans)", "Plus Jakarta Sans", "Inter", "var(--font-bangla)", "Hind Siliguri", "sans-serif"],
+        mono: ["var(--font-mono)", "JetBrains Mono", "var(--font-bangla)", "Hind Siliguri", "monospace"],
         bangla: ["var(--font-bangla)", "Hind Siliguri", "Noto Sans Bengali", "sans-serif"],
       },
     },
