@@ -59,7 +59,7 @@ function severedHubs(alerts: ReadonlyArray<StreetAlert>): ReadonlyArray<HubId> {
 
 export function useTopologicalRoi(): TopologicalRoiState {
   const store = useDhakaPathStore();
-  const [osmTilesOnline, setOsmTilesOnline] = useState<boolean>(false);
+  const [osmTilesOnline, setOsmTilesOnline] = useState<boolean>(true);
 
   const toggleOsmTiles = useCallback(() => setOsmTilesOnline((v) => !v), []);
   const setOsmTiles = useCallback((online: boolean) => setOsmTilesOnline(online), []);

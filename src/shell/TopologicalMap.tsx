@@ -8,7 +8,7 @@
 // bypass arc, and a glass popover carrying boarding + fare + surge detail.
 // ==============================================================================
 
-import React, { useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
 import { cn, clampFinite } from "@/lib/utils";
@@ -25,14 +25,22 @@ import { MODE_VISUALS, TransitModeIcon } from "./transitArt";
 import type { TopologicalRoiState } from "./useTopologicalRoi";
 import { Layers, Grid3x3, MapPin, Footprints, TriangleAlert, Route } from "lucide-react";
 
-// Leaflet is browser-only — load the pieces with SSR disabled so the server
-// render never touches `window`, and the schematic still shows if tiles fail.
-const MapContainer = dynamic(() => import("react-leaflet").then((m) => m.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import("react-leaflet").then((m) => m.TileLayer), { ssr: false });
+// Leaflet is browser-only — load LeafletDhakaMap with SSR disabled so the server
+// render never touches `window`, and gracefully falls back to the schematic if needed.
+const LeafletDhakaMap = dynamic(() => import("./LeafletDhakaMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center bg-[#070B14] text-cyan-400">
+      <div className="flex items-center gap-2 font-mono text-xs">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+        LOADING LEAFLET OPENSTREETMAP (CSV DATASET)...
+      </div>
+    </div>
+  ),
+});
 
 const VIEW_W = 800;
 const VIEW_H = 600;
-const DHAKA_CENTER: [number, number] = [23.782, 90.402];
 
 interface TopologicalMapProps {
   roiState: TopologicalRoiState;
@@ -176,53 +184,55 @@ export function TopologicalMap({ roiState, className }: TopologicalMapProps) {
       `}</style>
 
       {/* Header strip — layer toggle + title */}
-      <div className="z-20 flex items-center justify-between gap-2 border-b border-[#1E293B] bg-[#0B111F]/80 px-3 py-2 backdrop-blur-sm">
+      <div className="z-20 flex items-center justify-between gap-2 border-b border-[#1E293B] bg-[#0B111F]/90 px-3 py-2 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <Route className="h-4 w-4 text-[#06B6D4]" />
           <h2 className="font-sans text-sm font-bold tracking-tight text-[#E2E8F0]">
-            15-Hub Dhaka Transit Graph
+            Dhaka Transit Map &amp; Routes
           </h2>
-          <span className="hidden font-mono text-[11px] text-[#64748B] sm:inline">G(t) = f(G₀, Sₖ, Δt)</span>
+          <span className="hidden font-mono text-[11px] text-[#94A3B8] sm:inline">
+            Leaflet.js · OpenStreetMap · MRT-6 · Bikolpo · Uttara Bus
+          </span>
         </div>
         <button
           type="button"
           onClick={toggleOsmTiles}
-          title={osmTilesOnline ? "Switch to pure tactical schematic (offline-safe)" : "Overlay dark OSM tiles"}
+          title={osmTilesOnline ? "Switch to Tactical Schematic" : "Switch to Leaflet OpenStreetMap"}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition-all duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#06B6D4]",
             osmTilesOnline
-              ? "border-[#06B6D4] bg-[#083344]/70 text-[#67E8F9]"
+              ? "border-emerald-500 bg-emerald-950/70 text-emerald-300"
               : "border-[#334155] bg-[#0F172A] text-[#CBD5E1] hover:border-[#06B6D4]/60"
           )}
         >
           {osmTilesOnline ? <Layers className="h-3.5 w-3.5" /> : <Grid3x3 className="h-3.5 w-3.5" />}
-          {osmTilesOnline ? "OSM + SVG" : "Tactical Grid"}
+          {osmTilesOnline ? "Leaflet OSM" : "Tactical SVG"}
         </button>
       </div>
 
       {/* Map body */}
-      <div className="relative flex-1">
-        {/* Layer 1a — tactical dot grid (always present, also the offline base) */}
-        <div className="absolute inset-0 bg-perspective-grid opacity-40" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(6,182,212,0.10),transparent_60%)]" />
-
-        {/* Layer 1b — OSM tiles (only when toggled on) */}
-        {osmTilesOnline && (
-          <div className="absolute inset-0 opacity-70">
-            <MapContainer
-              center={DHAKA_CENTER}
-              zoom={12}
-              minZoom={11}
-              maxZoom={16}
-              zoomControl={false}
-              attributionControl={false}
-              style={{ height: "100%", width: "100%", background: "#070B14" }}
+      <div className="relative flex-1 h-full min-h-0">
+        {osmTilesOnline ? (
+          <div className="absolute inset-0">
+            <Suspense
+              fallback={
+                <div className="flex h-full w-full items-center justify-center bg-[#070B14] text-cyan-400">
+                  <div className="flex items-center gap-2 font-mono text-xs">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+                    LOADING LEAFLET OPENSTREETMAP (CSV DATASET)...
+                  </div>
+                </div>
+              }
             >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            </MapContainer>
+              <LeafletDhakaMap roiState={roiState} />
+            </Suspense>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Tactical dot grid fallback */}
+            <div className="absolute inset-0 bg-perspective-grid opacity-40" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(6,182,212,0.10),transparent_60%)]" />
 
         {/* Layer 2 — interactive SVG schematic overlay */}
         <svg
@@ -387,6 +397,8 @@ export function TopologicalMap({ roiState, className }: TopologicalMapProps) {
             P* Optimal
           </span>
         </div>
+        </>
+        )}
       </div>
     </section>
   );
