@@ -5,11 +5,12 @@
 // "fake route blocked" notice when a prompt asks for a route that does not exist.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Footprints, GraduationCap, Mic, MicOff, Search, ShieldAlert, Waves } from "lucide-react";
+import { ArrowLeftRight, Footprints, GraduationCap, Info, Mic, MicOff, Search, ShieldAlert, Waves } from "lucide-react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
+import { HubId } from "@/contracts/schema";
 import { Btn, Card, Pill, Toggle, inputCls } from "../kit";
-import { hubName } from "../labels";
+import { HUB_IDS, hubName } from "../labels";
 
 interface RecognitionLike {
   lang: string;
@@ -47,7 +48,7 @@ const EXAMPLES: ReadonlyArray<{ id: string; bn: string; en: string; text: string
 export function PlannerCard() {
   const { lang, t, n } = useLang();
   const store = useDhakaPathStore();
-  const { activeQuery, lastParse, interception, isParsing, options } = store;
+  const { activeQuery, lastParse, interception, searchNotice, isParsing, options } = store;
   const [text, setText] = useState<string>(activeQuery.raw_query_text);
   const [listening, setListening] = useState(false);
   const [voiceOk, setVoiceOk] = useState(false);
@@ -143,6 +144,49 @@ export function PlannerCard() {
       <Btn className="mt-3 w-full" busy={isParsing} icon={<Search className="h-5 w-5" />} onClick={() => run(text)}>
         {t("যাচাই করা রুট খুঁজুন", "Find verified routes")}
       </Btn>
+
+      {searchNotice && (
+        <div role="status" className="mt-3 flex items-start gap-2 rounded-2xl border border-warn-line bg-warn-bg p-3 text-[13px] text-warn">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{t("জায়গার নাম বুঝতে পারিনি। নিচ থেকে শুরু ও গন্তব্য বেছে নিন।", "Could not recognise those place names. Pick the start and destination below.")}</span>
+        </div>
+      )}
+
+      {/* Always-reliable origin/destination selectors (no parsing involved) */}
+      <div className="mt-4 rounded-2xl border border-line bg-brand-mint p-3">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-bold text-ink-soft">{t("শুরু", "From")}</span>
+            <select
+              aria-label={t("শুরুর হাব", "Origin hub")}
+              value={activeQuery.origin_hub_id}
+              onChange={(e) => store.planDirect(e.target.value as HubId, activeQuery.dest_hub_id)}
+              className={`${inputCls} px-3 py-2.5 text-[14px]`}
+            >
+              {HUB_IDS.map((h) => <option key={h} value={h} disabled={h === activeQuery.dest_hub_id}>{hubName(h, lang)}</option>)}
+            </select>
+          </label>
+          <button
+            type="button"
+            aria-label={t("শুরু ও গন্তব্য অদল-বদল", "Swap start and destination")}
+            onClick={() => store.planDirect(activeQuery.dest_hub_id, activeQuery.origin_hub_id)}
+            className="mb-1 grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-ink-soft hover:border-brand hover:text-brand-dark"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+          </button>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-bold text-ink-soft">{t("গন্তব্য", "To")}</span>
+            <select
+              aria-label={t("গন্তব্য হাব", "Destination hub")}
+              value={activeQuery.dest_hub_id}
+              onChange={(e) => store.planDirect(activeQuery.origin_hub_id, e.target.value as HubId)}
+              className={`${inputCls} px-3 py-2.5 text-[14px]`}
+            >
+              {HUB_IDS.map((h) => <option key={h} value={h} disabled={h === activeQuery.origin_hub_id}>{hubName(h, lang)}</option>)}
+            </select>
+          </label>
+        </div>
+      </div>
 
       <div className="mt-4">
         <div className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">{t("এক ট্যাপে চেষ্টা করুন", "Try one tap")}</div>

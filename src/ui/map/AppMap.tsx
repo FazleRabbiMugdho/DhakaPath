@@ -22,6 +22,37 @@ export interface MapLayers {
 }
 
 const CENTER: [number, number] = [23.775, 90.395];
+type LL = [number, number];
+
+function haversineKm(a: LL, b: LL): number {
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+function polylineKm(pts: LL[]): number {
+  let km = 0;
+  for (let i = 1; i < pts.length; i++) km += haversineKm(pts[i - 1], pts[i]);
+  return km;
+}
+function nearestIndex(line: LL[], p: LL): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < line.length; i++) {
+    const d = haversineKm(line[i], p);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+// Real rail/road geometry between two stops, snapped to the CSV polyline.
+function slicePolyline(line: LL[], a: LL, b: LL): LL[] {
+  if (line.length < 2) return [a, b];
+  const i = nearestIndex(line, a);
+  const j = nearestIndex(line, b);
+  if (i === j) return [a, b];
+  const seg = i < j ? line.slice(i, j + 1) : line.slice(j, i + 1).reverse();
+  return [a, ...seg, b];
+}
 
 function pin(letter: string, color: string): L.DivIcon {
   return L.divIcon({
@@ -56,11 +87,14 @@ export default function AppMap({
     return selectedRoute.legs
       .filter((leg) => leg.origin_hub_id !== leg.dest_hub_id)
       .map((leg) => {
-        const a = CANONICAL_HUBS[leg.origin_hub_id];
-        const b = CANONICAL_HUBS[leg.dest_hub_id];
-        return { leg, pts: [[a.lat, a.lng], [b.lat, b.lng]] as [number, number][] };
+        const a: LL = [CANONICAL_HUBS[leg.origin_hub_id].lat, CANONICAL_HUBS[leg.origin_hub_id].lng];
+        const b: LL = [CANONICAL_HUBS[leg.dest_hub_id].lat, CANONICAL_HUBS[leg.dest_hub_id].lng];
+        // Metro legs follow the actual MRT-6 alignment; other modes use a direct link.
+        const pts = leg.mode === TransportMode.METRO ? slicePolyline(METRO_MRT6.fullPolyline as LL[], a, b) : [a, b];
+        return { leg, pts, km: polylineKm(pts) };
       });
   }, [selectedRoute]);
+
 
   const fitPoints = useMemo(() => legs.flatMap((l) => l.pts), [legs]);
 
@@ -106,7 +140,7 @@ export default function AppMap({
       )}
 
       {/* the verified route, leg by leg */}
-      {legs.map(({ leg, pts }, i) => {
+      {legs.map(({ leg, pts, km }, i) => {
         const style = MODE_STYLE[leg.mode];
         return (
           <React.Fragment key={`${leg.edge_id}-${i}`}>
@@ -124,7 +158,7 @@ export default function AppMap({
               <Tooltip sticky>
                 <strong>{leg.route_name}</strong>
                 <br />
-                {modeName(leg.mode, lang)} · {n(leg.effective_fare_bdt)} ৳
+                {modeName(leg.mode, lang)} · {n(leg.effective_fare_bdt)} ৳ · {n(km.toFixed(1))} {t("কিমি", "km")}
               </Tooltip>
             </Polyline>
           </React.Fragment>

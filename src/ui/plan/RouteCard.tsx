@@ -68,6 +68,7 @@ function LegRow({ leg, isStudent, last }: { leg: RouteLeg; isStudent: boolean; l
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <Pill tone="gray">{n(minutes)} {t("মিনিট", "min")}</Pill>
+          {edge && !isHub && <Pill tone="gray">{n(edge.distance_km.toFixed(1))} {t("কিমি", "km")}</Pill>}
           {discounted && <Pill tone="green" icon={<GraduationCap className="h-3 w-3" />}>{t("স্টুডেন্ট ৫০%", "Student 50%")}</Pill>}
           {leg.mode === TransportMode.METRO && isStudent && <Pill tone="gray">{t("মেট্রোতে স্টুডেন্ট ছাড় নেই", "No student discount on metro")}</Pill>}
           {leg.mode === TransportMode.RICKSHAW && leg.surge_multiplier > 1 && <Pill tone="amber">{t("সার্জ", "Surge")} ×{n(leg.surge_multiplier.toFixed(1))}</Pill>}
@@ -104,6 +105,10 @@ export function RouteCard({
   const selected = r.route_id === selectedRouteId;
   const minutes = Math.round(r.total_duration_ms / 60000);
   const saving = r.total_regular_fare_bdt - r.total_effective_fare_bdt;
+  const totalKm = r.legs.reduce((s, l) => {
+    const e = CANONICAL_GRAPH_G0.find((x) => x.edge_id === l.edge_id);
+    return s + (e && l.origin_hub_id !== l.dest_hub_id ? e.distance_km : 0);
+  }, 0);
   const myPools = poolBoard.filter((p) => r.legs.some((l) => l.edge_id === p.edge.edge_id));
 
   return (
@@ -133,7 +138,7 @@ export function RouteCard({
           <div className="text-right">
             <div className="text-[24px] font-extrabold tabular-nums text-ink">{n(minutes)} {t("মিনিট", "min")}</div>
             <div className="text-[13px] font-semibold text-ink-soft">
-              {n(r.transfers_count)} {r.transfers_count === 1 ? t("ট্রান্সফার", "transfer") : t("ট্রান্সফার", "transfers")}
+              {n(totalKm.toFixed(1))} {t("কিমি", "km")} · {n(r.transfers_count)} {r.transfers_count === 1 ? t("ট্রান্সফার", "transfer") : t("ট্রান্সফার", "transfers")}
             </div>
           </div>
         </div>

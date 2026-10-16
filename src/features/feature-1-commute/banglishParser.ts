@@ -13,6 +13,8 @@ export interface BanglishParseResult {
   max_budget_bdt: number;
   avoid_hub_ids: HubId[];
   adversarialHallucinationDetected: boolean;
+  origin_resolved: boolean;
+  dest_resolved: boolean;
   hallucinatedSummary?: string;
   parser_source: "LLM_SANDBOX" | "DETERMINISTIC_REGEX_FALLBACK";
   parse_latency_ms: number;
@@ -53,77 +55,77 @@ interface HubMatchPattern {
 const HUB_LEXICON: HubMatchPattern[] = [
   {
     hub_id: HubId.H_MIRPUR10,
-    regex: /\b(mirpur[\s_-]*10|mirpur10|মিরপুর[\s_-]*১০|মিরপুর[\s_-]*10|mirpur|মিরপুর)\b/i,
+    regex: /(mirpur[\s_-]*10|mirpur10|মিরপুর[\s_-]*১০|মিরপুর[\s_-]*10|mirpur|মিরপুর)/i,
     keywords: ["mirpur 10", "mirpur-10", "mirpur10", "মিরপুর ১০", "মিরপুর 10", "mirpur", "মিরপুর", "golchottor"],
   },
   {
     hub_id: HubId.H_MOTIJHEEL,
-    regex: /\b(motijheel|motijhil|matijheel|মতিঝিল|shapla[\s_-]*chottor|শাপলা[\s_-]*চত্বর)\b/i,
+    regex: /(motijheel|motijhil|matijheel|মতিঝিল|shapla[\s_-]*chottor|শাপলা[\s_-]*চত্বর)/i,
     keywords: ["motijheel", "motijhil", "matijheel", "মতিঝিল", "shapla chottor", "মতিঝিল শাপলা"],
   },
   {
     hub_id: HubId.H_FARMGATE,
-    regex: /\b(farmgate|farm[\s_-]*gate|ফার্মগেট|ফার্ম[\s_-]*গেট|ananda)\b/i,
+    regex: /(farmgate|farm[\s_-]*gate|ফার্মগেট|ফার্ম[\s_-]*গেট|ananda)/i,
     keywords: ["farmgate", "farm gate", "ফার্মগেট", "ফার্ম গেট", "ananda"],
   },
   {
     hub_id: HubId.H_SHAHBAGH,
-    regex: /\b(shahbagh|shahbag|শাহবাগ|tsc|du|dhaka[\s_-]*university|pg[\s_-]*hospital)\b/i,
+    regex: /(shahbagh|shahbag|শাহবাগ|tsc|dhaka[\s_-]*university|pg[\s_-]*hospital)/i,
     keywords: ["shahbagh", "shahbag", "শাহবাগ", "tsc", "du", "pg hospital"],
   },
   {
     hub_id: HubId.H_UTTARA,
-    regex: /\b(uttara|uttora|উত্তরা|house[\s_-]*building|azampur|diabari)\b/i,
+    regex: /(uttara|uttora|উত্তরা|house[\s_-]*building|azampur|diabari)/i,
     keywords: ["uttara", "uttora", "উত্তরা", "house building", "azampur", "diabari"],
   },
   {
     hub_id: HubId.H_DHANMONDI,
-    regex: /\b(dhanmondi|dhanmandi|ধানমন্ডি|ধানমন্ডী|dhanmondi[\s_-]*27|dhanmondi[\s_-]*32)\b/i,
+    regex: /(dhanmondi|dhanmandi|ধানমন্ডি|ধানমন্ডী|dhanmondi[\s_-]*27|dhanmondi[\s_-]*32)/i,
     keywords: ["dhanmondi", "dhanmandi", "ধানমন্ডি", "dhanmondi 27", "dhanmondi 32"],
   },
   {
     hub_id: HubId.H_BADDA,
-    regex: /\b(badda|বাড্ডা|badda[\s_-]*link[\s_-]*road|middle[\s_-]*badda)\b/i,
+    regex: /(badda|বাড্ডা|badda[\s_-]*link[\s_-]*road|middle[\s_-]*badda)/i,
     keywords: ["badda", "বাড্ডা", "link road", "badda link road"],
   },
   {
     hub_id: HubId.H_MALIBAGH,
-    regex: /\b(malibagh|malibag|মালিবাগ|mouchak|মৌচাক|railgate)\b/i,
+    regex: /(malibagh|malibag|মালিবাগ|mouchak|মৌচাক|railgate)/i,
     keywords: ["malibagh", "malibag", "মালিবাগ", "mouchak", "railgate"],
   },
   {
     hub_id: HubId.H_MOHAKHALI,
-    regex: /\b(mohakhali|maakhali|মহাখালী|wireless)\b/i,
+    regex: /(mohakhali|maakhali|মহাখালী|wireless)/i,
     keywords: ["mohakhali", "maakhali", "মহাখালী", "wireless"],
   },
   {
     hub_id: HubId.H_AGARGAON,
-    regex: /\b(agargaon|agar[\s_-]*gaon|আগারগাঁও|passport[\s_-]*office)\b/i,
+    regex: /(agargaon|agar[\s_-]*gaon|আগারগাঁও|passport[\s_-]*office)/i,
     keywords: ["agargaon", "agar gaon", "আগারগাঁও", "passport office"],
   },
   {
     hub_id: HubId.H_JATRABARI,
-    regex: /\b(jatrabari|jattrobari|যাত্রাবাড়ী|যাত্রাবাড়ি|sayedabad|সায়েদাবাদ)\b/i,
+    regex: /(jatrabari|jattrobari|যাত্রাবাড়ী|যাত্রাবাড়ি|sayedabad|সায়েদাবাদ)/i,
     keywords: ["jatrabari", "jattrobari", "যাত্রাবাড়ী", "যাত্রাবাড়ি", "sayedabad"],
   },
   {
     hub_id: HubId.H_MOHAMMADPUR,
-    regex: /\b(mohammadpur|mohammodpur|মোহাম্মদপুর|town[\s_-]*hall|shiya[\s_-]*mosjid)\b/i,
+    regex: /(mohammadpur|mohammodpur|মোহাম্মদপুর|town[\s_-]*hall|shiya[\s_-]*mosjid)/i,
     keywords: ["mohammadpur", "mohammodpur", "মোহাম্মদপুর", "town hall", "shiya mosjid"],
   },
   {
     hub_id: HubId.H_SCIENCELAB,
-    regex: /\b(science[\s_-]*lab|sciencelab|সায়েন্স[\s_-]*ল্যাব|সায়েন্স[\s_-]*ল্যাব|city[\s_-]*college)\b/i,
+    regex: /(science[\s_-]*lab|sciencelab|সায়েন্স[\s_-]*ল্যাব|সায়েন্স[\s_-]*ল্যাব|city[\s_-]*college)/i,
     keywords: ["science lab", "sciencelab", "সায়েন্স ল্যাব", "সায়েন্স ল্যাব", "city college"],
   },
   {
     hub_id: HubId.H_BANASREE,
-    regex: /\b(banasree|bonosree|বনশ্রী|rampura[\s_-]*bridge)\b/i,
+    regex: /(banasree|bonosree|বনশ্রী|rampura[\s_-]*bridge)/i,
     keywords: ["banasree", "bonosree", "বনশ্রী", "rampura bridge"],
   },
   {
     hub_id: HubId.H_GULISTAN,
-    regex: /\b(gulistan|গুলিস্তান|zero[\s_-]*point|fulbaria)\b/i,
+    regex: /(gulistan|গুলিস্তান|zero[\s_-]*point|fulbaria)/i,
     keywords: ["gulistan", "গুলিস্তান", "zero point", "fulbaria"],
   },
 ];
@@ -191,6 +193,8 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
         max_budget_bdt: 5,
         avoid_hub_ids: [],
         adversarialHallucinationDetected: true,
+        origin_resolved: true,
+        dest_resolved: true,
         hallucinatedSummary: "Edge H_BADDA -> H_DHANMONDI (UNDERGROUND_FERRY) Not in Canonical Graph G_0",
         parser_source: "DETERMINISTIC_REGEX_FALLBACK",
         parse_latency_ms: Number((endTime - startTime).toFixed(3)),
@@ -252,9 +256,11 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
   // If all hits got marked avoid, restore them
   const travelPool = validTravelHits.length >= 2 ? validTravelHits : hits;
 
-  // 4. Determine Origin & Destination
-  let origin_hub_id = HubId.H_MIRPUR10;
-  let dest_hub_id = HubId.H_MOTIJHEEL;
+  // 4. Determine Origin & Destination (defaults are only used when nothing resolved)
+  let origin_hub_id = travelPool[0]?.hub_id ?? HubId.H_MIRPUR10;
+  let dest_hub_id = travelPool[travelPool.length - 1]?.hub_id ?? HubId.H_MOTIJHEEL;
+  const origin_resolved = travelPool.length >= 1;
+  const dest_resolved = travelPool.length >= 2;
 
   // Explicit syntactic check: "from X", "X theke", "X থেকে"
   const thekeRegex = /(?:theke|thekey|from|থেকে)\b/i;
@@ -321,6 +327,8 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
     max_budget_bdt,
     avoid_hub_ids: cleanAvoidHubs,
     adversarialHallucinationDetected: false,
+    origin_resolved,
+    dest_resolved,
     parser_source: "DETERMINISTIC_REGEX_FALLBACK",
     parse_latency_ms: latency,
     confidence_score: hits.length >= 2 ? 0.98 : 0.85,
@@ -372,6 +380,8 @@ export async function parseCommuterIntent(rawText: string): Promise<BanglishPars
           max_budget_bdt: typeof data.max_budget_bdt === "number" ? data.max_budget_bdt : deterministicFallback.max_budget_bdt,
           avoid_hub_ids: Array.isArray(data.avoid_hub_ids) ? data.avoid_hub_ids : deterministicFallback.avoid_hub_ids,
           adversarialHallucinationDetected: Boolean(data.adversarialHallucinationDetected),
+          origin_resolved: data.origin_resolved ?? true,
+          dest_resolved: data.dest_resolved ?? true,
           hallucinatedSummary: data.hallucinatedSummary,
           parser_source: "LLM_SANDBOX",
           parse_latency_ms: typeof data.latency_ms === "number" ? data.latency_ms : 450,
