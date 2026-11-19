@@ -193,15 +193,15 @@ export function PlannerCard() {
       </div>
 
       {/* Always-reliable origin/destination selectors (no parsing involved) */}
-      <div className="mt-2 rounded-2xl border border-line bg-brand-mint p-3">
+      <div className="mt-2 rounded-2xl border border-line bg-brand-mint/50 p-2.5">
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-bold text-ink-soft">{t("শুরু", "From")}</span>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-[11px] font-bold text-ink-soft">{t("শুরু", "From")}</span>
             <select
               aria-label={t("শুরুর হাব", "Origin hub")}
               value={activeQuery.origin_hub_id}
               onChange={(e) => store.planDirect(e.target.value as HubId, activeQuery.dest_hub_id)}
-              className={`${inputCls} px-3 py-2.5 text-[14px]`}
+              className={`${inputCls} px-2.5 py-2 text-[13px] font-semibold bg-white truncate`}
             >
               {HUB_IDS.map((h) => <option key={h} value={h} disabled={h === activeQuery.dest_hub_id}>{hubName(h, lang)}</option>)}
             </select>
@@ -210,17 +210,17 @@ export function PlannerCard() {
             type="button"
             aria-label={t("শুরু ও গন্তব্য অদল-বদল", "Swap start and destination")}
             onClick={() => store.planDirect(activeQuery.dest_hub_id, activeQuery.origin_hub_id)}
-            className="mb-1 grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-ink-soft hover:border-brand hover:text-brand-dark"
+            className="mb-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line bg-white text-ink-soft shadow-xs transition-all hover:border-brand hover:bg-brand-mint hover:text-brand-dark active:scale-95"
           >
             <ArrowLeftRight className="h-4 w-4" />
           </button>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-bold text-ink-soft">{t("গন্তব্য", "To")}</span>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-[11px] font-bold text-ink-soft">{t("গন্তব্য", "To")}</span>
             <select
               aria-label={t("গন্তব্য হাব", "Destination hub")}
               value={activeQuery.dest_hub_id}
               onChange={(e) => store.planDirect(activeQuery.origin_hub_id, e.target.value as HubId)}
-              className={`${inputCls} px-3 py-2.5 text-[14px]`}
+              className={`${inputCls} px-2.5 py-2 text-[13px] font-semibold bg-white truncate`}
             >
               {HUB_IDS.map((h) => <option key={h} value={h} disabled={h === activeQuery.origin_hub_id}>{hubName(h, lang)}</option>)}
             </select>

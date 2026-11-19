@@ -1,0 +1,870 @@
+{
+  "H_UTTARA_H_MIRPUR10": 7.103,
+  "H_UTTARA_H_BADDA": 15.707,
+  "H_UTTARA_H_AGARGAON": 10.47,
+  "H_UTTARA_H_MOHAKHALI": 14.733,
+  "H_UTTARA_H_BANASREE": 18.215,
+  "H_UTTARA_H_MALIBAGH": 18.748,
+  "H_UTTARA_H_FARMGATE": 16.557,
+  "H_UTTARA_H_MOHAMMADPUR": 14.481,
+  "H_UTTARA_H_DHANMONDI": 14.494,
+  "H_UTTARA_H_SCIENCELAB": {
+    "distanceKm": 19.31,
+    "durationMin": 22
+  },
+  "H_UTTARA_H_GULISTAN": 19.287,
+  "H_UTTARA_H_SHAHBAGH": 16.589,
+  "H_UTTARA_H_MOTIJHEEL": 19.108,
+  "H_UTTARA_H_JATRABARI": 22.53,
+  "H_MIRPUR10_H_AGARGAON": {
+    "distanceKm": 3.37,
+    "durationMin": 4
+  },
+  "H_MIRPUR10_H_UTTARA": 8.949,
+  "H_MIRPUR10_H_MOHAKHALI": {
+    "distanceKm": 8.12,
+    "durationMin": 11
+  },
+  "H_MIRPUR10_H_BADDA": {
+    "distanceKm": 10.27,
+    "durationMin": 14
+  },
+  "H_MIRPUR10_H_MALIBAGH": {
+    "distanceKm": 10.75,
+    "durationMin": 13
+  },
+  "H_MIRPUR10_H_MOHAMMADPUR": {
+    "distanceKm": 7.38,
+    "durationMin": 9
+  },
+  "H_MIRPUR10_H_FARMGATE": {
+    "distanceKm": 8.56,
+    "durationMin": 10
+  },
+  "H_MIRPUR10_H_BANASREE": {
+    "distanceKm": 12.42,
+    "durationMin": 17
+  },
+  "H_MIRPUR10_H_DHANMONDI": {
+    "distanceKm": 7.39,
+    "durationMin": 10
+  },
+  "H_MIRPUR10_H_SCIENCELAB": {
+    "distanceKm": 9.22,
+    "durationMin": 11
+  },
+  "H_MIRPUR10_H_SHAHBAGH": {
+    "distanceKm": 8.59,
+    "durationMin": 10
+  },
+  "H_MIRPUR10_H_GULISTAN": {
+    "distanceKm": 11.29,
+    "durationMin": 12
+  },
+  "H_MIRPUR10_H_MOTIJHEEL": {
+    "distanceKm": 11.11,
+    "durationMin": 13
+  },
+  "H_MIRPUR10_H_JATRABARI": {
+    "distanceKm": 14.53,
+    "durationMin": 17
+  },
+  "H_AGARGAON_H_MOHAKHALI": {
+    "distanceKm": 5.78,
+    "durationMin": 9
+  },
+  "H_AGARGAON_H_MIRPUR10": {
+    "distanceKm": 3.87,
+    "durationMin": 4
+  },
+  "H_AGARGAON_H_UTTARA": 12.332,
+  "H_AGARGAON_H_BADDA": {
+    "distanceKm": 8.12,
+    "durationMin": 11
+  },
+  "H_AGARGAON_H_BANASREE": {
+    "distanceKm": 9.72,
+    "durationMin": 14
+  },
+  "H_AGARGAON_H_MALIBAGH": {
+    "distanceKm": 7.38,
+    "durationMin": 10
+  },
+  "H_AGARGAON_H_FARMGATE": {
+    "distanceKm": 5.19,
+    "durationMin": 6
+  },
+  "H_AGARGAON_H_MOHAMMADPUR": {
+    "distanceKm": 4.01,
+    "durationMin": 5
+  },
+  "H_AGARGAON_H_DHANMONDI": {
+    "distanceKm": 4.02,
+    "durationMin": 6
+  },
+  "H_AGARGAON_H_SCIENCELAB": {
+    "distanceKm": 5.86,
+    "durationMin": 8
+  },
+  "H_AGARGAON_H_SHAHBAGH": {
+    "distanceKm": 5.22,
+    "durationMin": 6
+  },
+  "H_AGARGAON_H_GULISTAN": {
+    "distanceKm": 7.92,
+    "durationMin": 9
+  },
+  "H_AGARGAON_H_MOTIJHEEL": {
+    "distanceKm": 7.74,
+    "durationMin": 9
+  },
+  "H_AGARGAON_H_JATRABARI": {
+    "distanceKm": 11.16,
+    "durationMin": 13
+  },
+  "H_MOHAKHALI_H_UTTARA": 17.768,
+  "H_MOHAKHALI_H_MIRPUR10": {
+    "distanceKm": 7.14,
+    "durationMin": 9
+  },
+  "H_MOHAKHALI_H_AGARGAON": {
+    "distanceKm": 6.19,
+    "durationMin": 9
+  },
+  "H_MOHAKHALI_H_BANASREE": {
+    "distanceKm": 5.23,
+    "durationMin": 10
+  },
+  "H_MOHAKHALI_H_BADDA": {
+    "distanceKm": 4.02,
+    "durationMin": 7
+  },
+  "H_MOHAKHALI_H_MALIBAGH": {
+    "distanceKm": 6.63,
+    "durationMin": 11
+  },
+  "H_MOHAKHALI_H_FARMGATE": {
+    "distanceKm": 6.87,
+    "durationMin": 9
+  },
+  "H_MOHAKHALI_H_DHANMONDI": {
+    "distanceKm": 6.68,
+    "durationMin": 11
+  },
+  "H_MOHAKHALI_H_MOHAMMADPUR": {
+    "distanceKm": 7.22,
+    "durationMin": 10
+  },
+  "H_MOHAKHALI_H_SCIENCELAB": {
+    "distanceKm": 7.54,
+    "durationMin": 10
+  },
+  "H_MOHAKHALI_H_SHAHBAGH": {
+    "distanceKm": 6.9,
+    "durationMin": 9
+  },
+  "H_MOHAKHALI_H_GULISTAN": {
+    "distanceKm": 9.6,
+    "durationMin": 11
+  },
+  "H_MOHAKHALI_H_MOTIJHEEL": {
+    "distanceKm": 7.73,
+    "durationMin": 11
+  },
+  "H_MOHAKHALI_H_JATRABARI": {
+    "distanceKm": 11.37,
+    "durationMin": 16
+  },
+  "H_BADDA_H_MIRPUR10": {
+    "distanceKm": 9.04,
+    "durationMin": 11
+  },
+  "H_BADDA_H_UTTARA": 16.177,
+  "H_BADDA_H_AGARGAON": {
+    "distanceKm": 8.1,
+    "durationMin": 11
+  },
+  "H_BADDA_H_MOHAKHALI": {
+    "distanceKm": 2.7,
+    "durationMin": 6
+  },
+  "H_BADDA_H_MALIBAGH": {
+    "distanceKm": 4.27,
+    "durationMin": 7
+  },
+  "H_BADDA_H_BANASREE": {
+    "distanceKm": 2.74,
+    "durationMin": 5
+  },
+  "H_BADDA_H_FARMGATE": {
+    "distanceKm": 8.21,
+    "durationMin": 11
+  },
+  "H_BADDA_H_MOHAMMADPUR": {
+    "distanceKm": 9.13,
+    "durationMin": 12
+  },
+  "H_BADDA_H_SHAHBAGH": {
+    "distanceKm": 7.5,
+    "durationMin": 9
+  },
+  "H_BADDA_H_GULISTAN": {
+    "distanceKm": 7.78,
+    "durationMin": 9
+  },
+  "H_BADDA_H_MOTIJHEEL": {
+    "distanceKm": 6.49,
+    "durationMin": 8
+  },
+  "H_BADDA_H_SCIENCELAB": {
+    "distanceKm": 8.6,
+    "durationMin": 11
+  },
+  "H_BADDA_H_JATRABARI": {
+    "distanceKm": 10.14,
+    "durationMin": 13
+  },
+  "H_BADDA_H_DHANMONDI": {
+    "distanceKm": 8.54,
+    "durationMin": 12
+  },
+  "H_BANASREE_H_UTTARA": 19.521,
+  "H_BANASREE_H_MIRPUR10": {
+    "distanceKm": 12.39,
+    "durationMin": 16
+  },
+  "H_BANASREE_H_MOHAKHALI": {
+    "distanceKm": 6.05,
+    "durationMin": 11
+  },
+  "H_BANASREE_H_AGARGAON": {
+    "distanceKm": 10.93,
+    "durationMin": 13
+  },
+  "H_BANASREE_H_BADDA": {
+    "distanceKm": 3.86,
+    "durationMin": 7
+  },
+  "H_BANASREE_H_MALIBAGH": {
+    "distanceKm": 4.09,
+    "durationMin": 7
+  },
+  "H_BANASREE_H_FARMGATE": {
+    "distanceKm": 8.04,
+    "durationMin": 11
+  },
+  "H_BANASREE_H_MOHAMMADPUR": {
+    "distanceKm": 11.96,
+    "durationMin": 15
+  },
+  "H_BANASREE_H_DHANMONDI": {
+    "distanceKm": 9.03,
+    "durationMin": 13
+  },
+  "H_BANASREE_H_SCIENCELAB": {
+    "distanceKm": 8.43,
+    "durationMin": 11
+  },
+  "H_BANASREE_H_SHAHBAGH": {
+    "distanceKm": 7.33,
+    "durationMin": 9
+  },
+  "H_BANASREE_H_GULISTAN": {
+    "distanceKm": 7.61,
+    "durationMin": 9
+  },
+  "H_BANASREE_H_MOTIJHEEL": {
+    "distanceKm": 6.32,
+    "durationMin": 9
+  },
+  "H_BANASREE_H_JATRABARI": {
+    "distanceKm": 9.97,
+    "durationMin": 13
+  },
+  "H_MALIBAGH_H_UTTARA": 19.881,
+  "H_MALIBAGH_H_BADDA": {
+    "distanceKm": 4.22,
+    "durationMin": 7
+  },
+  "H_MALIBAGH_H_AGARGAON": {
+    "distanceKm": 7.52,
+    "durationMin": 8
+  },
+  "H_MALIBAGH_H_MIRPUR10": {
+    "distanceKm": 10.51,
+    "durationMin": 11
+  },
+  "H_MALIBAGH_H_MOHAKHALI": {
+    "distanceKm": 6.41,
+    "durationMin": 10
+  },
+  "H_MALIBAGH_H_BANASREE": {
+    "distanceKm": 5.82,
+    "durationMin": 9
+  },
+  "H_MALIBAGH_H_FARMGATE": {
+    "distanceKm": 4.63,
+    "durationMin": 6
+  },
+  "H_MALIBAGH_H_MOHAMMADPUR": {
+    "distanceKm": 8.55,
+    "durationMin": 10
+  },
+  "H_MALIBAGH_H_DHANMONDI": {
+    "distanceKm": 5.62,
+    "durationMin": 8
+  },
+  "H_MALIBAGH_H_SCIENCELAB": {
+    "distanceKm": 4.35,
+    "durationMin": 7
+  },
+  "H_MALIBAGH_H_SHAHBAGH": {
+    "distanceKm": 3.93,
+    "durationMin": 5
+  },
+  "H_MALIBAGH_H_GULISTAN": {
+    "distanceKm": 4.29,
+    "durationMin": 5
+  },
+  "H_MALIBAGH_H_MOTIJHEEL": {
+    "distanceKm": 3,
+    "durationMin": 5
+  },
+  "H_MALIBAGH_H_JATRABARI": {
+    "distanceKm": 6.65,
+    "durationMin": 9
+  },
+  "H_FARMGATE_H_AGARGAON": {
+    "distanceKm": 3.49,
+    "durationMin": 4
+  },
+  "H_FARMGATE_H_MIRPUR10": {
+    "distanceKm": 6.48,
+    "durationMin": 7
+  },
+  "H_FARMGATE_H_UTTARA": 17.742,
+  "H_FARMGATE_H_MOHAKHALI": {
+    "distanceKm": 4.66,
+    "durationMin": 8
+  },
+  "H_FARMGATE_H_MALIBAGH": {
+    "distanceKm": 5.03,
+    "durationMin": 7
+  },
+  "H_FARMGATE_H_BADDA": {
+    "distanceKm": 6.99,
+    "durationMin": 10
+  },
+  "H_FARMGATE_H_BANASREE": {
+    "distanceKm": 8.6,
+    "durationMin": 12
+  },
+  "H_FARMGATE_H_MOHAMMADPUR": {
+    "distanceKm": 4.52,
+    "durationMin": 6
+  },
+  "H_FARMGATE_H_SCIENCELAB": {
+    "distanceKm": 3.51,
+    "durationMin": 5
+  },
+  "H_FARMGATE_H_DHANMONDI": {
+    "distanceKm": 2.61,
+    "durationMin": 4
+  },
+  "H_FARMGATE_H_SHAHBAGH": {
+    "distanceKm": 2.87,
+    "durationMin": 3
+  },
+  "H_FARMGATE_H_GULISTAN": {
+    "distanceKm": 5.57,
+    "durationMin": 6
+  },
+  "H_MOHAMMADPUR_H_UTTARA": 15.4,
+  "H_FARMGATE_H_JATRABARI": {
+    "distanceKm": 8.82,
+    "durationMin": 11
+  },
+  "H_FARMGATE_H_MOTIJHEEL": {
+    "distanceKm": 5.39,
+    "durationMin": 7
+  },
+  "H_MOHAMMADPUR_H_MIRPUR10": {
+    "distanceKm": 6.94,
+    "durationMin": 7
+  },
+  "H_MOHAMMADPUR_H_AGARGAON": {
+    "distanceKm": 3.95,
+    "durationMin": 5
+  },
+  "H_MOHAMMADPUR_H_BADDA": {
+    "distanceKm": 11.26,
+    "durationMin": 15
+  },
+  "H_MOHAMMADPUR_H_MOHAKHALI": {
+    "distanceKm": 8.86,
+    "durationMin": 13
+  },
+  "H_MOHAMMADPUR_H_DHANMONDI": {
+    "distanceKm": 4.36,
+    "durationMin": 7
+  },
+  "H_MOHAMMADPUR_H_BANASREE": {
+    "distanceKm": 12.86,
+    "durationMin": 17
+  },
+  "H_MOHAMMADPUR_H_FARMGATE": {
+    "distanceKm": 6.16,
+    "durationMin": 9
+  },
+  "H_MOHAMMADPUR_H_MALIBAGH": {
+    "distanceKm": 9.87,
+    "durationMin": 12
+  },
+  "H_MOHAMMADPUR_H_SCIENCELAB": {
+    "distanceKm": 6.82,
+    "durationMin": 10
+  },
+  "H_MOHAMMADPUR_H_SHAHBAGH": {
+    "distanceKm": 7.71,
+    "durationMin": 9
+  },
+  "H_MOHAMMADPUR_H_MOTIJHEEL": {
+    "distanceKm": 10.23,
+    "durationMin": 12
+  },
+  "H_MOHAMMADPUR_H_GULISTAN": {
+    "distanceKm": 10.4,
+    "durationMin": 11
+  },
+  "H_MOHAMMADPUR_H_JATRABARI": {
+    "distanceKm": 13.65,
+    "durationMin": 16
+  },
+  "H_DHANMONDI_H_AGARGAON": {
+    "distanceKm": 4.63,
+    "durationMin": 7
+  },
+  "H_DHANMONDI_H_UTTARA": 16.08,
+  "H_DHANMONDI_H_MOHAKHALI": {
+    "distanceKm": 6.46,
+    "durationMin": 11
+  },
+  "H_DHANMONDI_H_BANASREE": {
+    "distanceKm": 9.48,
+    "durationMin": 14
+  },
+  "H_DHANMONDI_H_BADDA": {
+    "distanceKm": 7.88,
+    "durationMin": 12
+  },
+  "H_DHANMONDI_H_MALIBAGH": {
+    "distanceKm": 5.49,
+    "durationMin": 9
+  },
+  "H_DHANMONDI_H_FARMGATE": {
+    "distanceKm": 1.91,
+    "durationMin": 4
+  },
+  "H_DHANMONDI_H_MOHAMMADPUR": {
+    "distanceKm": 3.45,
+    "durationMin": 6
+  },
+  "H_DHANMONDI_H_MIRPUR10": {
+    "distanceKm": 7.62,
+    "durationMin": 9
+  },
+  "H_DHANMONDI_H_SCIENCELAB": {
+    "distanceKm": 2.91,
+    "durationMin": 6
+  },
+  "H_DHANMONDI_H_SHAHBAGH": {
+    "distanceKm": 3.33,
+    "durationMin": 5
+  },
+  "H_DHANMONDI_H_GULISTAN": {
+    "distanceKm": 6.02,
+    "durationMin": 8
+  },
+  "H_DHANMONDI_H_MOTIJHEEL": {
+    "distanceKm": 5.85,
+    "durationMin": 9
+  },
+  "H_DHANMONDI_H_JATRABARI": {
+    "distanceKm": 9.27,
+    "durationMin": 12
+  },
+  "H_SCIENCELAB_H_MIRPUR10": {
+    "distanceKm": 8.64,
+    "durationMin": 10
+  },
+  "H_SCIENCELAB_H_UTTARA": {
+    "distanceKm": 20.28,
+    "durationMin": 23
+  },
+  "H_SCIENCELAB_H_AGARGAON": {
+    "distanceKm": 5.65,
+    "durationMin": 7
+  },
+  "H_SCIENCELAB_H_MOHAKHALI": {
+    "distanceKm": 6.82,
+    "durationMin": 11
+  },
+  "H_SCIENCELAB_H_BANASREE": {
+    "distanceKm": 9.84,
+    "durationMin": 14
+  },
+  "H_SCIENCELAB_H_BADDA": {
+    "distanceKm": 8.23,
+    "durationMin": 12
+  },
+  "H_SCIENCELAB_H_MALIBAGH": {
+    "distanceKm": 5.35,
+    "durationMin": 8
+  },
+  "H_SCIENCELAB_H_FARMGATE": {
+    "distanceKm": 2.28,
+    "durationMin": 4
+  },
+  "H_SCIENCELAB_H_DHANMONDI": {
+    "distanceKm": 2.29,
+    "durationMin": 5
+  },
+  "H_SCIENCELAB_H_MOHAMMADPUR": {
+    "distanceKm": 4.95,
+    "durationMin": 8
+  },
+  "H_SCIENCELAB_H_SHAHBAGH": {
+    "distanceKm": 1.82,
+    "durationMin": 4
+  },
+  "H_SCIENCELAB_H_GULISTAN": {
+    "distanceKm": 4.83,
+    "durationMin": 6
+  },
+  "H_SCIENCELAB_H_JATRABARI": {
+    "distanceKm": 8.16,
+    "durationMin": 10
+  },
+  "H_SCIENCELAB_H_MOTIJHEEL": {
+    "distanceKm": 5.09,
+    "durationMin": 7
+  },
+  "H_SHAHBAGH_H_UTTARA": 19.808,
+  "H_SHAHBAGH_H_MIRPUR10": {
+    "distanceKm": 8.54,
+    "durationMin": 9
+  },
+  "H_SHAHBAGH_H_MOHAKHALI": {
+    "distanceKm": 6.72,
+    "durationMin": 10
+  },
+  "H_SHAHBAGH_H_AGARGAON": {
+    "distanceKm": 5.55,
+    "durationMin": 6
+  },
+  "H_SHAHBAGH_H_BADDA": {
+    "distanceKm": 7.08,
+    "durationMin": 10
+  },
+  "H_SHAHBAGH_H_BANASREE": {
+    "distanceKm": 8.68,
+    "durationMin": 12
+  },
+  "H_SHAHBAGH_H_FARMGATE": {
+    "distanceKm": 2.66,
+    "durationMin": 4
+  },
+  "H_SHAHBAGH_H_MALIBAGH": {
+    "distanceKm": 3.14,
+    "durationMin": 6
+  },
+  "H_SHAHBAGH_H_MOHAMMADPUR": {
+    "distanceKm": 6.58,
+    "durationMin": 8
+  },
+  "H_SHAHBAGH_H_DHANMONDI": {
+    "distanceKm": 3.65,
+    "durationMin": 6
+  },
+  "H_SHAHBAGH_H_SCIENCELAB": {
+    "distanceKm": 1.91,
+    "durationMin": 3
+  },
+  "H_SHAHBAGH_H_GULISTAN": {
+    "distanceKm": 3.54,
+    "durationMin": 4
+  },
+  "H_SHAHBAGH_H_MOTIJHEEL": {
+    "distanceKm": 3.36,
+    "durationMin": 5
+  },
+  "H_SHAHBAGH_H_JATRABARI": {
+    "distanceKm": 6.78,
+    "durationMin": 9
+  },
+  "H_GULISTAN_H_UTTARA": 23.163,
+  "H_GULISTAN_H_MIRPUR10": {
+    "distanceKm": 11.9,
+    "durationMin": 12
+  },
+  "H_GULISTAN_H_AGARGAON": {
+    "distanceKm": 8.91,
+    "durationMin": 9
+  },
+  "H_GULISTAN_H_MOHAKHALI": {
+    "distanceKm": 9.25,
+    "durationMin": 12
+  },
+  "H_GULISTAN_H_BADDA": {
+    "distanceKm": 7.41,
+    "durationMin": 9
+  },
+  "H_GULISTAN_H_BANASREE": {
+    "distanceKm": 9.01,
+    "durationMin": 12
+  },
+  "H_GULISTAN_H_MALIBAGH": {
+    "distanceKm": 4.57,
+    "durationMin": 5
+  },
+  "H_GULISTAN_H_FARMGATE": {
+    "distanceKm": 6.02,
+    "durationMin": 7
+  },
+  "H_GULISTAN_H_MOHAMMADPUR": {
+    "distanceKm": 9.94,
+    "durationMin": 11
+  },
+  "H_GULISTAN_H_DHANMONDI": {
+    "distanceKm": 7,
+    "durationMin": 9
+  },
+  "H_GULISTAN_H_SCIENCELAB": {
+    "distanceKm": 4.5,
+    "durationMin": 5
+  },
+  "H_GULISTAN_H_SHAHBAGH": {
+    "distanceKm": 3.39,
+    "durationMin": 4
+  },
+  "H_GULISTAN_H_MOTIJHEEL": {
+    "distanceKm": 1.31,
+    "durationMin": 2
+  },
+  "H_MOTIJHEEL_H_UTTARA": 22.254,
+  "H_GULISTAN_H_JATRABARI": {
+    "distanceKm": 3.43,
+    "durationMin": 5
+  },
+  "H_MOTIJHEEL_H_MIRPUR10": {
+    "distanceKm": 10.99,
+    "durationMin": 11
+  },
+  "H_MOTIJHEEL_H_AGARGAON": {
+    "distanceKm": 8,
+    "durationMin": 9
+  },
+  "H_MOTIJHEEL_H_BADDA": {
+    "distanceKm": 6.35,
+    "durationMin": 9
+  },
+  "H_MOTIJHEEL_H_MOHAKHALI": {
+    "distanceKm": 8.19,
+    "durationMin": 12
+  },
+  "H_MOTIJHEEL_H_BANASREE": {
+    "distanceKm": 7.95,
+    "durationMin": 11
+  },
+  "H_MOTIJHEEL_H_MALIBAGH": {
+    "distanceKm": 3.51,
+    "durationMin": 5
+  },
+  "H_MOTIJHEEL_H_MOHAMMADPUR": {
+    "distanceKm": 9.03,
+    "durationMin": 10
+  },
+  "H_MOTIJHEEL_H_FARMGATE": {
+    "distanceKm": 5.11,
+    "durationMin": 7
+  },
+  "H_MOTIJHEEL_H_DHANMONDI": {
+    "distanceKm": 6.09,
+    "durationMin": 9
+  },
+  "H_MOTIJHEEL_H_SCIENCELAB": {
+    "distanceKm": 4.23,
+    "durationMin": 6
+  },
+  "H_MOTIJHEEL_H_SHAHBAGH": {
+    "distanceKm": 3.13,
+    "durationMin": 4
+  },
+  "H_MOTIJHEEL_H_JATRABARI": {
+    "distanceKm": 4.13,
+    "durationMin": 6
+  },
+  "H_JATRABARI_H_UTTARA": 25.993,
+  "H_JATRABARI_H_MIRPUR10": {
+    "distanceKm": 14.73,
+    "durationMin": 15
+  },
+  "H_JATRABARI_H_AGARGAON": {
+    "distanceKm": 11.74,
+    "durationMin": 13
+  },
+  "H_JATRABARI_H_MOHAKHALI": {
+    "distanceKm": 12.91,
+    "durationMin": 16
+  },
+  "H_MOTIJHEEL_H_GULISTAN": {
+    "distanceKm": 1.77,
+    "durationMin": 2
+  },
+  "H_JATRABARI_H_BADDA": {
+    "distanceKm": 10.64,
+    "durationMin": 14
+  },
+  "H_JATRABARI_H_BANASREE": {
+    "distanceKm": 12.24,
+    "durationMin": 16
+  },
+  "H_JATRABARI_H_MALIBAGH": {
+    "distanceKm": 6.45,
+    "durationMin": 9
+  },
+  "H_JATRABARI_H_FARMGATE": {
+    "distanceKm": 8.85,
+    "durationMin": 10
+  },
+  "H_JATRABARI_H_MOHAMMADPUR": {
+    "distanceKm": 12.77,
+    "durationMin": 14
+  },
+  "H_JATRABARI_H_DHANMONDI": {
+    "distanceKm": 9.83,
+    "durationMin": 12
+  },
+  "H_JATRABARI_H_SCIENCELAB": {
+    "distanceKm": 7.29,
+    "durationMin": 9
+  },
+  "H_JATRABARI_H_SHAHBAGH": {
+    "distanceKm": 6.22,
+    "durationMin": 7
+  },
+  "H_JATRABARI_H_GULISTAN": {
+    "distanceKm": 4.33,
+    "durationMin": 5
+  },
+  "H_JATRABARI_H_MOTIJHEEL": {
+    "distanceKm": 5.05,
+    "durationMin": 6
+  },
+  "H_UTTARA_H_SCIENCE_LAB": 17.223,
+  "H_SCIENCE_LAB_H_UTTARA": 19.908,
+  "H_MIRPUR10_H_SCIENCE_LAB": {
+    "distanceKm": 9.22,
+    "durationMin": 11
+  },
+  "H_AGARGAON_H_SCIENCE_LAB": {
+    "distanceKm": 5.86,
+    "durationMin": 8
+  },
+  "H_MOHAKHALI_H_SCIENCE_LAB": {
+    "distanceKm": 7.54,
+    "durationMin": 10
+  },
+  "H_BADDA_H_SCIENCE_LAB": {
+    "distanceKm": 8.6,
+    "durationMin": 11
+  },
+  "H_BANASREE_H_SCIENCE_LAB": {
+    "distanceKm": 8.43,
+    "durationMin": 11
+  },
+  "H_MALIBAGH_H_SCIENCE_LAB": {
+    "distanceKm": 4.35,
+    "durationMin": 7
+  },
+  "H_FARMGATE_H_SCIENCE_LAB": {
+    "distanceKm": 3.51,
+    "durationMin": 5
+  },
+  "H_MOHAMMADPUR_H_SCIENCE_LAB": {
+    "distanceKm": 6.82,
+    "durationMin": 10
+  },
+  "H_DHANMONDI_H_SCIENCE_LAB": {
+    "distanceKm": 2.91,
+    "durationMin": 6
+  },
+  "H_SCIENCE_LAB_H_MIRPUR10": {
+    "distanceKm": 8.64,
+    "durationMin": 10
+  },
+  "H_SCIENCE_LAB_H_AGARGAON": {
+    "distanceKm": 5.65,
+    "durationMin": 7
+  },
+  "H_SCIENCE_LAB_H_MOHAKHALI": {
+    "distanceKm": 6.82,
+    "durationMin": 11
+  },
+  "H_SCIENCE_LAB_H_BANASREE": {
+    "distanceKm": 9.84,
+    "durationMin": 14
+  },
+  "H_SCIENCE_LAB_H_BADDA": {
+    "distanceKm": 8.23,
+    "durationMin": 12
+  },
+  "H_SCIENCE_LAB_H_MALIBAGH": {
+    "distanceKm": 5.35,
+    "durationMin": 8
+  },
+  "H_SCIENCE_LAB_H_FARMGATE": {
+    "distanceKm": 2.28,
+    "durationMin": 4
+  },
+  "H_SCIENCE_LAB_H_DHANMONDI": {
+    "distanceKm": 2.29,
+    "durationMin": 5
+  },
+  "H_SCIENCE_LAB_H_MOHAMMADPUR": {
+    "distanceKm": 4.95,
+    "durationMin": 8
+  },
+  "H_SCIENCE_LAB_H_SHAHBAGH": {
+    "distanceKm": 1.82,
+    "durationMin": 4
+  },
+  "H_SCIENCE_LAB_H_GULISTAN": {
+    "distanceKm": 4.83,
+    "durationMin": 6
+  },
+  "H_SCIENCE_LAB_H_JATRABARI": {
+    "distanceKm": 8.16,
+    "durationMin": 10
+  },
+  "H_SCIENCE_LAB_H_MOTIJHEEL": {
+    "distanceKm": 5.09,
+    "durationMin": 7
+  },
+  "H_SHAHBAGH_H_SCIENCE_LAB": {
+    "distanceKm": 1.91,
+    "durationMin": 3
+  },
+  "H_GULISTAN_H_SCIENCE_LAB": {
+    "distanceKm": 4.5,
+    "durationMin": 5
+  },
+  "H_MOTIJHEEL_H_SCIENCE_LAB": {
+    "distanceKm": 4.23,
+    "durationMin": 6
+  },
+  "H_JATRABARI_H_SCIENCE_LAB": {
+    "distanceKm": 7.29,
+    "durationMin": 9
+  }
+}

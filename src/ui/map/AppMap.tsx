@@ -11,6 +11,7 @@ import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip
 import { METRO_MRT6, BIKOLPO_BUS, UTTARA_BUS } from "@/data/dhakaTransitData";
 import { CANONICAL_HUBS } from "@/contracts/canonicalGraph";
 import { HubId, TransportMode } from "@/contracts/schema";
+import { getLegGeometry, getLegDistanceKm, getMultiHubRoadPath, ensureContinuousRouteLegs } from "@/data/dhakaRoadNetwork";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
 import { MODE_STYLE, hubName, incidentName, alertStatusName, modeName } from "../labels";
@@ -22,56 +23,6 @@ export interface MapLayers {
 }
 
 const CENTER: [number, number] = [23.775, 90.395];
-type LL = [number, number];
-
-function haversineKm(a: LL, b: LL): number {
-  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
-  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return 2 * 6371 * Math.asin(Math.sqrt(h));
-}
-function polylineKm(pts: LL[]): number {
-  let km = 0;
-  for (let i = 1; i < pts.length; i++) km += haversineKm(pts[i - 1], pts[i]);
-  return km;
-}
-function nearestIndex(line: LL[], p: LL): number {
-  let best = 0;
-  let bestD = Infinity;
-  for (let i = 0; i < line.length; i++) {
-    const d = haversineKm(line[i], p);
-    if (d < bestD) { bestD = d; best = i; }
-  }
-  return best;
-}
-// Real rail/road geometry between two stops, snapped to the CSV polyline.
-function slicePolyline(line: LL[], a: LL, b: LL): LL[] {
-  if (line.length < 2) return [a, b];
-  const i = nearestIndex(line, a);
-  const j = nearestIndex(line, b);
-  if (i === j) return [a, b];
-  const seg = i < j ? line.slice(i, j + 1) : line.slice(j, i + 1).reverse();
-  return [a, ...seg, b];
-}
-
-// A gently bowed polyline so surface legs read as a route, not a ruler-straight diagonal.
-function curve(a: LL, b: LL, bow = 0.14): LL[] {
-  const mx = (a[0] + b[0]) / 2;
-  const my = (a[1] + b[1]) / 2;
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  // control point offset perpendicular to the chord
-  const cx = mx - dy * bow;
-  const cy = my + dx * bow;
-  const pts: LL[] = [];
-  for (let s = 0; s <= 16; s++) {
-    const tt = s / 16;
-    const x = (1 - tt) ** 2 * a[0] + 2 * (1 - tt) * tt * cx + tt ** 2 * b[0];
-    const y = (1 - tt) ** 2 * a[1] + 2 * (1 - tt) * tt * cy + tt ** 2 * b[1];
-    pts.push([x, y]);
-  }
-  return pts;
-}
 
 function pin(letter: string, color: string): L.DivIcon {
   return L.divIcon({
@@ -99,27 +50,29 @@ export default function AppMap({
   onTile: (ok: boolean) => void;
 }) {
   const { lang, t, n } = useLang();
-  const { selectedRoute, shadowHubPath, disruptedHubIds, alerts, activeQuery } = useDhakaPathStore();
+  const store = useDhakaPathStore();
+  const { selectedRoute, shadowHubPath, disruptedHubIds, alerts, activeQuery } = store;
 
   const legs = useMemo(() => {
     if (!selectedRoute) return [];
-    return selectedRoute.legs
+    const rawLegs = selectedRoute.legs
       .filter((leg) => leg.origin_hub_id !== leg.dest_hub_id)
       .map((leg) => {
-        const a: LL = [CANONICAL_HUBS[leg.origin_hub_id].lat, CANONICAL_HUBS[leg.origin_hub_id].lng];
-        const b: LL = [CANONICAL_HUBS[leg.dest_hub_id].lat, CANONICAL_HUBS[leg.dest_hub_id].lng];
-        // Metro legs follow the actual MRT-6 alignment; surface modes use a bowed link
-        // so they never render as a dead-straight diagonal across the city.
-        const pts = leg.mode === TransportMode.METRO ? slicePolyline(METRO_MRT6.fullPolyline as LL[], a, b) : curve(a, b);
-        return { leg, pts, km: polylineKm([a, b]) };
+        // Legs follow the exact street geometry with dense road nodes,
+        // preventing lines from deviating off-road or cutting through blocks.
+        const pts = getLegGeometry(leg);
+        const km = getLegDistanceKm(leg);
+        return { leg, pts, km };
       });
+    return ensureContinuousRouteLegs(rawLegs);
   }, [selectedRoute]);
 
 
   const fitPoints = useMemo(() => legs.flatMap((l) => l.pts), [legs]);
 
+  // Naive / flooded baseline also follows the actual street corridor step by step
   const shadowPts = useMemo(
-    () => shadowHubPath.map((h) => [CANONICAL_HUBS[h].lat, CANONICAL_HUBS[h].lng] as [number, number]),
+    () => getMultiHubRoadPath(shadowHubPath),
     [shadowHubPath]
   );
 
@@ -167,29 +120,42 @@ export default function AppMap({
         </Polyline>
       )}
 
-      {/* the verified route, leg by leg */}
+      {/* 1. Seamless white underlay casing spanning the entire continuous route */}
+      {fitPoints.length > 1 && (
+        <Polyline
+          positions={fitPoints}
+          pathOptions={{
+            color: "#ffffff",
+            weight: 11,
+            opacity: 0.95,
+            lineCap: "round",
+            lineJoin: "round",
+          }}
+        />
+      )}
+
+      {/* 2. The verified route, leg by leg with solid continuous mode styling */}
       {legs.map(({ leg, pts, km }, i) => {
         const style = MODE_STYLE[leg.mode];
         return (
-          <React.Fragment key={`${leg.edge_id}-${i}`}>
-            <Polyline positions={pts} pathOptions={{ color: "#fff", weight: 11, opacity: 0.95, lineCap: "round" }} />
-            <Polyline
-              positions={pts}
-              pathOptions={{
-                color: style.color,
-                weight: leg.mode === TransportMode.METRO ? 7 : 6,
-                opacity: 1,
-                lineCap: "round",
-                dashArray: leg.mode === TransportMode.WALK ? "1 10" : leg.mode === TransportMode.RICKSHAW ? "10 8" : undefined,
-              }}
-            >
-              <Tooltip sticky>
-                <strong>{leg.route_name}</strong>
-                <br />
-                {modeName(leg.mode, lang)} · {n(leg.effective_fare_bdt)} ৳ · {n(km.toFixed(1))} {t("কিমি", "km")}
-              </Tooltip>
-            </Polyline>
-          </React.Fragment>
+          <Polyline
+            key={`${leg.edge_id}-${i}`}
+            positions={pts}
+            pathOptions={{
+              color: style.color,
+              weight: leg.mode === TransportMode.METRO ? 7 : 6,
+              opacity: 1,
+              lineCap: "round",
+              lineJoin: "round",
+              dashArray: leg.mode === TransportMode.WALK ? "3 6" : undefined,
+            }}
+          >
+            <Tooltip sticky>
+              <strong>{leg.route_name}</strong>
+              <br />
+              {modeName(leg.mode, lang)} · {n(leg.effective_fare_bdt)} ৳ · {n(km.toFixed(1))} {t("কিমি", "km")}
+            </Tooltip>
+          </Polyline>
         );
       })}
 
@@ -209,15 +175,36 @@ export default function AppMap({
             >
               <Tooltip direction="top" offset={[0, -8]}>{hubName(hub.hub_id as HubId, lang)}</Tooltip>
               <Popup>
-                <div className="space-y-1">
+                <div className="space-y-2 p-1 min-w-[190px]">
                   <div className="text-[15px] font-extrabold text-ink">{hubName(hub.hub_id as HubId, lang)}</div>
                   {alert ? (
                     <div className="rounded-xl bg-danger-bg px-2.5 py-1.5 text-[12.5px] font-semibold text-danger">
                       {incidentName(alert.incident_type, lang)} · {alertStatusName(alert.status, lang)} · R<sub>e</sub> {n(alert.confidence_pct.toFixed(1))}%
                     </div>
                   ) : (
-                    <div className="text-[12.5px] font-semibold text-brand-dark">{t("চলাচল স্বাভাবিক", "Operating normally")}</div>
+                    <div className="text-[12px] font-semibold text-brand-dark flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-brand"></span>
+                      {t("চলাচল স্বাভাবিক", "Operating normally")}
+                    </div>
                   )}
+
+                  {/* Direct Origin (A) / Destination (B) setter from Map */}
+                  <div className="pt-2 border-t border-line flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => store.planDirect(hub.hub_id as HubId, activeQuery.dest_hub_id)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-brand-mint border border-brand text-[12px] font-bold text-brand-dark hover:bg-brand hover:text-white transition-colors text-center shadow-xs"
+                    >
+                      {t("শুরু (A)", "Set From (A)")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => store.planDirect(activeQuery.origin_hub_id, hub.hub_id as HubId)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-[#F0FDF4] border border-[#0E2A1A] text-[12px] font-bold text-[#0E2A1A] hover:bg-[#0E2A1A] hover:text-white transition-colors text-center shadow-xs"
+                    >
+                      {t("গন্তব্য (B)", "Set To (B)")}
+                    </button>
+                  </div>
                 </div>
               </Popup>
             </CircleMarker>
