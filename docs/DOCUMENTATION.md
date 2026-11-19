@@ -470,3 +470,4 @@ For granular engineering specifications, refer to the individual modular documen
 | **02 Features & QA Matrix** | [feature.md](file:///g:/Hackaton/DhakaPath/docs/feature.md) | Feature calibrations, Senior QA failure matrices, zero-drift serialization laws, and TypeScript contracts. |
 | **03 UI/UX Flow & Stage Blueprint** | [ux-flow.md](file:///g:/Hackaton/DhakaPath/docs/ux-flow.md) | Cognitive ergonomics, Tactical Obsidian design tokens, Mermaid stage journey, and view-by-view layout specs. |
 | **04 Master Build Playbook** | [Build Prompt.md](file:///g:/Hackaton/DhakaPath/docs/Build%20Prompt.md) | Copy-paste developer prompts across Wave 0, Wave 1 (Tracks 1–4), and Wave 2 integration. |
+| **Map & Path-Following Guide** | [MAP_AND_ROUTING_IMPLEMENTATION.md](file:///f:/Hackaton/DhakaPath/docs/MAP_AND_ROUTING_IMPLEMENTATION.md) | Authoritative geospatial architecture: OSRM road geometry, coordinate normalization, 0.0m continuity, and Leaflet polyline casing. |

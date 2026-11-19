@@ -41,6 +41,12 @@ The SQL for the four tables with open anonymous RLS is in `supabase/migrations/0
 
 **Keyboard shortcuts:** `Alt+1/2/3` switch scenario, `Alt+R` reset, `Ctrl+Shift+D` show the math. Bangla / English can be switched from the header on every screen.
 
+## Documentation & Technical Guides
+
+- 🗺️ **[Map Routing & Road-Aligned Path Implementation Guide](docs/MAP_AND_ROUTING_IMPLEMENTATION.md)** — Production specification for road-following path extraction (OSRM), GeoJSON-to-Leaflet coordinate normalization, 0.0-meter transfer continuity, and dual-stroke polyline casing.
+- 📖 **[Comprehensive Technical Documentation](docs/DOCUMENTATION.md)** — Complete system architecture, Pareto routing algorithm, statutory fare engine, and grounding specifications.
+- 🎬 **[5-Minute Demo Video Script & Shot List](docs/VIDEO_SCRIPT_5MIN.md)** — Video walkthrough guide for hackathon presentations.
+
 ## Architecture
 
 ```
