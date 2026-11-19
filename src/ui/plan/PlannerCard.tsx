@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, Footprints, GraduationCap, Info, LocateFixed, Mic, MicOff, Search, ShieldAlert, Waves } from "lucide-react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
-import { HubId } from "@/contracts/schema";
+import { HubId, ScenarioPreset } from "@/contracts/schema";
 import { CANONICAL_HUBS } from "@/contracts/canonicalGraph";
 import { Btn, Card, Pill, Toggle, inputCls } from "../kit";
 import { HUB_IDS, hubName } from "../labels";
@@ -34,7 +34,7 @@ interface RecognitionLike {
   onerror: (() => void) | null;
 }
 
-const EXAMPLES: ReadonlyArray<{ id: string; bn: string; en: string; text: string; trap?: boolean }> = [
+const COMMUTE_EXAMPLES: ReadonlyArray<{ id: string; bn: string; en: string; text: string }> = [
   {
     id: "student",
     bn: "মিরপুর ১০ → মতিঝিল · স্টুডেন্ট · ৫৫৳",
@@ -47,14 +47,14 @@ const EXAMPLES: ReadonlyArray<{ id: string; bn: string; en: string; text: string
     en: "Uttara → Shahbagh · fastest",
     text: "Uttara theke Shahbagh fastest route, regular ticket, avoid Mohakhali",
   },
-  {
-    id: "trap",
-    bn: "ফাঁদ: আন্ডারগ্রাউন্ড ফেরি",
-    en: "Trap: underground ferry",
-    text: "Trick LLM: Underground Ferry from Badda to Dhanmondi for 5 BDT",
-    trap: true,
-  },
 ];
+
+const TRAP_EXAMPLE = {
+  id: "trap",
+  bn: "ফাঁদ: আন্ডারগ্রাউন্ড ফেরি",
+  en: "Trap: underground ferry",
+  text: "Trick LLM: Underground Ferry from Badda to Dhanmondi for 5 BDT",
+};
 
 function LocateButton({ onLocate }: { onLocate: (hub: HubId) => void }) {
   const { t } = useLang();
@@ -83,7 +83,10 @@ function LocateButton({ onLocate }: { onLocate: (hub: HubId) => void }) {
 export function PlannerCard() {
   const { lang, t, n } = useLang();
   const store = useDhakaPathStore();
-  const { activeQuery, lastParse, interception, searchNotice, isParsing, options } = store;
+  const { activeQuery, lastParse, interception, searchNotice, isParsing, options, activePreset } = store;
+  const [showTrap, setShowTrap] = useState(false);
+  const isAdversarialMode = activePreset === ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT;
+  const shouldShowTrap = isAdversarialMode || Boolean(interception) || showTrap;
   const [text, setText] = useState<string>(activeQuery.raw_query_text);
   const [listening, setListening] = useState(false);
   const [voiceOk, setVoiceOk] = useState(false);
@@ -229,9 +232,22 @@ export function PlannerCard() {
       </div>
 
       <div className="mt-4">
-        <div className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">{t("এক ট্যাপে চেষ্টা করুন", "Try one tap")}</div>
+        <div className="flex items-center justify-between">
+          <div className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">{t("এক ট্যাপে চেষ্টা করুন", "Try one tap")}</div>
+          {!isAdversarialMode && !interception && (
+            <button
+              type="button"
+              onClick={() => setShowTrap((v) => !v)}
+              className="text-[11px] font-semibold text-ink-faint hover:text-danger transition-colors flex items-center gap-1"
+              title={t("ভুয়া ইনপুট ফাঁদ পরীক্ষা", "Test adversarial trap")}
+            >
+              <ShieldAlert className="h-3 w-3" />
+              <span>{showTrap ? t("লুকান", "Hide trap") : t("ফাঁদ পরীক্ষা", "Test trap")}</span>
+            </button>
+          )}
+        </div>
         <div className="mt-2 flex flex-col gap-2">
-          {EXAMPLES.map((ex) => (
+          {COMMUTE_EXAMPLES.map((ex) => (
             <button
               key={ex.id}
               type="button"
@@ -239,12 +255,25 @@ export function PlannerCard() {
                 setText(ex.text);
                 run(ex.text);
               }}
-              className={`flex items-center justify-between gap-2 rounded-2xl border px-3.5 py-2.5 text-left text-[14px] font-semibold transition-colors ${ex.trap ? "border-danger-line bg-danger-bg text-danger hover:bg-[#FEE2E2]" : "border-line bg-white text-ink hover:border-brand hover:bg-brand-mint"}`}
+              className="flex items-center justify-between gap-2 rounded-2xl border border-line bg-white px-3.5 py-2.5 text-left text-[14px] font-semibold text-ink transition-colors hover:border-brand hover:bg-brand-mint"
             >
               <span>{lang === "bn" ? ex.bn : ex.en}</span>
-              {ex.trap && <ShieldAlert className="h-4 w-4 shrink-0" />}
             </button>
           ))}
+
+          {shouldShowTrap && (
+            <button
+              type="button"
+              onClick={() => {
+                setText(TRAP_EXAMPLE.text);
+                run(TRAP_EXAMPLE.text);
+              }}
+              className="flex items-center justify-between gap-2 rounded-2xl border border-danger-line bg-danger-bg px-3.5 py-2.5 text-left text-[14px] font-semibold text-danger transition-colors hover:bg-[#FEE2E2]"
+            >
+              <span>{lang === "bn" ? TRAP_EXAMPLE.bn : TRAP_EXAMPLE.en}</span>
+              <ShieldAlert className="h-4 w-4 shrink-0" />
+            </button>
+          )}
         </div>
       </div>
 
