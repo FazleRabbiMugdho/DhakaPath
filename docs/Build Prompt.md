@@ -445,7 +445,7 @@ export function computePosteriorConfidence(
   return 1 / (1 + Math.exp(-clampedLogOdds));
 }
 ```
-- Verify that a single uncorroborated report (`prior = 0.15`, `w_1 = 0.30`, `deltaMin = 0`) yields `R_e(t) = 0.243` (`24.3%`), which stays in `AlertStatus.PENDING_CORROBORATION` (well below `85.0%` blockade severance).
+- Verify that a single uncorroborated report (`prior = 0.15`, `w_1 = 0.30`, `deltaMin = 0`) yields `R_e(t) = 0.192` (`19.2%`), which stays in `AlertStatus.PENDING_CORROBORATION` (well below `85.0%` blockade severance).
 - When `R_e(t) < 0.25` (such as when scrubbing the Time-Machine slider to `+90m`), set `status = AlertStatus.EXPIRED`.
 - Compute `half_life_remaining_ms` so each alert card's `BayesianHalfLifeBar` smoothly depletes as `simOffsetMs` increases from `+0m` to `+90m`.
 
@@ -474,7 +474,7 @@ Wire API persistence to Supabase (`street_alerts`, `ride_share_pools`, `intercep
 ##### Track 2 Verification Checklist:
 - [ ] `http://localhost:3000/track-2-trust-cms` renders `TrustShieldAndCmsPanel` with zero console errors.
 - [ ] Injecting a `400 BDT` or `500 BDT` bus fare for `H_MIRPUR10 -> H_FARMGATE` is rejected in `< 0.1 ms` with `ANOMALOUS_FARE_REJECTED`[cite: 1, 2, 3].
-- [ ] Submitting 1 uncorroborated blockade at `H_SHAHBAGH` outputs `R_e(t) = 24.3% < 85%` (`PENDING_CORROBORATION`) without severing the hub[cite: 1, 2].
+- [ ] Submitting 1 uncorroborated blockade at `H_SHAHBAGH` outputs `R_e(t) = 19.2% < 85%` (`PENDING_CORROBORATION`) without severing the hub[cite: 1, 2].
 - [ ] Scrubbing the time offset to `+90m` decays uncorroborated alerts below `25%` (`EXPIRED`)[cite: 1, 2, 3].
 - [ ] Clicking `[Join Hub Pool (2/4 -> 3/4) • Lock 30 BDT Split]` reduces a 90 BDT surged rickshaw to `30 BDT` and is idempotent against rapid double-clicks[cite: 2, 3].
 
@@ -729,7 +729,7 @@ Every team member must verify their items below before the 5:30 code freeze[cite
   - [ ] Severed baseline edges (`T_eff = Infinity`) are clamped to `112 min` so `NaN` or `Infinity` never renders in the ROI ledger[cite: 2, 3].
 - [ ] **Track 2 — Bayesian Decay, Sanity Check & Pool Split (Dev 2):**
   - [ ] Bus fares `< 10 BDT` or `> 2.5x Base` (`400 BDT` / `500 BDT`) are blocked in `< 0.1 ms` with `ANOMALOUS_FARE_REJECTED`[cite: 1, 2, 3].
-  - [ ] Single uncorroborated blockade vote shifts `R_e(t)` from `15% -> 24.3%` (`PENDING_CORROBORATION`) and requires `>= 3` corroborations to cross `85%`[cite: 1, 2].
+  - [ ] Single uncorroborated blockade vote shifts `R_e(t)` from `15% -> 19.2%` (`PENDING_CORROBORATION`) and requires about `4` full-weight corroborations to cross `85%`[cite: 1, 2].
   - [ ] Scrubbing Time-Machine slider from `+0m` to `+90m` depletes the 30-minute half-life bars and expires unconfirmed alerts below `25%`[cite: 1, 2, 3].
   - [ ] Hub Ride-Share Pool Bot splits a surged `90 BDT` rickshaw from `45 BDT` (`2/4`) down to `30 BDT` (`3/4`) with double-click idempotency lock[cite: 1, 2, 3].
 - [ ] **Track 3 — Banglish NL Parser, Grounding Verifier & Signboard OCR (Dev 3):**

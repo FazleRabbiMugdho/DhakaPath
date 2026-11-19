@@ -1,12 +1,11 @@
 "use client";
 
-// Admin console at /admin. A passcode gate (NEXT_PUBLIC_ADMIN_PASSCODE, default "dhakapath2026")
-// unlocks the CMS (network links + signboard digitiser) and the moderation tools (alert feed,
-// override, fare sanity, safety log). Separate from the anonymous public /app.
+// Admin console at /admin. Authentication is verified by the server through an
+// HttpOnly cookie; no passcode or session token is bundled into client JS.
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Lock, LogOut, Network, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, LogOut, Network, ShieldCheck } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { Btn, Card, Field, SectionTitle, inputCls } from "@/ui/kit";
@@ -16,21 +15,33 @@ import { AlertsTab } from "@/ui/alerts/AlertsTab";
 import { HUB_IDS } from "@/ui/labels";
 import { CANONICAL_GRAPH_G0 } from "@/contracts/canonicalGraph";
 
-const PASSCODE = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "dhakapath2026";
-const SESSION_KEY = "dhakapath.admin";
-
 function LoginForm({ onAuth }: { onAuth: () => void }) {
   const { t } = useLang();
   const [code, setCode] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code === PASSCODE) {
-      try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* ignore */ }
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const response = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passcode: code }),
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setErr(data?.error || t("ভুল পাসকোড", "Wrong passcode"));
+        return;
+      }
       onAuth();
-    } else {
-      setErr(true);
+    } catch {
+      setErr(t("সার্ভারে সংযোগ করা যায়নি", "Could not reach the server"));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -48,14 +59,17 @@ function LoginForm({ onAuth }: { onAuth: () => void }) {
               type="password"
               autoFocus
               value={code}
-              onChange={(e) => { setCode(e.target.value); setErr(false); }}
+              onChange={(e) => { setCode(e.target.value); setErr(""); }}
               className={inputCls}
               placeholder="••••••••"
               aria-label={t("পাসকোড", "Passcode")}
+              autoComplete="current-password"
             />
           </Field>
-          {err && <p role="alert" className="rounded-xl bg-danger-bg px-3 py-2 text-[13px] font-semibold text-danger">{t("ভুল পাসকোড", "Wrong passcode")}</p>}
-          <Btn type="submit" className="w-full" icon={<ShieldCheck className="h-5 w-5" />}>{t("প্রবেশ করুন", "Sign in")}</Btn>
+          {err && <p role="alert" className="rounded-xl bg-danger-bg px-3 py-2 text-[13px] font-semibold text-danger">{err}</p>}
+          <Btn type="submit" className="w-full" icon={busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />} disabled={busy}>
+            {t("প্রবেশ করুন", "Sign in")}
+          </Btn>
         </form>
         <Link href="/app" className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-bold text-ink-soft hover:text-brand-dark">
           <ArrowLeft className="h-4 w-4" /> {t("পাবলিক অ্যাপে ফিরুন", "Back to the public app")}
@@ -93,15 +107,38 @@ export default function AdminPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try { setAuthed(sessionStorage.getItem(SESSION_KEY) === "1"); } catch { /* ignore */ }
-    setReady(true);
+    let cancelled = false;
+    fetch("/api/admin/auth", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data: { authenticated?: boolean }) => {
+        if (!cancelled) setAuthed(Boolean(data.authenticated));
+      })
+      .catch(() => {
+        if (!cancelled) setAuthed(false);
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center text-ink-soft">
+        <Loader2 className="h-7 w-7 animate-spin" aria-label={t("লোড হচ্ছে", "Loading")} />
+      </div>
+    );
+  }
   if (!authed) return <LoginForm onAuth={() => setAuthed(true)} />;
 
-  const logout = () => {
-    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  const logout = async () => {
+    try {
+      await fetch("/api/admin/auth", { method: "DELETE" });
+    } catch {
+      // The local gate still closes even if the network request fails.
+    }
     setAuthed(false);
   };
 

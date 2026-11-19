@@ -24,6 +24,42 @@ export interface ProjectedScenarioState {
   readonly is_demo_telemetry: true;
 }
 
+export interface ScenarioParameters {
+  readonly surface_velocity_kmh: number;
+  readonly surge_multiplier: number;
+}
+
+export function getScenarioParameters(preset: ScenarioPreset): ScenarioParameters {
+  switch (preset) {
+    case ScenarioPreset.PEAK_CRISIS_SURGE:
+      return { surface_velocity_kmh: 4.8, surge_multiplier: 1.8 };
+    case ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT:
+      return { surface_velocity_kmh: 8.2, surge_multiplier: 2.4 };
+    case ScenarioPreset.NORMAL_BASELINE:
+    default:
+      return { surface_velocity_kmh: 14.5, surge_multiplier: 1.0 };
+  }
+}
+
+/**
+ * Only waterlogging and intersection blockades sever a corridor. A gridlock
+ * slows traffic but must never make a hub unreachable.
+ */
+export function getSeveredHubIds(alerts: ReadonlyArray<StreetAlert>): HubId[] {
+  const hubs = new Set<HubId>();
+  for (const alert of alerts) {
+    if (alert.status === AlertStatus.EXPIRED || alert.status === AlertStatus.RESOLVED) continue;
+    if (alert.confidence_pct < 85) continue;
+    if (
+      alert.incident_type === IncidentType.WATERLOGGING ||
+      alert.incident_type === IncidentType.INTERSECTION_BLOCKADE
+    ) {
+      hubs.add(alert.hub_id);
+    }
+  }
+  return Array.from(hubs);
+}
+
 /**
  * Baseline Street Alerts for Peak Crisis Surge
  */
@@ -94,16 +130,15 @@ export function projectScenario(
 ): ProjectedScenarioState {
   const actionId = `SCENARIO_${preset}_${simOffsetMs}`;
 
-  // Pure functional mapping based on preset
-  let surfaceVelocityKmh = 14.5;
-  let surgeMultiplier = 1.0;
+  // Pure functional mapping based on preset. Shared with the router, the
+  // shadow baseline and the Track 4 telemetry endpoint.
+  const params = getScenarioParameters(preset);
+  const surfaceVelocityKmh = params.surface_velocity_kmh;
+  const surgeMultiplier = params.surge_multiplier;
   let activeAlerts: StreetAlert[] = [];
 
   switch (preset) {
     case ScenarioPreset.PEAK_CRISIS_SURGE: {
-      surfaceVelocityKmh = 4.8; // Peak velocity collapse
-      surgeMultiplier = 1.8; // Monsoon rickshaw surge multiplier
-
       // Apply live time-machine decay to seed crisis alerts
       activeAlerts = SEED_CRISIS_ALERTS.map((alert) => {
         const decayedConfidence = applyDecay(alert.confidence_pct, simOffsetMs);
@@ -129,8 +164,6 @@ export function projectScenario(
     }
 
     case ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT: {
-      surfaceVelocityKmh = 8.2;
-      surgeMultiplier = 2.4;
       // Stale alert aged by 90 minutes
       const decayedConfidence = applyDecay(91.8, 90 * 60000);
       activeAlerts = [
@@ -147,8 +180,6 @@ export function projectScenario(
 
     case ScenarioPreset.NORMAL_BASELINE:
     default: {
-      surfaceVelocityKmh = 14.5;
-      surgeMultiplier = 1.0;
       activeAlerts = [];
       break;
     }

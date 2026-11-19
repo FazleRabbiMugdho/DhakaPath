@@ -11,8 +11,15 @@ import {
   AlertStatus,
   HubId,
   IncidentType,
+  TransportMode,
 } from "../../contracts/schema";
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../../contracts/canonicalGraph";
+import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../../engine/fareEngine";
+import {
+  computePosteriorConfidence,
+  DEFAULT_OFF_PEAK_PRIOR,
+  TAU_BLOCKADE,
+} from "./bayesianTruth";
 
 export interface FareValidationResult {
   readonly isValid: boolean;
@@ -73,17 +80,33 @@ export function validateFareSubmission(
   }
 
   const minAllowedBdt = 10;
-  const maxAllowedBdt = Math.round(2.5 * edge.base_fare_bdt * 10) / 10;
 
-  if (submittedFareBdt < minAllowedBdt || submittedFareBdt > maxAllowedBdt) {
+  // Never trust a stored bus/metro fare as the fraud baseline: those fields can
+  // drift (and did). Derive the statutory base from the same fare engine that
+  // prices the route.
+  let baseFareBdt = edge.base_fare_bdt;
+  if (edge.mode === TransportMode.BUS) {
+    baseFareBdt = computeApprovedBusFareBdt(edge.distance_km);
+  } else if (edge.mode === TransportMode.METRO) {
+    try {
+      baseFareBdt = computeMrt6FareBdt(edge.origin_hub_id, edge.dest_hub_id);
+    } catch {
+      baseFareBdt = edge.base_fare_bdt;
+    }
+  }
+  const maxAllowedBdt = Math.round(2.5 * baseFareBdt * 10) / 10;
+
+  const nonFiniteFare = !Number.isFinite(submittedFareBdt);
+  if (nonFiniteFare || submittedFareBdt < minAllowedBdt || submittedFareBdt > maxAllowedBdt) {
     const elapsed = Math.max(0.04, (typeof performance !== "undefined" ? performance.now() : Date.now()) - startTime);
     const originName = CANONICAL_HUBS[edge.origin_hub_id]?.name_en || edge.origin_hub_id;
     const destName = CANONICAL_HUBS[edge.dest_hub_id]?.name_en || edge.dest_hub_id;
 
-    const violation =
-      submittedFareBdt < minAllowedBdt
+    const violation = nonFiniteFare
+      ? `Non-finite fare (${String(submittedFareBdt)}) rejected`
+      : submittedFareBdt < minAllowedBdt
         ? `${submittedFareBdt} BDT < 10 BDT Statutory Floor`
-        : `${submittedFareBdt} BDT > ${maxAllowedBdt} BDT (2.5x Base ${edge.base_fare_bdt} BDT)`;
+        : `${submittedFareBdt} BDT > ${maxAllowedBdt} BDT (2.5x statutory base ${baseFareBdt} BDT)`;
 
     const summary = `${originName} -> ${destName}: ${violation}`;
 
@@ -101,7 +124,7 @@ export function validateFareSubmission(
       submittedFareBdt,
       maxAllowedBdt,
       minAllowedBdt,
-      baseFareBdt: edge.base_fare_bdt,
+      baseFareBdt,
       reason: summary,
       event,
       executionTimeMs: Number(elapsed.toFixed(3)),
@@ -116,7 +139,7 @@ export function validateFareSubmission(
     submittedFareBdt,
     maxAllowedBdt,
     minAllowedBdt,
-    baseFareBdt: edge.base_fare_bdt,
+    baseFareBdt,
     reason: `Fare ${submittedFareBdt} BDT is within statutory bounds [${minAllowedBdt}, ${maxAllowedBdt}] BDT`,
     executionTimeMs: Number(elapsed.toFixed(3)),
   };
@@ -172,7 +195,8 @@ export function validateAlertResolution(
 
 /**
  * Deterministic Stress-Test Helper for Judges:
- * Injects a 400 BDT or 500 BDT spoofed bus fare for Mirpur-10 -> Farmgate (Base: 25 BDT, Max allowed: 62.5 BDT).
+ * Injects a 400 BDT or 500 BDT spoofed bus fare for Mirpur-10 -> Farmgate
+ * (engine-derived statutory base: 17 BDT, max allowed: 42.5 BDT).
  */
 export function injectSpoofedFareStressTest(
   edgeId: string = "E_BUS_SURFACE_MIRPUR10_FARMGATE",
@@ -186,25 +210,30 @@ export function injectSpoofedFareStressTest(
  * Submits a single uncorroborated blockade at Shahbagh (w_1 = 0.30, prior = 0.15).
  */
 export function createUncorroboratedShahbaghAlert(nowMs: number = Date.now()): StreetAlert {
+  const vote = {
+    vote_id: `vote_single_${nowMs}`,
+    voter_session_id: "session_unverified_guest_01",
+    direction: 1 as const,
+    reliability_weight: 0.3,
+    timestamp_ms: nowMs,
+  };
+  const confidencePct = Number(
+    (computePosteriorConfidence(DEFAULT_OFF_PEAK_PRIOR, [vote], nowMs) * 100).toFixed(1)
+  );
   return {
     alert_id: `alert_uncorroborated_shahbagh_${nowMs}`,
     edge_id: "E_BUS_SURFACE_FARMGATE_SHAHBAGH",
     hub_id: HubId.H_SHAHBAGH,
     incident_type: IncidentType.INTERSECTION_BLOCKADE,
-    status: AlertStatus.PENDING_CORROBORATION,
+    status:
+      confidencePct >= TAU_BLOCKADE
+        ? AlertStatus.VERIFIED_ACTIVE
+        : AlertStatus.PENDING_CORROBORATION,
     validation_status: ValidationStatus.GRAPH_GROUNDED,
     severity_alpha: 1.5,
-    confidence_pct: 24.3, // Matches theoretical single vote posterior 24.3%
+    confidence_pct: confidencePct,
     half_life_remaining_ms: 1800000,
     created_timestamp_ms: nowMs,
-    votes: [
-      {
-        vote_id: `vote_single_${nowMs}`,
-        voter_session_id: "session_unverified_guest_01",
-        direction: 1,
-        reliability_weight: 0.3,
-        timestamp_ms: nowMs,
-      },
-    ],
+    votes: [vote],
   };
 }

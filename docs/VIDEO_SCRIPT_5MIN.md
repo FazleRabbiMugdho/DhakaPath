@@ -67,7 +67,7 @@ The current build (English, normal scenario) shows:
 
 | Thing | Value |
 |---|---|
-| Graph | 15 hubs · 37 links |
+| Graph | 15 hubs · 55 links |
 | Main route | **32 BDT** student (43 BDT regular), **48 min**, 1 transfer, 3 legs |
 | Metro leg | 20 BDT, no student discount |
 | Bus leg | 12 BDT student (50% off, 10 BDT floor) |
@@ -101,7 +101,7 @@ number you have not verified in the current build.
 | 2:20–2:35 | Click **Live alerts**. Scroll to the **Safety log**. | 500 BDT → `ANOMALOUS_FARE_REJECTED` (allowed 10–62.5, 0.04 ms); `UNDERGROUND_FERRY` blocked (0.00 ms) | Both attacks stopped, with timings |
 | 2:35–2:50 | Point at Farmgate 70.6% and Malibagh 64.0%; then click **Test: one uncorroborated Shahbagh report**. | New Shahbagh card ~19.2%; log "graph untouched" | One report cannot reroute the city |
 | 2:50–3:05 | Press **Ctrl+Shift+D**. Point at the 3 lines. Press **Esc**. | Piecewise fare · Bayesian decay · grounding check | "Here is the math." |
-| 3:05–3:20 | Click **Network**. Point at the subtitle and two rows (one bus, one metro). | 15 hubs · 37 links; bus regular/student; metro "no discount" | CMS + statutory fares |
+| 3:05–3:20 | Click **Network**. Point at the subtitle and two rows (one bus, one metro). | 15 hubs · 55 links; bus regular/student; metro "no discount" | CMS + statutory fares |
 | 3:20–3:30 | Click **Plan trip**. Click the route card to expand it. | Route legs + ride-share board | "Back to the trip." |
 | 3:30–3:40 | In the ride-share board click **Join pool (2/4 → 3/4) · lock split**. Pause. | Pool fills; per-person fare drops; bot line "split by 4, each pays 13 BDT" | Pooling cuts the last-mile fare |
 | 3:40–3:55 | Click **Offline card (<45 KB) + audio**. Wait for the modal. | 37.3 KB; PNG card; audio transcript | The survival kit |
@@ -248,7 +248,7 @@ engine also powers the Ask DhakaPath assistant and the passcode-gated admin cons
 9. Click **Live alerts**; scroll to Safety log; point at both blocked rows.
 10. Click **Test: one uncorroborated Shahbagh report**; point at ~19.2%.
 11. Press **Ctrl+Shift+D**; point at 3 lines; press **Esc**.
-12. Click **Network**; point at 15 hubs · 37 links and two fare rows.
+12. Click **Network**; point at 15 hubs · 55 links and two fare rows.
 13. Click **Plan trip**; expand the route.
 14. Click **Join pool (… → …) · lock split**; point at the split.
 15. Click **Offline card (<45 KB) + audio**; point at 37.3 KB + transcript.
@@ -373,7 +373,7 @@ At 85% a surface edge is severed; below 25% (or after an hour with no positive v
 expires. The prior is 0.45 in a peak crisis and 0.15 otherwise.
 
 **"What is the biggest limitation?"**
-The demo graph is 15 hubs / 37 links and the telemetry is simulated; photo OCR needs a Gemini
+The demo graph is 15 hubs / 55 links and the telemetry is simulated; photo OCR needs a Gemini
 key, and the offline map is schematic. We chose a deterministic, auditable demo over a
 production data pipeline we could not verify in the time.
 
@@ -401,7 +401,7 @@ operator/GTFS feeds and real reports behind the same validation gates.
 - **Do not say "real-time"** or "live bus GPS". Say "simulated demo telemetry".
 - **Do not claim "100% accurate" or "zero hallucination guaranteed".** Say "every displayed leg
   is checked; invented legs are blocked."
-- **Do not claim production scale.** Say "15 hubs, 37 links on the demo graph".
+- **Do not claim production scale.** Say "15 hubs, 55 links on the demo graph".
 
 ---
 
@@ -517,7 +517,7 @@ This table is the audit so nothing is a surprise in Q&A.
 
 | Feature | Exact action | 5:00? | Note |
 |---|---|---|---|
-| Graph counts | Point at "15 hubs · 37 links" subtitle | ✅ 3:05 | Read them live |
+| Graph counts | Point at "15 hubs · 55 links" subtitle | ✅ 3:05 | Read them live |
 | Hub filter | Click a hub card → link list filters | 🟡 §13.9 | Click again to clear |
 | Mode filters / Show all | Click **Metro**, **Bus**, **All**; **Show all links (N)** | 🟡 §13.9 | Metro shows "no discount" |
 | New / Remove link | Trash icon on an admin-added link | 🟡 §13.11 | Only after adding one |

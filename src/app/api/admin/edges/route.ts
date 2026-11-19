@@ -1,0 +1,179 @@
+// ==============================================================================
+// src/app/api/admin/edges/route.ts — server-persisted graph extensions
+// GET is public (all clients see committed links). POST/DELETE require the
+// HttpOnly admin session cookie.
+// ==============================================================================
+
+import { NextRequest, NextResponse } from "next/server";
+import {
+  HubId,
+  TransitEdge,
+  TransportMode,
+} from "../../../../contracts/schema";
+import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../../../../contracts/canonicalGraph";
+import { getExtraEdges, setExtraEdges } from "../../../../engine/graphExtensions";
+import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../../../../engine/fareEngine";
+import { isAdminRequest } from "../../../../lib/serverAuth";
+
+export const dynamic = "force-dynamic";
+
+const MAX_EXTRA_EDGES = 500;
+const CANONICAL_IDS = new Set(CANONICAL_GRAPH_G0.map((edge) => edge.edge_id));
+
+function noStore(response: NextResponse): NextResponse {
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function validateAndNormalizeEdge(raw: unknown): { edge?: TransitEdge; error?: string } {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { error: "Invalid edge payload" };
+  }
+  const input = raw as Record<string, unknown>;
+
+  if (typeof input.edge_id !== "string" || !input.edge_id.trim() || input.edge_id.length > 120) {
+    return { error: "Invalid edge_id" };
+  }
+  const edgeId = input.edge_id.trim();
+  if (CANONICAL_IDS.has(edgeId) || getExtraEdges().some((edge) => edge.edge_id === edgeId)) {
+    return { error: "Duplicate edge_id" };
+  }
+
+  const origin = input.origin_hub_id as HubId;
+  const dest = input.dest_hub_id as HubId;
+  if (!origin || !(origin in CANONICAL_HUBS)) return { error: "Unknown origin hub" };
+  if (!dest || !(dest in CANONICAL_HUBS)) return { error: "Unknown destination hub" };
+
+  const mode = input.mode as TransportMode;
+  if (!Object.values(TransportMode).includes(mode)) return { error: "Unsupported mode" };
+  if (origin === dest && mode !== TransportMode.WALK) {
+    return { error: "Origin and destination must differ" };
+  }
+
+  const routeName =
+    typeof input.route_name === "string" && input.route_name.trim()
+      ? input.route_name.trim().slice(0, 120)
+      : "Admin link";
+  const distanceKm = input.distance_km;
+  if (!isFiniteNumber(distanceKm) || distanceKm <= 0 || distanceKm > 100) {
+    return { error: "distance_km must be between 0 and 100" };
+  }
+  const durationMs = input.base_duration_ms;
+  if (!isFiniteNumber(durationMs) || durationMs <= 0 || durationMs > 24 * 60 * 60 * 1000) {
+    return { error: "base_duration_ms must be positive and under 24 hours" };
+  }
+  const landmark =
+    typeof input.boarding_landmark === "string"
+      ? input.boarding_landmark.trim().slice(0, 160)
+      : "";
+  const studentHalfFareEligible =
+    input.student_half_fare_eligible === true && mode === TransportMode.BUS;
+
+  let baseFare: number;
+  if (mode === TransportMode.BUS) {
+    baseFare = computeApprovedBusFareBdt(distanceKm);
+  } else if (mode === TransportMode.METRO) {
+    try {
+      baseFare = computeMrt6FareBdt(origin, dest);
+    } catch {
+      return { error: "No official MRT-6 fare exists for this station pair" };
+    }
+  } else if (mode === TransportMode.WALK) {
+    baseFare = 0;
+  } else {
+    const submittedFare = input.base_fare_bdt;
+    if (!isFiniteNumber(submittedFare) || submittedFare < 10 || submittedFare > 300) {
+      return { error: "Leguna/rickshaw fare must be between 10 and 300 BDT" };
+    }
+    baseFare = Math.round(submittedFare);
+  }
+
+  return {
+    edge: {
+      edge_id: edgeId,
+      origin_hub_id: origin,
+      dest_hub_id: dest,
+      mode,
+      route_name: routeName,
+      distance_km: distanceKm,
+      base_fare_bdt: baseFare,
+      base_duration_ms: Math.round(durationMs),
+      student_half_fare_eligible: studentHalfFareEligible,
+      boarding_landmark: landmark || `${CANONICAL_HUBS[origin].name_en} stop`,
+    },
+  };
+}
+
+export async function GET() {
+  return noStore(NextResponse.json({ ok: true, edges: getExtraEdges() }));
+}
+
+export async function POST(req: NextRequest) {
+  if (!isAdminRequest(req)) {
+    return noStore(NextResponse.json({ ok: false, error: "Admin authentication required" }, { status: 401 }));
+  }
+
+  if (getExtraEdges().length >= MAX_EXTRA_EDGES) {
+    return noStore(NextResponse.json({ ok: false, error: "Extension graph is full" }, { status: 409 }));
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return noStore(NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 }));
+  }
+
+  const rawEdge = body && typeof body === "object" && !Array.isArray(body)
+    ? (body as { edge?: unknown }).edge ?? body
+    : null;
+  const result = validateAndNormalizeEdge(rawEdge);
+  if (!result.edge) {
+    return noStore(NextResponse.json({ ok: false, error: result.error ?? "Invalid edge" }, { status: 400 }));
+  }
+
+  const next = [...getExtraEdges(), result.edge];
+  setExtraEdges(next);
+  return noStore(NextResponse.json({ ok: true, edge: result.edge, edges: next }));
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!isAdminRequest(req)) {
+    return noStore(NextResponse.json({ ok: false, error: "Admin authentication required" }, { status: 401 }));
+  }
+
+  const url = new URL(req.url);
+  let edgeId = url.searchParams.get("edgeId") ?? "";
+
+  if (!edgeId) {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      body = null;
+    }
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      const candidate = (body as { edgeId?: unknown }).edgeId;
+      if (typeof candidate === "string") edgeId = candidate;
+    }
+  }
+
+  if (!edgeId.trim()) {
+    return noStore(NextResponse.json({ ok: false, error: "edgeId is required" }, { status: 400 }));
+  }
+  if (CANONICAL_IDS.has(edgeId)) {
+    return noStore(NextResponse.json({ ok: false, error: "Canonical graph edges cannot be deleted" }, { status: 403 }));
+  }
+
+  const current = getExtraEdges();
+  const next = current.filter((edge) => edge.edge_id !== edgeId);
+  if (next.length === current.length) {
+    return noStore(NextResponse.json({ ok: false, error: "Edge not found" }, { status: 404 }));
+  }
+  setExtraEdges(next);
+  return noStore(NextResponse.json({ ok: true, edges: next }));
+}

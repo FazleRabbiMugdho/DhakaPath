@@ -4,6 +4,7 @@
 // ==============================================================================
 
 import { HubId, HubMetadata, TransitEdge, TransportMode } from "./schema";
+import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../engine/fareEngine";
 
 export const CANONICAL_HUBS: Readonly<Record<HubId, HubMetadata>> = Object.freeze({
   [HubId.H_UTTARA]: {
@@ -173,7 +174,7 @@ export const CANONICAL_HUBS: Readonly<Record<HubId, HubMetadata>> = Object.freez
   },
 });
 
-export const CANONICAL_GRAPH_G0: ReadonlyArray<TransitEdge> = Object.freeze([
+const CANONICAL_GRAPH_G0_SEED: ReadonlyArray<TransitEdge> = Object.freeze([
   // 1. MRT-6 Metro Rail Trunk Lines (No student pass, 20-100 BDT stepped)
   {
     edge_id: "E_MRT6_UTTARA_MIRPUR10",
@@ -845,3 +846,25 @@ export const CANONICAL_GRAPH_G0: ReadonlyArray<TransitEdge> = Object.freeze([
     boarding_landmark: "Shahbagh Metro Concourse Platform 2",
   },
 ]);
+
+// The seed literals above are kept for auditability, but bus and metro fares
+// must never drift from the statutory fare engine. Export a frozen, normalised
+// graph so every consumer (router, verifier, UI, fraud filter) sees one truth.
+export const CANONICAL_GRAPH_G0: ReadonlyArray<TransitEdge> = Object.freeze(
+  CANONICAL_GRAPH_G0_SEED.map((edge) => {
+    if (edge.mode === TransportMode.BUS) {
+      return { ...edge, base_fare_bdt: computeApprovedBusFareBdt(edge.distance_km) };
+    }
+    if (edge.mode === TransportMode.METRO) {
+      try {
+        return {
+          ...edge,
+          base_fare_bdt: computeMrt6FareBdt(edge.origin_hub_id, edge.dest_hub_id),
+        };
+      } catch {
+        return edge;
+      }
+    }
+    return edge;
+  })
+);

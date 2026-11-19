@@ -5,6 +5,12 @@
 // ==============================================================================
 
 import { HubId } from "../../contracts/schema";
+import {
+  findHubMentions,
+  HubMention,
+  clauseContains,
+  normalizeDigitsToAscii,
+} from "./hubMatching";
 
 export interface BanglishParseResult {
   origin_hub_id: HubId;
@@ -43,93 +49,6 @@ export function safeExtractJson<T>(rawLlmText: string, fallback: T): T {
   }
 }
 
-// ------------------------------------------------------------------------------
-// 2. Canonical Hub Dictionary with Comprehensive Phonetic Variations
-// ------------------------------------------------------------------------------
-interface HubMatchPattern {
-  hub_id: HubId;
-  regex: RegExp;
-  keywords: string[];
-}
-
-const HUB_LEXICON: HubMatchPattern[] = [
-  {
-    hub_id: HubId.H_MIRPUR10,
-    regex: /(mirpur[\s_-]*10|mirpur10|মিরপুর[\s_-]*১০|মিরপুর[\s_-]*10|mirpur|মিরপুর)/i,
-    keywords: ["mirpur 10", "mirpur-10", "mirpur10", "মিরপুর ১০", "মিরপুর 10", "mirpur", "মিরপুর", "golchottor"],
-  },
-  {
-    hub_id: HubId.H_MOTIJHEEL,
-    regex: /(motijheel|motijhil|matijheel|মতিঝিল|shapla[\s_-]*chottor|শাপলা[\s_-]*চত্বর)/i,
-    keywords: ["motijheel", "motijhil", "matijheel", "মতিঝিল", "shapla chottor", "মতিঝিল শাপলা"],
-  },
-  {
-    hub_id: HubId.H_FARMGATE,
-    regex: /(farmgate|farm[\s_-]*gate|ফার্মগেট|ফার্ম[\s_-]*গেট|ananda)/i,
-    keywords: ["farmgate", "farm gate", "ফার্মগেট", "ফার্ম গেট", "ananda"],
-  },
-  {
-    hub_id: HubId.H_SHAHBAGH,
-    regex: /(shahbagh|shahbag|শাহবাগ|tsc|dhaka[\s_-]*university|pg[\s_-]*hospital)/i,
-    keywords: ["shahbagh", "shahbag", "শাহবাগ", "tsc", "du", "pg hospital"],
-  },
-  {
-    hub_id: HubId.H_UTTARA,
-    regex: /(uttara|uttora|উত্তরা|house[\s_-]*building|azampur|diabari)/i,
-    keywords: ["uttara", "uttora", "উত্তরা", "house building", "azampur", "diabari"],
-  },
-  {
-    hub_id: HubId.H_DHANMONDI,
-    regex: /(dhanmondi|dhanmandi|ধানমন্ডি|ধানমন্ডী|dhanmondi[\s_-]*27|dhanmondi[\s_-]*32)/i,
-    keywords: ["dhanmondi", "dhanmandi", "ধানমন্ডি", "dhanmondi 27", "dhanmondi 32"],
-  },
-  {
-    hub_id: HubId.H_BADDA,
-    regex: /(badda|বাড্ডা|badda[\s_-]*link[\s_-]*road|middle[\s_-]*badda)/i,
-    keywords: ["badda", "বাড্ডা", "link road", "badda link road"],
-  },
-  {
-    hub_id: HubId.H_MALIBAGH,
-    regex: /(malibagh|malibag|মালিবাগ|mouchak|মৌচাক|railgate)/i,
-    keywords: ["malibagh", "malibag", "মালিবাগ", "mouchak", "railgate"],
-  },
-  {
-    hub_id: HubId.H_MOHAKHALI,
-    regex: /(mohakhali|maakhali|মহাখালী|wireless)/i,
-    keywords: ["mohakhali", "maakhali", "মহাখালী", "wireless"],
-  },
-  {
-    hub_id: HubId.H_AGARGAON,
-    regex: /(agargaon|agar[\s_-]*gaon|আগারগাঁও|passport[\s_-]*office)/i,
-    keywords: ["agargaon", "agar gaon", "আগারগাঁও", "passport office"],
-  },
-  {
-    hub_id: HubId.H_JATRABARI,
-    regex: /(jatrabari|jattrobari|যাত্রাবাড়ী|যাত্রাবাড়ি|sayedabad|সায়েদাবাদ)/i,
-    keywords: ["jatrabari", "jattrobari", "যাত্রাবাড়ী", "যাত্রাবাড়ি", "sayedabad"],
-  },
-  {
-    hub_id: HubId.H_MOHAMMADPUR,
-    regex: /(mohammadpur|mohammodpur|মোহাম্মদপুর|town[\s_-]*hall|shiya[\s_-]*mosjid)/i,
-    keywords: ["mohammadpur", "mohammodpur", "মোহাম্মদপুর", "town hall", "shiya mosjid"],
-  },
-  {
-    hub_id: HubId.H_SCIENCELAB,
-    regex: /(science[\s_-]*lab|sciencelab|সায়েন্স[\s_-]*ল্যাব|সায়েন্স[\s_-]*ল্যাব|city[\s_-]*college)/i,
-    keywords: ["science lab", "sciencelab", "সায়েন্স ল্যাব", "সায়েন্স ল্যাব", "city college"],
-  },
-  {
-    hub_id: HubId.H_BANASREE,
-    regex: /(banasree|bonosree|বনশ্রী|rampura[\s_-]*bridge)/i,
-    keywords: ["banasree", "bonosree", "বনশ্রী", "rampura bridge"],
-  },
-  {
-    hub_id: HubId.H_GULISTAN,
-    regex: /(gulistan|গুলিস্তান|zero[\s_-]*point|fulbaria)/i,
-    keywords: ["gulistan", "গুলিস্তান", "zero point", "fulbaria"],
-  },
-];
-
 // Hallucination keywords and adversarial traps
 const ADVERSARIAL_TRAPS = [
   /underground[\s_-]*ferry/i,
@@ -144,39 +63,54 @@ const ADVERSARIAL_TRAPS = [
   /water[\s_-]*metro[\s_-]*badda/i,
 ];
 
-// Student keyword triggers
+// Student keyword triggers. Bengali words do not use \b: JavaScript's word
+// boundary only understands ASCII word characters.
 const STUDENT_PATTERNS = [
-  /\bstudent\b/i,
+  /\bstudents?\b/i,
   /\bhalf[\s_-]*pass\b/i,
-  /\bid[\s_-]*ache\b/i,
-  /\bid[\s_-]*ase\b/i,
-  /\bস্টুডেন্ট\b/i,
-  /\bহাফ[\s_-]*পাস\b/i,
-  /\bছাত্র\b/i,
-  /\bছাত্রী\b/i,
+  /\bid[\s_-]*(?:ache|ase)\b/i,
+  /স্টুডেন্ট/i,
+  /শিক্ষার্থী/i,
+  /ছাত্র(?:ী)?/i,
+  /হাফ[\s_-]*পাস/i,
 ];
 
-// Avoid / Flood keyword triggers
-const AVOID_TRIGGERS = [
-  /avoid/i,
-  /pani[\s_-]*uthse/i,
-  /pani[\s_-]*utheche/i,
-  /pani/i,
-  /waterlogging/i,
-  /bad[\s_-]*diye/i,
-  /chara/i,
-  /charai/i,
-  /eray/i,
-  /jam/i,
-  /block/i,
-  /জলজট/i,
-  /পানি/i,
-  /এড়িয়ে/i,
-  /বাদ/i,
-];
+// Flood / block phrases. Deliberately no bare "বাদ": it is a substring of
+// সায়েদাবাদ and would turn a destination into an avoided hub.
+const FLOOD_OR_BLOCK_RE =
+  /(?:\bpani\b|\bflood(?:ed|ing)?\b|\bwaterlog(?:ging)?\b|\bblock(?:ade|ed)?\b|\bjam\b|\bgridlock\b|জলজট|পানি|বন্যা|ডুবে|উঠেছে|উঠছে|রাস্তা\s*বন্ধ|ব্লকেড|জ্যাম|যানজট)/iu;
+
+const AVOID_COMMAND_PREFIX_RE =
+  /(?:avoid|bypass|skip|excluding|without)\s+([^,;.!?।\n]{1,80})/giu;
+const AVOID_COMMAND_POSTFIX_RE =
+  /([^,;.!?।\n]{1,80}?)\s+(?:bad\s*diye|bad\s*deye|chara|charai|eray|এড়িয়ে|বাদ\s*দিয়ে|বাদ\s*দিন|ছাড়া|এড়ান)(?=$|[\s,;.!?।])/giu;
+
+interface AvoidZone {
+  readonly start: number;
+  readonly end: number;
+}
+
+function avoidZones(text: string): AvoidZone[] {
+  const zones: AvoidZone[] = [];
+  AVOID_COMMAND_PREFIX_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = AVOID_COMMAND_PREFIX_RE.exec(text)) !== null) {
+    const start = match.index + match[0].indexOf(match[1]);
+    zones.push({ start, end: start + match[1].length });
+  }
+  AVOID_COMMAND_POSTFIX_RE.lastIndex = 0;
+  while ((match = AVOID_COMMAND_POSTFIX_RE.exec(text)) !== null) {
+    zones.push({ start: match.index, end: match.index + match[1].length });
+  }
+  return zones;
+}
+
+function isInsideZone(mention: HubMention, zones: ReadonlyArray<AvoidZone>): boolean {
+  return zones.some((zone) => mention.start >= zone.start && mention.end <= zone.end);
+}
 
 // ------------------------------------------------------------------------------
-// 3. Fast Deterministic Phonetic Lexer (< 0.2ms execution)
+// 2. Fast Deterministic Phonetic Lexer (< 0.2ms execution)
 // ------------------------------------------------------------------------------
 export function parseBanglishQueryDeterministic(rawText: string): BanglishParseResult {
   const startTime = performance.now();
@@ -208,117 +142,136 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
     }
   }
 
-  // 2. Identify Hub Matches with Text Index Offsets
-  interface HubHit {
-    hub_id: HubId;
-    index: number;
-    matchText: string;
-  }
-  const hits: HubHit[] = [];
+  // 2. Identify hub mentions with text-index offsets. Matching is boundary-aware,
+  // so "du" cannot match "during" and "বাদ" cannot match inside "সায়েদাবাদ".
+  const mentions = findHubMentions(text);
 
-  for (const item of HUB_LEXICON) {
-    const match = text.match(item.regex);
-    if (match && match.index !== undefined) {
-      hits.push({
-        hub_id: item.hub_id,
-        index: match.index,
-        matchText: match[0],
-      });
-    }
-  }
-
-  // Sort hits by their appearance in the text
-  hits.sort((a, b) => a.index - b.index);
-
-  // 3. Identify Avoided Hubs (e.g. "Farmgate e naki pani uthse", "avoid mohakhali")
+  // 3. Identify avoided hubs from explicit avoid clauses or the clause that
+  // contains the flood/block report. A hub is only avoided when it is tied to
+  // that incident, not merely because the word appears elsewhere in the text.
+  const zones = avoidZones(text);
   const avoidHubs: HubId[] = [];
-  const validTravelHits: HubHit[] = [];
+  const travelHits: HubMention[] = [];
 
-  for (const hit of hits) {
-    // Check if the hub is adjacent to an avoid/flood keyword
-    const surroundingStart = Math.max(0, hit.index - 25);
-    const surroundingEnd = Math.min(text.length, hit.index + hit.matchText.length + 35);
-    const contextSnippet = text.slice(surroundingStart, surroundingEnd);
-
-    const isAvoided = AVOID_TRIGGERS.some((trig) => trig.test(contextSnippet));
-    if (isAvoided && hits.length > 2) {
-      avoidHubs.push(hit.hub_id);
-    } else if (
-      /\bavoid\s+/i.test(text.slice(Math.max(0, hit.index - 10), hit.index)) ||
-      /\b(?:pani|জলজট|jam)\b/i.test(contextSnippet)
-    ) {
-      avoidHubs.push(hit.hub_id);
+  for (const mention of mentions) {
+    const explicitlyAvoided = isInsideZone(mention, zones);
+    const incidentAvoided = clauseContains(text, mention.start, FLOOD_OR_BLOCK_RE);
+    if (explicitlyAvoided || incidentAvoided) {
+      if (!avoidHubs.includes(mention.hub_id)) avoidHubs.push(mention.hub_id);
     } else {
-      validTravelHits.push(hit);
+      travelHits.push(mention);
     }
   }
 
-  // If all hits got marked avoid, restore them
-  const travelPool = validTravelHits.length >= 2 ? validTravelHits : hits;
+  // If a clause mentions the only hub together with a flood, keep it as the
+  // destination rather than silently rewriting the trip. A pure incident report
+  // is classified before this parser runs, so this is the least surprising path.
+  const usableHits = travelHits.length > 0 ? travelHits : [];
 
-  // 4. Determine Origin & Destination (defaults are only used when nothing resolved)
-  let origin_hub_id = travelPool[0]?.hub_id ?? HubId.H_MIRPUR10;
-  let dest_hub_id = travelPool[travelPool.length - 1]?.hub_id ?? HubId.H_MOTIJHEEL;
-  const origin_resolved = travelPool.length >= 1;
-  const dest_resolved = travelPool.length >= 2;
+  // Remove duplicate hub mentions while preserving text order.
+  const uniqueHits = usableHits.filter(
+    (hit, index, all) => all.findIndex((other) => other.hub_id === hit.hub_id) === index
+  );
 
-  // Explicit syntactic check: "from X", "X theke", "X থেকে"
-  const thekeRegex = /(?:theke|thekey|from|থেকে)\b/i;
-  const jaboRegex = /(?:jabo|zabo|to|porjonto|যাব|যেতে)\b/i;
+  // 4. Determine Origin & Destination (defaults are only used when unresolved)
+  let origin_hub_id = uniqueHits[0]?.hub_id ?? HubId.H_MIRPUR10;
+  let dest_hub_id = uniqueHits[uniqueHits.length - 1]?.hub_id ?? HubId.H_MOTIJHEEL;
+  let originResolved = false;
+  let destResolved = false;
 
-  let originFound = false;
-  let destFound = false;
+  const thekeRegex = /^\s*(?:theke|thekey|from|থেকে)(?=$|[\s,;.!?।])/i;
+  const jaboRegex = /^\s*(?:jabo|zabo|porjonto|to|যাব|যেতে|পর্যন্ত)(?=$|[\s,;.!?।])/i;
 
-  for (const hit of travelPool) {
-    const postSnippet = text.slice(hit.index + hit.matchText.length, hit.index + hit.matchText.length + 12);
-    const preSnippet = text.slice(Math.max(0, hit.index - 10), hit.index);
+  let explicitOrigin: HubMention | null = null;
+  let explicitDest: HubMention | null = null;
 
-    if (!originFound && (thekeRegex.test(postSnippet) || /from\s*$/i.test(preSnippet))) {
-      origin_hub_id = hit.hub_id;
-      originFound = true;
-    } else if (!destFound && (jaboRegex.test(postSnippet) || /to\s*$/i.test(preSnippet))) {
-      dest_hub_id = hit.hub_id;
-      destFound = true;
+  for (const hit of uniqueHits) {
+    const postSnippet = text.slice(hit.end, hit.end + 16);
+    const preSnippet = text.slice(Math.max(0, hit.start - 12), hit.start);
+
+    if (!explicitOrigin && (thekeRegex.test(postSnippet) || /\bfrom\s*$/i.test(preSnippet))) {
+      explicitOrigin = hit;
+    }
+    if (!explicitDest && (jaboRegex.test(postSnippet) || /\bto\s*$/i.test(preSnippet) || /(?:->|→)\s*$/i.test(preSnippet))) {
+      explicitDest = hit;
     }
   }
 
-  // Positional fallback if syntax tags weren't explicitly matched
-  if (!originFound && travelPool.length > 0) {
-    origin_hub_id = travelPool[0].hub_id;
+  if (explicitOrigin) {
+    origin_hub_id = explicitOrigin.hub_id;
+    originResolved = true;
   }
-  if (!destFound && travelPool.length > 1) {
-    dest_hub_id = travelPool[travelPool.length - 1].hub_id;
+  if (explicitDest) {
+    dest_hub_id = explicitDest.hub_id;
+    destResolved = true;
   }
 
-  // Ensure origin and destination are distinct
-  if (origin_hub_id === dest_hub_id && travelPool.length > 1) {
-    dest_hub_id = travelPool.find((h) => h.hub_id !== origin_hub_id)?.hub_id || HubId.H_MOTIJHEEL;
+  // Positional fallback for an unlabelled pair ("Mirpur 10 Motijheel").
+  if (!originResolved && !destResolved && uniqueHits.length >= 2) {
+    origin_hub_id = uniqueHits[0].hub_id;
+    dest_hub_id = uniqueHits[uniqueHits.length - 1].hub_id;
+    originResolved = true;
+    destResolved = true;
+  } else if (uniqueHits.length === 1 && !originResolved && !destResolved) {
+    // A single unlabelled hub is treated as the origin; the destination is
+    // inherited from conversation context.
+    origin_hub_id = uniqueHits[0].hub_id;
+    originResolved = true;
+  } else if (!originResolved && uniqueHits.length > 0 && destResolved) {
+    // Destination was explicit, but no origin marker: use the first other hub.
+    const candidate = uniqueHits.find((hit) => hit.hub_id !== dest_hub_id);
+    if (candidate) {
+      origin_hub_id = candidate.hub_id;
+      originResolved = true;
+    }
+  } else if (!destResolved && uniqueHits.length > 1 && originResolved) {
+    const candidate = uniqueHits.find((hit) => hit.hub_id !== origin_hub_id);
+    if (candidate) {
+      dest_hub_id = candidate.hub_id;
+      destResolved = true;
+    }
+  }
+
+  // Ensure origin and destination are distinct when both were inferred.
+  if (originResolved && destResolved && origin_hub_id === dest_hub_id) {
+    const candidate = uniqueHits.find((hit) => hit.hub_id !== origin_hub_id);
+    if (candidate) dest_hub_id = candidate.hub_id;
+    else destResolved = false;
   }
 
   // 5. Parse Student Pass status
-  const is_student = STUDENT_PATTERNS.some((pat) => pat.test(text));
+  const is_student = STUDENT_PATTERNS.some((pattern) => pattern.test(text));
 
-  // 6. Parse Budget in BDT
+  // 6. Parse Budget in BDT (Bengali digits normalised to ASCII first)
+  const numericText = normalizeDigitsToAscii(text);
+  const isFareQuestion = /(?:koto|kto|how\s+much|কত|ভাড়া\s*কত)/iu.test(numericText);
+  const hasExplicitBudgetContext = /(?:budget|under|within|max|moddhe|মধ্যে|takar\s*moddhe|মাসিক)/iu.test(numericText);
   let max_budget_bdt = 100;
-  const budgetMatch =
-    text.match(/(\d+)\s*(?:taka|takar|টাকা|bdt)/i) ||
-    text.match(/budget\s*[:=-]?\s*(\d+)/i) ||
-    text.match(/under\s*(\d+)/i);
+  let budget_token: string | undefined;
 
-  if (budgetMatch && budgetMatch[1]) {
-    const parsedVal = parseInt(budgetMatch[1], 10);
-    if (!isNaN(parsedVal) && parsedVal > 0 && parsedVal <= 1000) {
-      max_budget_bdt = parsedVal;
+  if (!isFareQuestion || hasExplicitBudgetContext) {
+    const budgetMatch =
+      numericText.match(/(?:budget|max|under|within)\s*[:=-]?\s*(\d{1,4})/i) ||
+      numericText.match(/(\d{1,4})\s*(?:taka|takar|tk|bdt|৳|টাকা)\s*(?:er\s*)?(?:moddhe|মধ্যে|under|within|max)?/i);
+
+    if (budgetMatch && budgetMatch[1]) {
+      const parsedVal = parseInt(budgetMatch[1], 10);
+      if (Number.isFinite(parsedVal) && parsedVal > 0 && parsedVal <= 1000) {
+        max_budget_bdt = parsedVal;
+        budget_token = budgetMatch[0].trim();
+      }
     }
   }
 
-  // Clean avoided list to not include origin or destination
+  // Clean avoided list to not include origin or destination.
   const cleanAvoidHubs = avoidHubs.filter(
-    (h) => h !== origin_hub_id && h !== dest_hub_id
+    (hub) => hub !== origin_hub_id && hub !== dest_hub_id
   );
 
   const endTime = performance.now();
   const latency = Number((endTime - startTime).toFixed(3));
+  const confidence =
+    originResolved && destResolved ? 0.98 : originResolved || destResolved ? 0.85 : 0.35;
 
   return {
     origin_hub_id,
@@ -327,16 +280,16 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
     max_budget_bdt,
     avoid_hub_ids: cleanAvoidHubs,
     adversarialHallucinationDetected: false,
-    origin_resolved,
-    dest_resolved,
+    origin_resolved: originResolved,
+    dest_resolved: destResolved,
     parser_source: "DETERMINISTIC_REGEX_FALLBACK",
     parse_latency_ms: latency,
-    confidence_score: hits.length >= 2 ? 0.98 : 0.85,
+    confidence_score: confidence,
     extracted_raw: {
-      origin_token: origin_hub_id,
-      dest_token: dest_hub_id,
-      budget_token: `${max_budget_bdt} BDT`,
-      student_token: is_student ? "Student Pass Active" : "Regular Fare",
+      ...(originResolved ? { origin_token: origin_hub_id } : {}),
+      ...(destResolved ? { dest_token: dest_hub_id } : {}),
+      ...(budget_token ? { budget_token } : {}),
+      ...(is_student ? { student_token: "Student Pass Active" } : {}),
       avoid_tokens: cleanAvoidHubs,
     },
   };
@@ -354,10 +307,9 @@ export async function parseCommuterIntent(rawText: string): Promise<BanglishPars
   }
 
   // Try sandboxed server API with 800ms abort controller
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 800);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 800);
-
     const response = await fetch("/api/track-3-commute", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -368,37 +320,86 @@ export async function parseCommuterIntent(rawText: string): Promise<BanglishPars
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
+    if (!response.ok) return deterministicFallback;
+    const data = (await response.json()) as Record<string, unknown> | null;
+    if (!data || typeof data !== "object") return deterministicFallback;
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data && data.origin_hub_id && data.dest_hub_id) {
-        return {
-          origin_hub_id: data.origin_hub_id as HubId,
-          dest_hub_id: data.dest_hub_id as HubId,
-          is_student: Boolean(data.is_student),
-          max_budget_bdt: typeof data.max_budget_bdt === "number" ? data.max_budget_bdt : deterministicFallback.max_budget_bdt,
-          avoid_hub_ids: Array.isArray(data.avoid_hub_ids) ? data.avoid_hub_ids : deterministicFallback.avoid_hub_ids,
-          adversarialHallucinationDetected: Boolean(data.adversarialHallucinationDetected),
-          origin_resolved: data.origin_resolved ?? true,
-          dest_resolved: data.dest_resolved ?? true,
-          hallucinatedSummary: data.hallucinatedSummary,
-          parser_source: "LLM_SANDBOX",
-          parse_latency_ms: typeof data.latency_ms === "number" ? data.latency_ms : 450,
-          confidence_score: 0.99,
-          extracted_raw: {
-            origin_token: data.origin_hub_id,
-            dest_token: data.dest_hub_id,
-            budget_token: `${data.max_budget_bdt || deterministicFallback.max_budget_bdt} BDT`,
-            student_token: data.is_student ? "Student Pass" : "Regular",
-            avoid_tokens: data.avoid_hub_ids || [],
-          },
-        };
-      }
-    }
+    const hubs = new Set<string>(Object.values(HubId));
+    const dataOrigin = typeof data.origin_hub_id === "string" && hubs.has(data.origin_hub_id)
+      ? (data.origin_hub_id as HubId)
+      : deterministicFallback.origin_hub_id;
+    const dataDest = typeof data.dest_hub_id === "string" && hubs.has(data.dest_hub_id)
+      ? (data.dest_hub_id as HubId)
+      : deterministicFallback.dest_hub_id;
+
+    const raw = data.extracted_raw && typeof data.extracted_raw === "object"
+      ? (data.extracted_raw as Record<string, unknown>)
+      : {};
+    const avoidTokens = Array.isArray(raw.avoid_tokens)
+      ? raw.avoid_tokens.filter((hub): hub is HubId => typeof hub === "string" && hubs.has(hub))
+      : null;
+    const serverAvoid = Array.isArray(data.avoid_hub_ids)
+      ? data.avoid_hub_ids.filter((hub): hub is HubId => typeof hub === "string" && hubs.has(hub))
+      : null;
+
+    const hasStudentToken = raw.student_token !== undefined;
+    const hasBudgetToken = raw.budget_token !== undefined;
+    const student =
+      hasStudentToken && typeof data.is_student === "boolean"
+        ? data.is_student
+        : deterministicFallback.is_student;
+    const budget =
+      hasBudgetToken &&
+      typeof data.max_budget_bdt === "number" &&
+      Number.isFinite(data.max_budget_bdt) &&
+      data.max_budget_bdt >= 0 &&
+      data.max_budget_bdt <= 10000
+        ? data.max_budget_bdt
+        : deterministicFallback.max_budget_bdt;
+    const avoid =
+      avoidTokens !== null ? serverAvoid ?? avoidTokens : deterministicFallback.avoid_hub_ids;
+
+    return {
+      ...deterministicFallback,
+      origin_hub_id: dataOrigin,
+      dest_hub_id: dataDest,
+      origin_resolved:
+        typeof data.origin_resolved === "boolean"
+          ? data.origin_resolved && hubs.has(data.origin_hub_id as string)
+          : deterministicFallback.origin_resolved,
+      dest_resolved:
+        typeof data.dest_resolved === "boolean"
+          ? data.dest_resolved && hubs.has(data.dest_hub_id as string)
+          : deterministicFallback.dest_resolved,
+      is_student: student,
+      max_budget_bdt: budget,
+      avoid_hub_ids: avoid,
+      adversarialHallucinationDetected: Boolean(data.adversarialHallucinationDetected),
+      parser_source:
+        data.parser_source === "LLM_SANDBOX"
+          ? "LLM_SANDBOX"
+          : "DETERMINISTIC_REGEX_FALLBACK",
+      parse_latency_ms:
+        typeof data.latency_ms === "number" && Number.isFinite(data.latency_ms)
+          ? data.latency_ms
+          : deterministicFallback.parse_latency_ms,
+      confidence_score:
+        typeof data.confidence_score === "number" && Number.isFinite(data.confidence_score)
+          ? data.confidence_score
+          : deterministicFallback.confidence_score,
+      extracted_raw: {
+        ...(typeof raw.origin_token === "string" ? { origin_token: raw.origin_token } : {}),
+        ...(typeof raw.dest_token === "string" ? { dest_token: raw.dest_token } : {}),
+        ...(typeof raw.budget_token === "string" ? { budget_token: raw.budget_token } : {}),
+        ...(typeof raw.student_token === "string" ? { student_token: raw.student_token } : {}),
+        ...(avoidTokens !== null ? { avoid_tokens: avoidTokens } : {}),
+      },
+    };
   } catch {
     // Timeout or network drop: fallback silently and seamlessly to deterministic output
+    return deterministicFallback;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return deterministicFallback;
 }
+

@@ -34,8 +34,13 @@ Create `.env.local` (every key is optional; the app degrades gracefully without 
 NEXT_PUBLIC_SUPABASE_URL=...           # alerts, logs and pools are written through to Supabase when set
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 GROQ_API_KEY=...                       # online Banglish parsing (800 ms timeout, then local lexer)
+OPENROUTER_API_KEY=...                 # free-tier LLM fallback when Groq is absent
 GEMINI_API_KEY=...                     # signboard photo transcription
+ADMIN_PASSCODE=...                     # server-only admin login (demo default: dhakapath2026 outside production)
+SESSION_SECRET=...                     # signs anonymous + admin cookies; use a long random value in production
 ```
+
+Admin authentication is verified by `/api/admin/auth` and carried in an HttpOnly, SameSite=Strict cookie. No passcode or session token is exposed through `NEXT_PUBLIC_*`. If `ADMIN_PASSCODE` is unset in production, admin login stays disabled.
 
 The SQL for the four tables with open anonymous RLS is in `supabase/migrations/0001_dhakapath_core.sql`.
 
@@ -114,11 +119,11 @@ Maps fall back automatically to a 15-hub schematic when tiles cannot load. The r
 
 1. **0:00 - 0:35** Landing, then the app: the speed chip, the map, the honesty badge.
 2. **0:35 - 1:25** Tap the Mirpur 10 to Motijheel example: student pass, 55 BDT, avoid Farmgate.
-3. **1:25 - 2:15** `Alt+2` peak crisis: Farmgate and Malibagh close, the detour lights up, the ROI flips.
+3. **1:25 - 2:15** `Alt+2` peak crisis: Farmgate closes and Malibagh slows, the detour lights up, the ROI flips.
 4. **2:15 - 3:05** `Alt+3` fake-input test: the 500 BDT fare and the underground ferry are blocked in the Safety log; scrub the time machine to +90 min and watch alerts expire.
 5. **3:05 - 3:55** Network tab: scan a signboard and commit it; Plan tab: join the ride-share pool (3/4, 30 BDT each) and export the offline card with audio.
 
-**Likely judge questions.** *Why not just an LLM?* Search runs in about 1 ms with zero invented legs, and the model is only a parser. *What stops spam alerts?* A single low-weight report moves the posterior from 0.15 to about 24%, far below the 85% blockade line, and it needs three corroborations. *What if the network dies?* The map, the router, the card and the voice all run locally.
+**Likely judge questions.** *Why not just an LLM?* Search runs in about 1 ms with zero invented legs, and the model is only a parser. *What stops spam alerts?* A single 0.30-weight report moves the posterior from 0.15 to about 19.2%, far below the 85% blockade line, and it takes four full-weight corroborations to cross it. *What if the network dies?* The map, the router, the card and the voice all run locally.
 
 ## Honest limits
 
@@ -128,7 +133,7 @@ All telemetry in the demo is simulated and labelled as such on every screen. Sup
 ## Update — conversational assistant, admin console, PWA
 
 - **Ask DhakaPath (Part 5):** a floating multi-turn assistant on every screen (bottom-right, or Ctrl+/). It understands Banglish/Bangla/English, plans routes, submits street reports through conversation, answers fare and reliability follow-ups, and keeps context. Replies are grounded by the same engine; LaTeX/markdown is rendered as clean text.
-- **Admin console (`/admin`):** passcode-gated (`NEXT_PUBLIC_ADMIN_PASSCODE`, default `dhakapath2026`). Admins manage the transit network (add/remove links, signboard digitiser) and moderate alerts (confirm/clear/override), fare sanity, and the safety log. The public `/app` stays anonymous.
+- **Admin console (`/admin`):** server-verified passcode login (`ADMIN_PASSCODE`, demo default `dhakapath2026` outside production) backed by a signed HttpOnly cookie. Admins manage the transit network (add/remove links, signboard digitiser) and moderate alerts (confirm/clear/override), fare sanity, and the safety log. Committed links persist through `/api/admin/edges` for every user and reload. The public `/app` stays anonymous.
 - **PWA / offline:** installable (`manifest.webmanifest`) with a service worker that precaches the shell and serves it offline; the map falls back to the 15-hub schematic when tiles can't load.
 - **Current location:** "My location" uses the browser geolocation API to pick the nearest hub as the origin.
 - **LLM fallback chain:** Groq → OpenRouter (`OPENROUTER_API_KEY`, free model) → deterministic lexer, so parsing degrades gracefully.

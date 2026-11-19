@@ -4,7 +4,7 @@
    - Static assets (_next, icons, transit svgs): stale-while-revalidate.
    - OSM map tiles are never cached (the app falls back to its offline schematic). */
 
-const VERSION = "dhakapath-v2";
+const VERSION = "dhakapath-v3";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const PRECACHE = ["/app", "/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
@@ -40,8 +40,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(SHELL).then((c) => c.put(req, copy)).catch(() => undefined);
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(SHELL).then((c) => c.put(req, copy)).catch(() => undefined);
+          }
           return res;
         })
         .catch(() => caches.match(req).then((m) => m || caches.match("/app")))
@@ -55,6 +57,7 @@ self.addEventListener("fetch", (event) => {
       caches.match(req).then((cached) => {
         const network = fetch(req)
           .then((res) => {
+            if (!res.ok) return cached || res;
             const copy = res.clone();
             caches.open(ASSETS).then((c) => c.put(req, copy)).catch(() => undefined);
             return res;

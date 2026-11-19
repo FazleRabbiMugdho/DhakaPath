@@ -165,6 +165,15 @@ export function verifySubgraphTrajectory(
 
     const canonicalEdge = edgeVerification.groundedEdge;
 
+    // Check 2b: Mode must match the grounded edge. A leg cannot claim WALK (or
+    // another cheap mode) while pointing at a motorized canonical edge ID.
+    if (canonicalEdge && canonicalEdge.mode !== leg.mode) {
+      modesValid = false;
+      violationReason = `Leg ${i + 1}: Mode ${leg.mode} does not match grounded edge mode ${canonicalEdge.mode}`;
+      failedIndex = i;
+      break;
+    }
+
     // Check 3: Statutory Fare Grounding Law — |C_hat_j - C_fare(e_j, u_stu, t)| < 1e-6.
     // The fare is recomputed independently from the fare engine, never trusted from the leg.
     if (canonicalEdge) {

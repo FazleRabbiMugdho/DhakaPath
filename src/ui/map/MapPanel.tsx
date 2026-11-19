@@ -88,8 +88,27 @@ export function MapPanel({ className }: { className?: string }) {
           value={view}
           onChange={setView}
           options={[
-            { value: "osm", label: <span className="inline-flex items-center gap-1.5"><MapIcon className="h-4 w-4" />OpenStreetMap</span> },
-            { value: "schematic", label: <span className="inline-flex items-center gap-1.5"><Network className="h-4 w-4" />{t("স্কিমেটিক", "Schematic")}</span> },
+            {
+              value: "osm",
+              title: t("OpenStreetMap লাইভ ম্যাপ", "OpenStreetMap live map"),
+              label: (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapIcon className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">OpenStreetMap</span>
+                  <span className="sm:hidden">OSM</span>
+                </span>
+              ),
+            },
+            {
+              value: "schematic",
+              title: t("অফলাইন স্কিমেটিক ম্যাপ", "Offline schematic map"),
+              label: (
+                <span className="inline-flex items-center gap-1.5">
+                  <Network className="h-4 w-4 shrink-0" />
+                  <span>{t("স্কিমেটিক", "Schematic")}</span>
+                </span>
+              ),
+            },
           ]}
         />
       </div>

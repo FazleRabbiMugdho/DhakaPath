@@ -14,6 +14,7 @@ import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../contracts/canonicalGraph"
 import { computeEffectiveDurationMs, computeLegCost, computeMrt6FareBdt, computeRegularFareBdt } from "./fareEngine";
 import { EPSILON } from "../lib/utils";
 import { getExtraEdges, getGraphVersion } from "./graphExtensions";
+import { getScenarioParameters } from "./scenarioStore";
 
 interface ParetoLabel {
   readonly current_hub: HubId;
@@ -79,6 +80,26 @@ let adjacency = new Map<HubId, TransitEdge[]>();
 let connectorHubs = new Set<HubId>();
 let builtGraphVersion = -1;
 const routeCache = new Map<string, ParetoSearchResult>();
+const ROUTE_CACHE_MAX_ENTRIES = 256;
+
+function cacheGet(key: string): ParetoSearchResult | undefined {
+  const value = routeCache.get(key);
+  if (!value) return undefined;
+  // Refresh recency.
+  routeCache.delete(key);
+  routeCache.set(key, value);
+  return value;
+}
+
+function cacheSet(key: string, value: ParetoSearchResult): void {
+  if (routeCache.has(key)) routeCache.delete(key);
+  routeCache.set(key, value);
+  while (routeCache.size > ROUTE_CACHE_MAX_ENTRIES) {
+    const oldest = routeCache.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    routeCache.delete(oldest);
+  }
+}
 
 // G_0 plus any committed extension edges; rebuilt only when the extension set changes.
 function syncAdjacency(): void {
@@ -149,7 +170,7 @@ export function executeParetoSearch(
     ]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     Object.entries(poolSizes).sort(([a], [b]) => a.localeCompare(b)),
   ]);
-  const cached = routeCache.get(cacheKey);
+  const cached = cacheGet(cacheKey);
   if (cached) return { ...cached, execution_time_ms: +(performance.now() - startTime).toFixed(3) };
 
   const alertsByEdge = new Map<string, StreetAlert>();
@@ -159,7 +180,7 @@ export function executeParetoSearch(
     if (alert.edge_id) alertsByEdge.set(alert.edge_id, alert);
     if (alert.hub_id) alertsByHub.set(alert.hub_id, alert);
   }
-  const surgeMultiplier = preset === ScenarioPreset.PEAK_CRISIS_SURGE ? 1.8 : 1;
+  const surgeMultiplier = getScenarioParameters(preset).surge_multiplier;
   const avoidHubs = new Set(query.avoid_hub_ids);
   const originIndex = CANONICAL_HUBS[query.origin_hub_id]?.index;
   let exploredTotal = 0;
@@ -322,7 +343,7 @@ export function executeParetoSearch(
     walk_bridge_active: walkBridgeActive,
     total_labels_explored: exploredTotal,
   };
-  routeCache.set(cacheKey, result);
+  cacheSet(cacheKey, result);
   return result;
 }
 

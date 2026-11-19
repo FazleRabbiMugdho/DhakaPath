@@ -31,7 +31,7 @@ import {
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../contracts/canonicalGraph";
 import { executeParetoSearch } from "../engine/paretoRouter";
 import { computeCounterfactualRoi, computeNaiveSurfacePath } from "../engine/shadowBaseline";
-import { projectScenario } from "../engine/scenarioStore";
+import { projectScenario, getScenarioParameters, getSeveredHubIds } from "../engine/scenarioStore";
 import { setExtraEdges } from "../engine/graphExtensions";
 import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../engine/fareEngine";
 import {
@@ -160,10 +160,10 @@ interface DhakaPathStoreState {
   joinRideSharePool: (edgeId: string) => Promise<void> | void;
   leavePool: (edgeId: string) => void;
   scanSignboard: (input: { presetId?: string; file?: File; rawText?: string }) => Promise<void>;
-  commitOcrEdges: () => ActionResult;
+  commitOcrEdges: () => Promise<ActionResult>;
   discardOcrEdges: () => void;
-  addLink: (input: NewLinkInput) => ActionResult;
-  removeLink: (edgeId: string) => void;
+  addLink: (input: NewLinkInput) => Promise<ActionResult>;
+  removeLink: (edgeId: string) => Promise<void>;
   addLog: (event: Omit<AuditInterceptionEvent, "event_id" | "timestamp_ms">) => void;
   addInterceptionLog: (event: Omit<AuditInterceptionEvent, "event_id" | "timestamp_ms"> | AuditInterceptionEvent) => void;
 }
@@ -445,6 +445,28 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     [pushLog]
   );
 
+  // Load server-persisted graph extensions once so reloads and other users see
+  // the same committed links that the server router prices.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/edges", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { ok?: boolean; edges?: TransitEdge[] } | null) => {
+        if (cancelled || !data?.ok || !Array.isArray(data.edges)) return;
+        const edges = data.edges.filter(
+          (edge): edge is TransitEdge => Boolean(edge && typeof edge.edge_id === "string")
+        );
+        setExtraEdgesState(edges);
+        setExtraEdges(edges);
+      })
+      .catch(() => {
+        // Offline: keep the local canonical graph.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // ---- derived: scenario + alerts ----------------------------------------
   const scenario = useMemo(() => projectScenario(activePreset, simOffsetMs), [activePreset, simOffsetMs]);
   const simNow = t0 + simOffsetMs;
@@ -455,13 +477,10 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     return source.map((a) => deriveAlert(a, simNow, prior, overridden));
   }, [crowdAlerts, activePreset, simNow, prior, overridden, t0]);
 
-  const disruptedHubIds = useMemo<ReadonlyArray<HubId>>(() => {
-    const out: HubId[] = [];
-    for (const a of alerts) {
-      if (a.status === AlertStatus.VERIFIED_ACTIVE && a.confidence_pct >= TAU_BLOCKADE && !out.includes(a.hub_id)) out.push(a.hub_id);
-    }
-    return out;
-  }, [alerts]);
+  const disruptedHubIds = useMemo<ReadonlyArray<HubId>>(
+    () => getSeveredHubIds(alerts),
+    [alerts]
+  );
 
   // ---- derived: routing ---------------------------------------------------
   const routing = useMemo(() => {
@@ -513,7 +532,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
 
   // ---- derived: ride-share board -----------------------------------------
   const poolBoard = useMemo<ReadonlyArray<PoolBoardEntry>>(() => {
-    const surge = activePreset === ScenarioPreset.PEAK_CRISIS_SURGE ? 1.8 : 1.0;
+    const surge = getScenarioParameters(activePreset).surge_multiplier;
     return RICKSHAW_BOARD_EDGES.map((edgeId) => CANONICAL_GRAPH_G0.find((e) => e.edge_id === edgeId))
       .filter((e): e is TransitEdge => Boolean(e))
       .map((edge) => {
@@ -598,7 +617,15 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       setOptionsState(opts);
       try {
         const parsed = await parseCommuterIntent(text);
-        const student = opts.forceStudent || parsed.is_student;
+        const student = opts.forceStudent
+          ? true
+          : parsed.extracted_raw.student_token !== undefined
+            ? parsed.is_student
+            : activeQueryRef.current.is_student;
+        const budget =
+          parsed.extracted_raw.budget_token !== undefined
+            ? parsed.max_budget_bdt
+            : activeQueryRef.current.max_budget_bdt;
         const avoid = new Set<HubId>(parsed.avoid_hub_ids);
         if (opts.bypassFlooded) disruptedHubIds.forEach((h) => avoid.add(h));
         avoid.delete(parsed.origin_hub_id);
@@ -636,7 +663,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
           origin_hub_id: origin,
           dest_hub_id: dest,
           is_student: student,
-          max_budget_bdt: finalParsed.max_budget_bdt,
+          max_budget_bdt: budget,
           avoid_hub_ids: finalParsed.avoid_hub_ids.filter((h) => h !== origin && h !== dest),
           timestamp_ms: Date.now(),
         });
@@ -798,10 +825,26 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
 
   const addStreetAlert = useCallback(
     (alert: StreetAlert) => {
-      const severity = alert.severity_alpha >= 2.0 ? 3 : alert.severity_alpha >= 1.4 ? 2 : 1;
-      reportIncident(alert.hub_id, alert.incident_type, severity, 0.4);
+      const existing = crowdAlerts.find(
+        (candidate) =>
+          candidate.hub_id === alert.hub_id &&
+          candidate.incident_type === alert.incident_type &&
+          !overridden.has(candidate.alert_id)
+      );
+      if (existing) {
+        voteAlert(existing.alert_id, 1);
+        return;
+      }
+      setCrowdAlerts((prev) => [alert, ...prev]);
+      const derived = deriveAlert(alert, simNow, prior, overridden);
+      persistAlert(derived);
+      addLog({
+        status: ValidationStatus.GRAPH_GROUNDED,
+        rejected_payload_summary: `New ${alert.incident_type} report at ${alert.hub_id}: R_e ${derived.confidence_pct}% -> ${derived.status}, graph untouched below ${TAU_BLOCKADE}%`,
+        execution_time_ms: 0.06,
+      });
     },
-    [reportIncident]
+    [crowdAlerts, overridden, voteAlert, simNow, prior, addLog]
   );
 
   const checkFare = useCallback(
@@ -824,7 +867,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     (edgeId: string) => {
       const edge = CANONICAL_GRAPH_G0.find((e) => e.edge_id === edgeId);
       if (!edge) return;
-      const surge = activePreset === ScenarioPreset.PEAK_CRISIS_SURGE ? 1.8 : 1.0;
+      const surge = getScenarioParameters(activePreset).surge_multiplier;
       const state = mutateRideSharePool(uid("POOL_JOIN"), edgeId, "session_current_user", "JOIN", edge.base_fare_bdt, surge, edge.origin_hub_id);
       setPoolSizes((prev) => ({ ...prev, [edgeId]: state.poolSizeCount }));
       setPoolJoined((prev) => ({ ...prev, [edgeId]: state.poolSizeCount }));
@@ -842,14 +885,15 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   const leavePool = useCallback((edgeId: string) => {
     const edge = CANONICAL_GRAPH_G0.find((e) => e.edge_id === edgeId);
     if (!edge) return;
-    const state = mutateRideSharePool(uid("POOL_LEAVE"), edgeId, "session_current_user", "LEAVE", edge.base_fare_bdt, 1.8, edge.origin_hub_id);
+    const surge = getScenarioParameters(activePreset).surge_multiplier;
+    const state = mutateRideSharePool(uid("POOL_LEAVE"), edgeId, "session_current_user", "LEAVE", edge.base_fare_bdt, surge, edge.origin_hub_id);
     setPoolSizes((prev) => ({ ...prev, [edgeId]: state.poolSizeCount }));
     setPoolJoined((prev) => {
       const next = { ...prev };
       delete next[edgeId];
       return next;
     });
-  }, []);
+  }, [activePreset]);
 
   // ---- actions: graph (signboard OCR + admin links) ----------------------
   const scanSignboard = useCallback(
@@ -923,7 +967,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   );
 
   const commitEdges = useCallback(
-    (candidates: ReadonlyArray<TransitEdge>, label: string): ActionResult => {
+    async (candidates: ReadonlyArray<TransitEdge>, label: string): Promise<ActionResult> => {
       const accepted: TransitEdge[] = [];
       const problems: string[] = [];
       let working = [...extraEdges];
@@ -935,15 +979,68 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
           working = [...working, edge];
         }
       }
-      if (accepted.length > 0) {
-        setExtraEdges(working);
-        setExtraEdgesState(working);
-        addLog({
-          status: ValidationStatus.GRAPH_GROUNDED,
-          rejected_payload_summary: `${label}: committed ${accepted.length} verified edge(s) to the live graph - ${accepted.map((e) => e.route_name).join(", ")}`,
-          execution_time_ms: 0.12,
-        });
+
+      if (accepted.length === 0) {
+        if (problems.length > 0) {
+          addLog({
+            status: ValidationStatus.GROUNDING_INTERCEPTED,
+            rejected_payload_summary: `${label}: ${problems.length} edge(s) refused - ${problems[0]}`,
+            execution_time_ms: 0.08,
+          });
+        }
+        return { ok: false, message: problems[0] ?? "nothing to commit" };
       }
+
+      // Persist before publishing locally. The server re-derives statutory
+      // fares and is the only component allowed to mutate the shared graph.
+      let persistedEdges: ReadonlyArray<TransitEdge> | null = null;
+      let persistenceError = "";
+      for (const edge of accepted) {
+        try {
+          const response = await fetch("/api/admin/edges", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ edge }),
+          });
+          const data = (await response.json().catch(() => null)) as {
+            edges?: TransitEdge[];
+            error?: string;
+          } | null;
+          if (!response.ok) {
+            persistenceError =
+              response.status === 401
+                ? "Admin session expired. Sign in again."
+                : data?.error || `Server returned ${response.status}`;
+            break;
+          }
+          if (Array.isArray(data?.edges)) persistedEdges = data.edges;
+        } catch {
+          persistenceError = "Network unavailable — link was not persisted";
+          break;
+        }
+      }
+
+      if (persistenceError) {
+        if (persistedEdges) {
+          setExtraEdges(persistedEdges);
+          setExtraEdgesState(persistedEdges);
+        }
+        addLog({
+          status: ValidationStatus.GROUNDING_INTERCEPTED,
+          rejected_payload_summary: `${label}: server persistence failed - ${persistenceError}`,
+          execution_time_ms: 0.1,
+        });
+        return { ok: false, message: persistenceError };
+      }
+
+      const next = persistedEdges ?? working;
+      setExtraEdges(next);
+      setExtraEdgesState(next);
+      addLog({
+        status: ValidationStatus.GRAPH_GROUNDED,
+        rejected_payload_summary: `${label}: committed ${accepted.length} verified edge(s) to the live graph - ${accepted.map((e) => e.route_name).join(", ")}`,
+        execution_time_ms: 0.12,
+      });
       if (problems.length > 0) {
         addLog({
           status: ValidationStatus.GROUNDING_INTERCEPTED,
@@ -951,16 +1048,16 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
           execution_time_ms: 0.08,
         });
       }
-      return { ok: accepted.length > 0, message: problems[0] ?? "" };
+      return { ok: true, message: problems[0] ?? "" };
     },
     [extraEdges, edgeEntryProblem, addLog]
   );
 
-  const commitOcrEdges = useCallback((): ActionResult => {
+  const commitOcrEdges = useCallback(async (): Promise<ActionResult> => {
     const candidates = ocrResult?.extractedEdges ?? [];
     if (candidates.length === 0) return { ok: false, message: "nothing to commit" };
-    const result = commitEdges(candidates, "Signboard OCR");
-    setOcrResult(null);
+    const result = await commitEdges(candidates, "Signboard OCR");
+    if (result.ok) setOcrResult(null);
     return result;
   }, [ocrResult, commitEdges]);
 
@@ -976,7 +1073,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   }, [ocrResult, addLog]);
 
   const addLink = useCallback(
-    (input: NewLinkInput): ActionResult => {
+    async (input: NewLinkInput): Promise<ActionResult> => {
       // Distance (haversine x 1.3 road factor) feeds the statutory bus fare.
       const a = CANONICAL_HUBS[input.origin_hub_id];
       const b = CANONICAL_HUBS[input.dest_hub_id];
@@ -1015,15 +1112,40 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   );
 
   const removeLink = useCallback(
-    (edgeId: string) => {
-      const next = extraEdges.filter((e) => e.edge_id !== edgeId);
-      setExtraEdges(next);
-      setExtraEdgesState(next);
-      addLog({
-        status: ValidationStatus.GRAPH_GROUNDED,
-        rejected_payload_summary: `Removed link ${edgeId} from the live graph`,
-        execution_time_ms: 0.05,
-      });
+    async (edgeId: string) => {
+      try {
+        const response = await fetch(`/api/admin/edges?edgeId=${encodeURIComponent(edgeId)}`, {
+          method: "DELETE",
+        });
+        const data = (await response.json().catch(() => null)) as {
+          edges?: TransitEdge[];
+          error?: string;
+        } | null;
+        if (!response.ok) {
+          addLog({
+            status: ValidationStatus.GROUNDING_INTERCEPTED,
+            rejected_payload_summary: `Could not remove link ${edgeId} - ${data?.error || `server returned ${response.status}`}`,
+            execution_time_ms: 0.05,
+          });
+          return;
+        }
+        const next = Array.isArray(data?.edges)
+          ? data.edges
+          : extraEdges.filter((e) => e.edge_id !== edgeId);
+        setExtraEdges(next);
+        setExtraEdgesState(next);
+        addLog({
+          status: ValidationStatus.GRAPH_GROUNDED,
+          rejected_payload_summary: `Removed link ${edgeId} from the live graph`,
+          execution_time_ms: 0.05,
+        });
+      } catch {
+        addLog({
+          status: ValidationStatus.GROUNDING_INTERCEPTED,
+          rejected_payload_summary: `Could not remove link ${edgeId} - network unavailable`,
+          execution_time_ms: 0.05,
+        });
+      }
     },
     [extraEdges, addLog]
   );

@@ -5,9 +5,9 @@
 // ==============================================================================
 
 import { HubId, TransitEdge, TransportMode } from "../../contracts/schema";
-import { CANONICAL_HUBS } from "../../contracts/canonicalGraph";
 import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../../engine/fareEngine";
 import { verifyCandidateEdge } from "./subgraphVerifier";
+import { findHubMentions } from "./hubMatching";
 
 export interface SignboardDigitizeResult {
   presetId?: string;
@@ -107,7 +107,15 @@ const COMMON_SIGNBOARD_SYNONYMS: Record<string, HubId> = {
 
 export function resolveFuzzyHubName(rawInput: string): HubId | null {
   if (!rawInput || typeof rawInput !== "string") return null;
-  const cleaned = rawInput.trim().toLowerCase().replace(/[^\w\s-]/g, "");
+  const cleaned = rawInput
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Very short OCR noise ("to", "bus", "in") must never fuzzy-match a hub.
+  if (cleaned.length < 2) return null;
 
   // 1. Direct synonym match
   if (COMMON_SIGNBOARD_SYNONYMS[cleaned]) {
@@ -121,28 +129,71 @@ export function resolveFuzzyHubName(rawInput: string): HubId | null {
     }
   }
 
-  // 3. Keyword / Substring Match against Canonical Hubs
-  for (const [hubId, meta] of Object.entries(CANONICAL_HUBS)) {
-    for (const kw of meta.keywords) {
-      if (cleaned.includes(kw.toLowerCase()) || kw.toLowerCase().includes(cleaned)) {
-        return hubId as HubId;
-      }
-    }
-  }
+  // 3. Boundary-aware keyword/substring match. This deliberately does not do
+  // the reverse `keyword.includes(cleaned)` test: that is what made "to" match
+  // "uttora" and "bus" match an unrelated keyword.
+  const mention = findHubMentions(cleaned)[0];
+  if (mention) return mention.hub_id;
 
-  // 4. Levenshtein Distance Match (Allowing up to 2-3 character blurriness)
+  // 4. Levenshtein Distance Match for genuine OCR blur (only for real tokens).
+  if (cleaned.length < 4) return null;
   let bestMatch: HubId | null = null;
   let lowestDist = 999;
 
   for (const [key, hubId] of Object.entries(COMMON_SIGNBOARD_SYNONYMS)) {
+    if (key.length < 4) continue;
     const dist = levenshteinDistance(cleaned, key);
-    if (dist < lowestDist && dist <= Math.min(3, Math.floor(key.length * 0.4))) {
+    if (dist < lowestDist && dist <= Math.min(2, Math.floor(key.length * 0.34))) {
       lowestDist = dist;
       bestMatch = hubId;
     }
   }
 
   return bestMatch;
+}
+
+function statutoryBaseForCandidate(candidate: TransitEdge): number | null {
+  if (candidate.mode === TransportMode.BUS) return computeApprovedBusFareBdt(candidate.distance_km);
+  if (candidate.mode === TransportMode.METRO) {
+    try {
+      return computeMrt6FareBdt(candidate.origin_hub_id, candidate.dest_hub_id);
+    } catch {
+      return null;
+    }
+  }
+  return candidate.base_fare_bdt;
+}
+
+function validateDigitizedFare(
+  candidate: TransitEdge,
+  groundedEdge: TransitEdge | undefined
+): { ok: boolean; reason?: string } {
+  if (!groundedEdge) {
+    return { ok: false, reason: "No canonical edge grounded for the OCR candidate" };
+  }
+
+  const fare = candidate.base_fare_bdt;
+  if (!Number.isFinite(fare) || fare < 10) {
+    return { ok: false, reason: `Digitized fare ${String(fare)} BDT is below the 10 BDT statutory floor` };
+  }
+
+  const statutory = statutoryBaseForCandidate(candidate);
+  if (statutory === null) {
+    return { ok: false, reason: `No official ${candidate.mode} fare exists for this hub pair` };
+  }
+  if (candidate.mode === TransportMode.METRO && Math.abs(fare - statutory) > 1) {
+    return {
+      ok: false,
+      reason: `Digitized MRT-6 fare ${fare} BDT does not match official ${statutory} BDT`,
+    };
+  }
+  if (fare > Math.round(2.5 * statutory * 10) / 10) {
+    return {
+      ok: false,
+      reason: `Digitized fare ${fare} BDT exceeds 2.5x the statutory base ${statutory} BDT`,
+    };
+  }
+  return { ok: true };
 }
 
 // ------------------------------------------------------------------------------
@@ -327,10 +378,14 @@ export async function digitizeSignboardImage(input: {
 
     for (const edge of preset.edges) {
       const check = verifyCandidateEdge(edge);
-      if (check.isValid) {
+      const fareCheck = check.isValid ? validateDigitizedFare(edge, check.groundedEdge) : null;
+      if (check.isValid && fareCheck?.ok) {
         verifiedEdges.push(edge);
       } else {
-        rejectedEdges.push({ edgeCandidate: edge, reason: check.reason || "Failed G_0 validation" });
+        rejectedEdges.push({
+          edgeCandidate: edge,
+          reason: check.reason || fareCheck?.reason || "Failed G_0 validation",
+        });
       }
     }
 
@@ -380,10 +435,14 @@ export async function digitizeSignboardImage(input: {
         };
 
         const check = verifyCandidateEdge(candidate);
-        if (check.isValid) {
+        const fareCheck = check.isValid ? validateDigitizedFare(candidate, check.groundedEdge) : null;
+        if (check.isValid && fareCheck?.ok) {
           extractedEdges.push(candidate);
         } else {
-          rejectedEdges.push({ edgeCandidate: candidate, reason: check.reason || "Edge not in Canonical G_0" });
+          rejectedEdges.push({
+            edgeCandidate: candidate,
+            reason: check.reason || fareCheck?.reason || "Edge not in Canonical G_0",
+          });
         }
       } else {
         rejectedEdges.push({

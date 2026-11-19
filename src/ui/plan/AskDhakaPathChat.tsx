@@ -22,7 +22,17 @@ import {
   ChatMessage,
   ConversationContext,
 } from "@/features/feature-1-commute/conversationEngine";
-import { HubId, IncidentType } from "@/contracts/schema";
+import { CommuterQuery, HubId, StreetAlert } from "@/contracts/schema";
+
+type ChatTurnResponse = {
+  replyText?: string;
+  intent?: ChatMessage["intent"];
+  badges?: ChatMessage["badges"];
+  metadata?: ChatMessage["metadata"];
+  updatedContext?: ConversationContext;
+  resolvedQuery?: Partial<CommuterQuery>;
+  newAlertToSubmit?: StreetAlert;
+};
 
 const SUGGESTIONS = [
   {
@@ -135,7 +145,15 @@ function FormattedChatText({ text }: { text: string }) {
 export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
   const { lang, t } = useLang();
   const store = useDhakaPathStore();
-  const { activeQuery, activePreset, alerts, reportIncident, search, options } = store;
+  const {
+    activeQuery,
+    activePreset,
+    alerts,
+    addStreetAlert,
+    updateCommuterQuery,
+    options,
+    disruptedHubIds,
+  } = store;
 
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -198,7 +216,7 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
         });
 
         if (!res.ok) throw new Error(`API returned ${res.status}`);
-        const data = await res.json();
+        const data = (await res.json()) as ChatTurnResponse;
 
         const assistantMsg: ChatMessage = {
           id: `asst_${Date.now()}`,
@@ -207,7 +225,7 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
           timestamp_ms: Date.now(),
           intent: data.intent,
           badges: data.badges,
-          metadata: data.messageMetadata,
+          metadata: data.metadata,
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
@@ -216,15 +234,45 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
           setContext(data.updatedContext);
         }
 
-        // If turn yielded a new street report, commit to store
+        // If turn yielded a new street report, ingest the server-validated alert
+        // with its actual Bayesian weight instead of re-creating it client-side.
         if (data.newAlertToSubmit) {
-          const alert = data.newAlertToSubmit;
-          reportIncident(alert.hub_id as HubId, alert.incident_type as IncidentType, 2, 0.4);
+          addStreetAlert(data.newAlertToSubmit);
         }
 
-        // If turn was a route search or detour, trigger main engine search
-        if (data.intent === "ROUTE_SEARCH" || data.intent === "ALTERNATIVE_ROUTE") {
-          await search(trimmed, options);
+        // Apply the turn's resolved query directly. The store must not re-parse
+        // the raw text: that would discard context inheritance, budget tokens and
+        // avoid clauses that the conversation engine already resolved.
+        if (
+          data.resolvedQuery &&
+          (data.intent === "ROUTE_SEARCH" || data.intent === "ALTERNATIVE_ROUTE")
+        ) {
+          const resolved = data.resolvedQuery;
+          const origin = resolved.origin_hub_id ?? activeQuery.origin_hub_id;
+          const dest = resolved.dest_hub_id ?? activeQuery.dest_hub_id;
+          if (origin !== dest) {
+            const avoid = new Set<HubId>(
+              resolved.avoid_hub_ids ?? activeQuery.avoid_hub_ids
+            );
+            if (options.bypassFlooded) {
+              disruptedHubIds.forEach((hub) => avoid.add(hub));
+            }
+            avoid.delete(origin);
+            avoid.delete(dest);
+            updateCommuterQuery({
+              action_id: `CHAT_${Date.now()}`,
+              raw_query_text: resolved.raw_query_text ?? trimmed,
+              origin_hub_id: origin,
+              dest_hub_id: dest,
+              is_student: options.forceStudent
+                ? true
+                : resolved.is_student ?? activeQuery.is_student,
+              max_budget_bdt:
+                resolved.max_budget_bdt ?? activeQuery.max_budget_bdt,
+              avoid_hub_ids: Array.from(avoid),
+              timestamp_ms: Date.now(),
+            });
+          }
         }
       } catch {
         setMessages((prev) => [
@@ -244,7 +292,7 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
         setBusy(false);
       }
     },
-    [busy, context, activePreset, alerts, reportIncident, search, options, lang]
+    [busy, context, activePreset, alerts, addStreetAlert, updateCommuterQuery, activeQuery, options, disruptedHubIds, lang]
   );
 
   const resetThread = () => {

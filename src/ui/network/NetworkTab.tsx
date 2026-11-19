@@ -222,7 +222,7 @@ function SignboardScanner() {
             ))}
           </ul>
           <div className="flex flex-wrap gap-2">
-            <Btn size="sm" disabled={ocrResult.extractedEdges.length === 0} icon={<Plus className="h-4 w-4" />} onClick={() => { const r = commitOcrEdges(); setCommitted(r.ok ? t("গ্রাফে যোগ হয়েছে — এখন রুট হিসাবে ধরা হবে।", "Added to the graph — routing now uses it.") : r.message); }}>
+            <Btn size="sm" disabled={ocrResult.extractedEdges.length === 0} icon={<Plus className="h-4 w-4" />} onClick={async () => { const r = await commitOcrEdges(); setCommitted(r.ok ? t("গ্রাফে যোগ হয়েছে — এখন রুট হিসাবে ধরা হবে।", "Added to the graph — routing now uses it.") : r.message); }}>
               {t("গ্রাফে কমিট করুন", "Commit to graph")} ({n(ocrResult.extractedEdges.length)})
             </Btn>
             <Btn size="sm" variant="outline" onClick={discardOcrEdges}>{t("অযাচাইকৃত বাতিল", "Discard unverified")}</Btn>
@@ -249,8 +249,8 @@ function AddLinkForm() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const typedFare = mode === TransportMode.LEGUNA || mode === TransportMode.RICKSHAW;
 
-  const submit = () => {
-    const r = addLink({
+  const submit = async () => {
+    const r = await addLink({
       origin_hub_id: origin,
       dest_hub_id: dest,
       mode,
