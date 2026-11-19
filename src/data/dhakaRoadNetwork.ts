@@ -122,23 +122,11 @@ const METRO_HUB_CONNECTORS: Record<string, LatLng[]> = {
   ],
   [HubId.H_FARMGATE]: [
     [23.757099, 90.389430],
-    [23.757026, 90.389426],
     [23.757016, 90.389460],
-    [23.756943, 90.389515],
-    [23.756821, 90.389641],
-    [23.756737, 90.389771],
-    [23.756159, 90.389528],
-    [23.755737, 90.389329],
-    [23.755478, 90.389198],
-    [23.755427, 90.389172],
-    [23.755244, 90.389073],
-    [23.755208, 90.389136],
-    [23.755708, 90.389403],
-    [23.756776, 90.389882],
+    [23.756965, 90.389858],
     [23.757009, 90.389972],
-    [23.756982, 90.390509],
+    [23.757220, 90.390412],
     [23.757687, 90.390298],
-    [23.758997, 90.386337],
   ],
   [HubId.H_SHAHBAGH]: [
     [23.738746, 90.395699],
@@ -170,6 +158,7 @@ const METRO_HUB_CONNECTORS: Record<string, LatLng[]> = {
     [23.731169, 90.416365],
     [23.730993, 90.416356],
     [23.730588, 90.417225],
+    [23.730343, 90.417691],
     [23.730098, 90.418158],
     [23.730032, 90.418285],
     [23.729911, 90.418501],
@@ -200,7 +189,7 @@ export function getMetroRailPath(originHub: HubId | string, destHub: HubId | str
     [HubId.H_UTTARA]: [23.869670, 90.367630],
     [HubId.H_MIRPUR10]: [23.808393, 90.368265],
     [HubId.H_AGARGAON]: [23.778723, 90.380077],
-    [HubId.H_FARMGATE]: [23.758997, 90.386337],
+    [HubId.H_FARMGATE]: [23.757687, 90.390298],
     [HubId.H_SHAHBAGH]: [23.738365, 90.395941],
     [HubId.H_MOTIJHEEL]: [23.728911, 90.417671],
   };
@@ -294,7 +283,9 @@ export function getRoadDistanceKm(originHub: HubId | string, destHub: HubId | st
  * - TransportMode.BUS, RICKSHAW, CNG, LEGUNA, WALK: Follows actual road network geometry.
  */
 export function getLegGeometry(leg: Pick<RouteLeg, "origin_hub_id" | "dest_hub_id" | "mode">): LatLng[] {
-  if (leg.origin_hub_id === leg.dest_hub_id) return [];
+  if (leg.origin_hub_id === leg.dest_hub_id) {
+    return METRO_HUB_CONNECTORS[leg.origin_hub_id] ? [...METRO_HUB_CONNECTORS[leg.origin_hub_id]] : [];
+  }
 
   if (leg.mode === TransportMode.METRO) {
     return getMetroRailPath(leg.origin_hub_id, leg.dest_hub_id);
@@ -307,7 +298,10 @@ export function getLegGeometry(leg: Pick<RouteLeg, "origin_hub_id" | "dest_hub_i
  * Retrieves the road-accurate distance in km for a route leg.
  */
 export function getLegDistanceKm(leg: Pick<RouteLeg, "origin_hub_id" | "dest_hub_id" | "mode">): number {
-  if (leg.origin_hub_id === leg.dest_hub_id) return 0;
+  if (leg.origin_hub_id === leg.dest_hub_id) {
+    const pts = METRO_HUB_CONNECTORS[leg.origin_hub_id];
+    return pts && pts.length > 1 ? +polylineKm(pts).toFixed(2) : 0.2;
+  }
 
   if (leg.mode === TransportMode.METRO) {
     const pts = getMetroRailPath(leg.origin_hub_id, leg.dest_hub_id);
