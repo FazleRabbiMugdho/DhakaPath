@@ -11,6 +11,7 @@ import {
 } from "../contracts/schema";
 import { CANONICAL_GRAPH_G0 } from "../contracts/canonicalGraph";
 import { computeEffectiveDurationMs, computeRegularFareBdt } from "./fareEngine";
+import { getScenarioParameters } from "./scenarioStore";
 
 const STALL_BOUND_MS = 112 * 60000;
 
@@ -99,7 +100,7 @@ export function computeCounterfactualRoi(
   if (!optimalRoute?.legs.length) return empty;
 
   const surfacePath = computeNaiveSurfacePath(query.origin_hub_id, query.dest_hub_id);
-  const surge = preset === ScenarioPreset.PEAK_CRISIS_SURGE ? 1.8 : 1;
+  const surge = getScenarioParameters(preset).surge_multiplier;
   let shadowDurationMs = 0;
   let shadowFareBdt = 0;
   let baselineRisk = 0;

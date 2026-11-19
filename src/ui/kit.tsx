@@ -6,7 +6,7 @@
 // dual-coded: an icon + a text label + a tone, never colour alone.
 // ==============================================================================
 
-import React from "react";
+import React, { useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -143,22 +143,62 @@ export function Segmented<T extends string | number>({
   ariaLabel: string;
   className?: string;
 }) {
+  const buttons = useRef<Array<HTMLButtonElement | null>>([]);
+  const activeIndex = options.findIndex((o) => o.value === value && !o.disabled);
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const enabled = options.map((o, i) => ({ o, i })).filter(({ o }) => !o.disabled);
+    if (enabled.length === 0) return;
+
+    const position = enabled.findIndex(({ i }) => i === activeIndex);
+    let next: number | undefined;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      next = enabled[(position + 1) % enabled.length].i;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      next = enabled[(position - 1 + enabled.length) % enabled.length].i;
+    } else if (event.key === "Home") {
+      next = enabled[0].i;
+    } else if (event.key === "End") {
+      next = enabled[enabled.length - 1].i;
+    }
+    if (next === undefined) return;
+
+    event.preventDefault();
+    onChange(options[next].value);
+    buttons.current[next]?.focus();
+  };
+
   return (
-    <div role="radiogroup" aria-label={ariaLabel} className={cn("inline-flex flex-wrap gap-1 rounded-full border border-line bg-white p-1", className)}>
-      {options.map((o) => {
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      onKeyDown={onKeyDown}
+      className={cn(
+        "inline-flex max-w-full items-stretch gap-1 overflow-x-auto rounded-full border border-line bg-[#F3F7F4] p-1 shadow-inner",
+        "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:flex-1 [&>button]:shrink-0",
+        className
+      )}
+    >
+      {options.map((o, index) => {
         const active = o.value === value;
         return (
           <button
             key={String(o.value)}
+            ref={(el) => { buttons.current[index] = el; }}
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={active ? 0 : -1}
             title={o.title}
             disabled={o.disabled}
             onClick={() => onChange(o.value)}
             className={cn(
-              "rounded-full px-3.5 py-2 text-[13px] font-bold transition-all disabled:cursor-wait",
-              active ? "bg-brand text-white shadow-cta" : "text-ink-soft hover:bg-brand-soft hover:text-brand-dark"
+              "inline-flex min-h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-bold leading-none transition-all duration-200",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              active
+                ? "bg-brand text-white shadow-cta"
+                : "text-ink-soft hover:bg-white hover:text-brand-dark hover:shadow-sm"
             )}
           >
             {o.label}

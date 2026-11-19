@@ -6,19 +6,33 @@
 
 import { NextResponse } from "next/server";
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "@/contracts/canonicalGraph";
-import { HubId, ScenarioPreset } from "@/contracts/schema";
+import { ScenarioPreset } from "@/contracts/schema";
 import { DHAKA_CITY_BUS_RATE_BDT_PER_KM } from "@/engine/fareEngine";
+import { getScenarioParameters, getSeveredHubIds, projectScenario } from "@/engine/scenarioStore";
 
 export const dynamic = "force-static";
 
-const SCENARIO_TELEMETRY: Record<
-  ScenarioPreset,
-  { surface_velocity_kmh: number; surge_multiplier: number; severed_hub_ids: string[] }
-> = {
-  [ScenarioPreset.NORMAL_BASELINE]: { surface_velocity_kmh: 14.5, surge_multiplier: 1.0, severed_hub_ids: [] },
-  [ScenarioPreset.PEAK_CRISIS_SURGE]: { surface_velocity_kmh: 4.8, surge_multiplier: 1.8, severed_hub_ids: [HubId.H_FARMGATE, HubId.H_MALIBAGH] },
-  [ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT]: { surface_velocity_kmh: 8.5, surge_multiplier: 1.2, severed_hub_ids: [HubId.H_SHAHBAGH] },
-};
+function buildScenarioTelemetry() {
+  return Object.fromEntries(
+    Object.values(ScenarioPreset).map((preset) => {
+      const params = getScenarioParameters(preset);
+      const projected = projectScenario(preset, 0);
+      return [
+        preset,
+        {
+          surface_velocity_kmh: params.surface_velocity_kmh,
+          surge_multiplier: params.surge_multiplier,
+          severed_hub_ids: getSeveredHubIds(projected.active_alerts),
+        },
+      ];
+    })
+  ) as Record<
+    ScenarioPreset,
+    { surface_velocity_kmh: number; surge_multiplier: number; severed_hub_ids: string[] }
+  >;
+}
+
+const SCENARIO_TELEMETRY = buildScenarioTelemetry();
 
 export async function GET() {
   const vExp = Object.keys(CANONICAL_HUBS).length * 5; // 15 hubs × 5 modes (mode-expanded)

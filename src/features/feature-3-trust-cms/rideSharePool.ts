@@ -40,9 +40,13 @@ export function computePoolSplit(
   surgeMultiplier: number,
   poolSizeCount: number
 ): PoolSplitResult {
-  const safeBaseFare = Math.max(0, baseFareBdt);
-  const safeSurge = Math.min(3.0, Math.max(1.0, surgeMultiplier));
-  const safePoolSize = Math.min(4, Math.max(1, Math.floor(poolSizeCount)));
+  const safeBaseFare = Number.isFinite(baseFareBdt) ? Math.max(0, baseFareBdt) : 0;
+  const safeSurge = Number.isFinite(surgeMultiplier)
+    ? Math.min(3.0, Math.max(1.0, surgeMultiplier))
+    : 1.0;
+  const safePoolSize = Number.isFinite(poolSizeCount)
+    ? Math.min(4, Math.max(1, Math.floor(poolSizeCount)))
+    : 1;
 
   const totalSurgedFareBdt = Math.ceil(safeBaseFare * safeSurge);
   const perPersonFareBdt = Math.ceil(totalSurgedFareBdt / (safePoolSize + EPSILON));
@@ -58,108 +62,179 @@ export function computePoolSplit(
   };
 }
 
+type PoolDirection = "JOIN" | "LEAVE";
+
+interface PoolActionSnapshot {
+  readonly direction: PoolDirection;
+  readonly actorSessionId: string;
+  readonly members: ReadonlyArray<string>;
+  readonly baseFare: number;
+  readonly surge: number;
+  readonly hubId: string;
+  readonly timestampMs: number;
+}
+
+interface PoolEntry {
+  readonly members: Set<string>;
+  readonly baseFare: number;
+  readonly surge: number;
+  readonly hubId: string;
+  lastActionId: string;
+  readonly actionHistory: Map<string, PoolActionSnapshot>;
+}
+
+const ACTION_HISTORY_MAX = 128;
+const ACTION_TTL_MS = 10 * 60 * 1000;
+
+function createPoolEntry(
+  baseFare: number,
+  surge: number,
+  hubId: string,
+  members: string[]
+): PoolEntry {
+  return {
+    members: new Set(members),
+    baseFare,
+    surge,
+    hubId,
+    lastActionId: "INIT",
+    actionHistory: new Map(),
+  };
+}
+
 /**
  * In-memory pool registry for track 2 demonstration and offline runtime.
+ * The API binds callers to an HttpOnly session cookie; this module enforces the
+ * capacity and idempotency rules but never trusts client-supplied pool sizes.
  */
-const inMemoryPoolRegistry: Map<string, { members: Set<string>; baseFare: number; surge: number; hubId: string; lastActionId: string }> = new Map([
+const inMemoryPoolRegistry: Map<string, PoolEntry> = new Map([
   [
     "E_RICK_MOTIJHEEL_LASTMILE",
-    {
-      members: new Set(["commuter_seed_1", "commuter_seed_2"]),
-      baseFare: 50,
-      surge: 1.8, // 50 * 1.8 = 90 BDT
-      hubId: "H_MOTIJHEEL",
-      lastActionId: "INIT",
-    },
+    createPoolEntry(50, 1.8, "H_MOTIJHEEL", ["commuter_seed_1", "commuter_seed_2"]),
   ],
   [
     "E_RICK_MIRPUR10_FEEDER",
-    {
-      members: new Set(["commuter_seed_3", "commuter_seed_4", "commuter_seed_5"]),
-      baseFare: 40,
-      surge: 1.5, // 40 * 1.5 = 60 BDT
-      hubId: "H_MIRPUR10",
-      lastActionId: "INIT",
-    },
+    createPoolEntry(40, 1.5, "H_MIRPUR10", ["commuter_seed_3", "commuter_seed_4", "commuter_seed_5"]),
   ],
 ]);
 
+function pruneActionHistory(entry: PoolEntry, nowMs: number): void {
+  for (const [actionId, snapshot] of entry.actionHistory) {
+    if (nowMs - snapshot.timestampMs > ACTION_TTL_MS) entry.actionHistory.delete(actionId);
+  }
+  while (entry.actionHistory.size > ACTION_HISTORY_MAX) {
+    const oldest = entry.actionHistory.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    entry.actionHistory.delete(oldest);
+  }
+}
+
+function buildState(
+  edgeId: string,
+  entry: PoolEntry,
+  members: ReadonlyArray<string>,
+  sessionUserId: string,
+  actionId: string,
+  updatedTimestampMs: number
+): HubRideSharePoolState {
+  const currentSize = Math.min(4, Math.max(1, members.length));
+  const split = computePoolSplit(entry.baseFare, entry.surge, currentSize);
+  return {
+    edgeId,
+    hubId: entry.hubId,
+    baseFareBdt: entry.baseFare,
+    surgeMultiplier: entry.surge,
+    poolSizeCount: split.poolSizeCount,
+    perPersonFareBdt: split.perPersonFareBdt,
+    totalSurgedFareBdt: split.totalSurgedFareBdt,
+    savingsBdt: split.savingsBdt,
+    memberSessionIds: [...members],
+    isUserJoined: members.includes(sessionUserId),
+    lastResolvedActionId: actionId,
+    updatedTimestampMs,
+  };
+}
+
 /**
- * Idempotently mutates the ride-share pool state.
- * Double-clicking [Join Hub Pool] will not increment beyond 4 or duplicate the user.
+ * Idempotently mutates the ride-share pool state. Each action ID is stored with
+ * a bounded, 10-minute action-history snapshot, so replaying an older action
+ * after a newer one returns the original result instead of re-applying it.
  */
 export function mutateRideSharePool(
   actionId: string,
   edgeId: string,
   sessionUserId: string,
-  direction: "JOIN" | "LEAVE",
+  direction: PoolDirection,
   customBaseFareBdt?: number,
   customSurgeMultiplier?: number,
   customHubId?: string
 ): HubRideSharePoolState {
+  if (!actionId || typeof actionId !== "string" || actionId.length > 160) {
+    throw new RangeError("Invalid pool action ID");
+  }
+  if (!edgeId || typeof edgeId !== "string") throw new RangeError("Invalid pool edge");
+  if (!sessionUserId || typeof sessionUserId !== "string") {
+    throw new RangeError("Invalid pool session");
+  }
+  if (direction !== "JOIN" && direction !== "LEAVE") {
+    throw new RangeError("Invalid pool direction");
+  }
+
   let poolEntry = inMemoryPoolRegistry.get(edgeId);
+  const now = Date.now();
+
+  if (poolEntry) {
+    const previous = poolEntry.actionHistory.get(actionId);
+    if (previous) {
+      // The action ID is the idempotency key. Replays return the original
+      // snapshot regardless of which cookie happened to accompany the retry,
+      // so a rapid double-click (or a retried request) can never double-apply.
+      return buildState(
+        edgeId,
+        poolEntry,
+        previous.members,
+        sessionUserId,
+        actionId,
+        previous.timestampMs
+      );
+    }
+  }
 
   if (!poolEntry) {
-    poolEntry = {
-      members: new Set(["commuter_seed_1"]),
-      baseFare: customBaseFareBdt ?? 50,
-      surge: customSurgeMultiplier ?? 1.8,
-      hubId: customHubId ?? "H_MOTIJHEEL",
-      lastActionId: "INIT",
-    };
+    const safeBase = Number.isFinite(customBaseFareBdt)
+      ? Math.max(0, customBaseFareBdt as number)
+      : 50;
+    const safeSurge = Number.isFinite(customSurgeMultiplier)
+      ? Math.min(3.0, Math.max(1.0, customSurgeMultiplier as number))
+      : 1.8;
+    poolEntry = createPoolEntry(safeBase, safeSurge, customHubId ?? "H_MOTIJHEEL", [
+      "commuter_seed_1",
+    ]);
     inMemoryPoolRegistry.set(edgeId, poolEntry);
   }
 
-  // Idempotency check: If this exact actionId was already processed, return current snapshot
-  if (actionId && actionId === poolEntry.lastActionId) {
-    const split = computePoolSplit(poolEntry.baseFare, poolEntry.surge, poolEntry.members.size);
-    return {
-      edgeId,
-      hubId: poolEntry.hubId,
-      baseFareBdt: poolEntry.baseFare,
-      surgeMultiplier: poolEntry.surge,
-      poolSizeCount: split.poolSizeCount,
-      perPersonFareBdt: split.perPersonFareBdt,
-      totalSurgedFareBdt: split.totalSurgedFareBdt,
-      savingsBdt: split.savingsBdt,
-      memberSessionIds: Array.from(poolEntry.members),
-      isUserJoined: poolEntry.members.has(sessionUserId),
-      lastResolvedActionId: poolEntry.lastActionId,
-      updatedTimestampMs: Date.now(),
-    };
-  }
-
   if (direction === "JOIN") {
-    // Only add if pool has not reached capacity 4 and user is not already in it
     if (poolEntry.members.size < 4 && !poolEntry.members.has(sessionUserId)) {
       poolEntry.members.add(sessionUserId);
     }
-  } else if (direction === "LEAVE") {
-    // Leave pool / Solo rickshaw rollback
-    if (poolEntry.members.has(sessionUserId)) {
-      poolEntry.members.delete(sessionUserId);
-    }
+  } else if (poolEntry.members.has(sessionUserId)) {
+    poolEntry.members.delete(sessionUserId);
   }
 
   poolEntry.lastActionId = actionId;
-
-  const currentSize = Math.min(4, Math.max(1, poolEntry.members.size));
-  const split = computePoolSplit(poolEntry.baseFare, poolEntry.surge, currentSize);
-
-  return {
-    edgeId,
+  const members = Array.from(poolEntry.members);
+  poolEntry.actionHistory.set(actionId, {
+    direction,
+    actorSessionId: sessionUserId,
+    members,
+    baseFare: poolEntry.baseFare,
+    surge: poolEntry.surge,
     hubId: poolEntry.hubId,
-    baseFareBdt: poolEntry.baseFare,
-    surgeMultiplier: poolEntry.surge,
-    poolSizeCount: split.poolSizeCount,
-    perPersonFareBdt: split.perPersonFareBdt,
-    totalSurgedFareBdt: split.totalSurgedFareBdt,
-    savingsBdt: split.savingsBdt,
-    memberSessionIds: Array.from(poolEntry.members),
-    isUserJoined: poolEntry.members.has(sessionUserId),
-    lastResolvedActionId: actionId,
-    updatedTimestampMs: Date.now(),
-  };
+    timestampMs: now,
+  });
+  pruneActionHistory(poolEntry, now);
+
+  return buildState(edgeId, poolEntry, members, sessionUserId, actionId, now);
 }
 
 /**
@@ -169,29 +244,8 @@ export function getPoolSnapshot(
   edgeId: string,
   sessionUserId: string = "current_commuter"
 ): HubRideSharePoolState {
-  const poolEntry = inMemoryPoolRegistry.get(edgeId) ?? {
-    members: new Set(["commuter_seed_1", "commuter_seed_2"]),
-    baseFare: 50,
-    surge: 1.8,
-    hubId: "H_MOTIJHEEL",
-    lastActionId: "INIT",
-  };
+  const poolEntry = inMemoryPoolRegistry.get(edgeId) ??
+    createPoolEntry(50, 1.8, "H_MOTIJHEEL", ["commuter_seed_1", "commuter_seed_2"]);
 
-  const currentSize = Math.min(4, Math.max(1, poolEntry.members.size));
-  const split = computePoolSplit(poolEntry.baseFare, poolEntry.surge, currentSize);
-
-  return {
-    edgeId,
-    hubId: poolEntry.hubId,
-    baseFareBdt: poolEntry.baseFare,
-    surgeMultiplier: poolEntry.surge,
-    poolSizeCount: split.poolSizeCount,
-    perPersonFareBdt: split.perPersonFareBdt,
-    totalSurgedFareBdt: split.totalSurgedFareBdt,
-    savingsBdt: split.savingsBdt,
-    memberSessionIds: Array.from(poolEntry.members),
-    isUserJoined: poolEntry.members.has(sessionUserId),
-    lastResolvedActionId: poolEntry.lastActionId,
-    updatedTimestampMs: Date.now(),
-  };
+  return buildState(edgeId, poolEntry, Array.from(poolEntry.members), sessionUserId, poolEntry.lastActionId, Date.now());
 }

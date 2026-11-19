@@ -19,6 +19,18 @@ import {
 import { CANONICAL_HUBS, CANONICAL_GRAPH_G0 } from "../../contracts/canonicalGraph";
 import { executeParetoSearch } from "../../engine/paretoRouter";
 import { parseBanglishQueryDeterministic } from "./banglishParser";
+import {
+  findHubMentions,
+  findIncidentHub,
+  extractHubFromText,
+  hasIncidentKeyword,
+} from "./hubMatching";
+import {
+  computePosteriorConfidence,
+  DEFAULT_OFF_PEAK_PRIOR,
+  DEFAULT_PEAK_PRIOR,
+  TAU_BLOCKADE,
+} from "../feature-3-trust-cms/bayesianTruth";
 
 export type ChatTurnIntent =
   | "ROUTE_SEARCH"
@@ -80,38 +92,29 @@ export interface ChatTurnResult {
   messageMetadata?: ChatMessage["metadata"];
 }
 
+/**
+ * How many full-weight (1.0) corroboration votes are needed to move the
+ * posterior from `prior` to `targetPct`? Used to keep chat copy honest instead
+ * of hard-coding "3 corroborations".
+ */
+function fullWeightVotesToReach(prior: number, targetPct: number, nowMs: number): number {
+  for (let count = 1; count <= 50; count++) {
+    const votes = Array.from({ length: count }, (_, index) => ({
+      vote_id: `v_probe_${index}`,
+      voter_session_id: "probe",
+      direction: 1 as const,
+      reliability_weight: 1,
+      timestamp_ms: nowMs,
+    }));
+    if (computePosteriorConfidence(prior, votes, nowMs) * 100 >= targetPct) return count;
+  }
+  return 50;
+}
+
 // ------------------------------------------------------------------------------
 // 1. Hub & Incident Lexicon for Context Extraction
 // ------------------------------------------------------------------------------
-const HUB_KEYWORDS_MAP: Record<HubId, string[]> = {
-  [HubId.H_MIRPUR10]: ["mirpur 10", "mirpur-10", "mirpur10", "mirpur", "মিরপুর ১০", "মিরপুর"],
-  [HubId.H_MOTIJHEEL]: ["motijheel", "motijhil", "matijheel", "মতিঝিল", "shapla chottor"],
-  [HubId.H_FARMGATE]: ["farmgate", "farm gate", "ফার্মগেট", "ananda cinema"],
-  [HubId.H_SHAHBAGH]: ["shahbagh", "shahbag", "শাহবাগ", "tsc", "du", "pg hospital"],
-  [HubId.H_UTTARA]: ["uttara", "uttora", "উত্তরা", "house building", "azampur", "diabari"],
-  [HubId.H_DHANMONDI]: ["dhanmondi", "dhanmandi", "ধানমন্ডি", "dhanmondi 27", "dhanmondi 32"],
-  [HubId.H_BADDA]: ["badda", "বাড্ডা", "link road", "badda link road"],
-  [HubId.H_MALIBAGH]: ["malibagh", "malibag", "মালিবাগ", "mouchak", "railgate"],
-  [HubId.H_MOHAKHALI]: ["mohakhali", "maakhali", "মহাখালী", "wireless"],
-  [HubId.H_AGARGAON]: ["agargaon", "agar gaon", "আগারগাঁও", "passport office"],
-  [HubId.H_JATRABARI]: ["jatrabari", "jattrabari", "যাত্রাবাড়ী", "sayedabad"],
-  [HubId.H_MOHAMMADPUR]: ["mohammadpur", "mohammodpur", "মোহাম্মদপুর", "town hall", "asad gate"],
-  [HubId.H_SCIENCELAB]: ["science lab", "sciencelab", "সায়েন্স ল্যাব", "city college"],
-  [HubId.H_BANASREE]: ["banasree", "bonosree", "বনশ্রী", "rampura"],
-  [HubId.H_GULISTAN]: ["gulistan", " গুলিস্তান", "fulbaria", "zero point"],
-};
-
-export function extractHubFromText(text: string): HubId | null {
-  const lower = text.toLowerCase();
-  for (const [hubId, keywords] of Object.entries(HUB_KEYWORDS_MAP)) {
-    for (const kw of keywords) {
-      if (lower.includes(kw)) {
-        return hubId as HubId;
-      }
-    }
-  }
-  return null;
-}
+export { extractHubFromText };
 
 export function extractIncidentType(text: string): IncidentType | null {
   const lower = text.toLowerCase();
@@ -142,19 +145,28 @@ export function classifyConversationTurn(
   incidentType: IncidentType | null;
   avoidHub: HubId | null;
 } {
-  const lower = text.toLowerCase().trim();
-  const mentionedHub = extractHubFromText(lower);
-  const incidentType = extractIncidentType(lower);
+  const normalized = text.trim();
+  const lower = normalized.toLowerCase();
+  const mentions = findHubMentions(normalized);
+  const mentionedHub = mentions[0]?.hub_id ?? null;
+  const incidentType = extractIncidentType(normalized);
+  const incidentHub = incidentType ? findIncidentHub(normalized, mentions) : null;
+  const hasTripSyntax =
+    mentions.length >= 2 &&
+    /(?:theke|from|থেকে).*(?:jabo|zabo|to|porjonto|যাব|যেতে)|(?:jabo|zabo|porjonto|যাব|যেতে)/iu.test(lower);
 
   // 1. REPORT_INCIDENT check
   // Matches e.g. "Shahbagh e pani uthse", "report Farmgate blockade", "Mohakhali te jam"
-  const isReportingPhrasing = /uthse|hoyeche|report|ache ekhane|pani|block|jam|bhanga|উঠেছে|হয়েছে|রিপোর্ট/i.test(lower);
+  const isReportingPhrasing =
+    hasIncidentKeyword(normalized) &&
+    /(?:uthse|utheche|hoyeche|report|lagche|dekha|জমেছে|উঠেছে|উঠছে|হয়েছে|রিপোর্ট|বন্ধ|জ্যাম|পানি)/iu.test(normalized);
   if (
     incidentType &&
     isReportingPhrasing &&
-    !/trust|can i|bhorosha|reliable|kivabe|why|কেন|ভাড়া/i.test(lower)
+    !hasTripSyntax &&
+    !/trust|can i|bhorosha|reliable|kivabe|why|কেন|ভাড়া|status|ki ache|কি ache|কি অবস্থা/iu.test(normalized)
   ) {
-    const hub = mentionedHub || context.last_discussed_hub || null;
+    const hub = incidentHub || context.last_discussed_hub || null;
     if (hub) {
       return {
         intent: "REPORT_INCIDENT",
@@ -165,10 +177,10 @@ export function classifyConversationTurn(
     }
   }
 
-  // 2. FARE_QUESTION check
-  // Matches e.g. "why that fare?", "why 48 BDT?", "kivabe 48 holo?", "fare breakdown", "student pass rule"
+  // 2. FARE_QUESTION check. This also catches "Mirpur 10 taka koto?" so the
+  // number in the destination name is never mistaken for a 10 BDT budget.
   if (
-    /why.*fare|why.*48|why.*cost|why.*price|fare breakdown|how.*fare|kivabe.*holo|bhara.*kivabe|ভাড়া.*কেন|ভাড়া.*হিসাব|student pass.*rule|10 taka keno/i.test(lower)
+    /(?:why.*(?:fare|cost|price|48)|fare\s*breakdown|how\s*(?:much|is).*fare|kivabe.*holo|bhara.*kivabe|ভাড়া.*(?:কেন|হিসাব|কত)|student pass.*rule|10 taka keno|(?:\d+|taka|tk|bdt|৳|টাকা)\s*(?:koto|kto|কত)|(?:koto|kto|কত).*(?:taka|tk|bdt|৳|টাকা))/iu.test(normalized)
   ) {
     return {
       intent: "FARE_QUESTION",
@@ -181,7 +193,7 @@ export function classifyConversationTurn(
   // 3. ALERT_QUESTION check
   // Matches e.g. "can I trust that report?", "is Farmgate still flooded?", "bhorosha kora jay?", "Shahbagh er status ki?"
   if (
-    /trust|reliable|bhorosha|ভরসা|বিশ্বাস|is.*flooded|pani ki ache|jam ki ache|status ki|alert.*trust|খবর কি|অবস্থা কি/i.test(lower)
+    /trust|reliable|bhorosha|ভরসা|বিশ্বাস|is.*flooded|pani ki ache|jam ki ache|status ki|alert.*trust|খবর কি|অবস্থা কি|কি অবস্থা/iu.test(normalized)
   ) {
     const hub = mentionedHub || context.last_discussed_hub || context.last_reported_hub || HubId.H_SHAHBAGH;
     return {
@@ -192,25 +204,26 @@ export function classifyConversationTurn(
     };
   }
 
-  // 4. ALTERNATIVE_ROUTE check
-  // Matches e.g. "What if Farmgate floods?", "avoid Farmgate", "Farmgate bad diye jabo", "ar kono rasta ache?"
+  // 4. ALTERNATIVE_ROUTE check. Only a hub actually tied to an avoid phrase is
+  // added to the avoid list; a generic "any other route?" must not silently
+  // avoid Farmgate.
   if (
-    /avoid|bypass|bad diye|বাদ দিয়ে|alternative|ar kono rasta|what if.*floods|onno kono route|অন‍্য পথ/i.test(lower)
+    /avoid|bypass|bad diye|bad deye|chara|charai|eray|বাদ দিয়ে|এড়িয়ে|alternative|ar kono rasta|what if.*floods|onno kono route|অন‍্য পথ/iu.test(normalized)
   ) {
-    const hubToAvoid = mentionedHub || HubId.H_FARMGATE;
+    const explicitlyAvoiding = /avoid|bypass|bad diye|bad deye|chara|charai|eray|বাদ দিয়ে|এড়িয়ে/iu.test(normalized);
     return {
       intent: "ALTERNATIVE_ROUTE",
       targetHub: null,
       incidentType: null,
-      avoidHub: hubToAvoid,
+      avoidHub: explicitlyAvoiding ? incidentHub || mentionedHub : null,
     };
   }
 
-  // 5. ROUTE_SEARCH check
-  // Matches explicit trip queries or origin/dest keywords
+  // 5. ROUTE_SEARCH check. The bare English "to" is deliberately absent here:
+  // it appears in ordinary conversation and must not create a trip by itself.
   if (
-    mentionedHub ||
-    /theke|from|jabo|to|route|যাব|থেকে|budget|student|half pass/i.test(lower)
+    mentions.length > 0 ||
+    /theke|from|jabo|route|যাব|থেকে|budget|student|half pass/iu.test(normalized)
   ) {
     return {
       intent: "ROUTE_SEARCH",
@@ -244,43 +257,78 @@ export function processConversationTurn(
   );
 
   // ----------------------------------------------------------------------------
+  // CASE 0: CLARIFY
+  // ----------------------------------------------------------------------------
+  if (intent === "CLARIFY") {
+    return {
+      replyText:
+        `I can help with a route, a fare breakdown, a live alert check, or a street report. ` +
+        `Try: *"Mirpur 10 theke Motijheel, student, 55 BDT"*, *"why is the fare 48 BDT?"*, ` +
+        `or *"Farmgate e pani uthse"*.`,
+      intent: "CLARIFY",
+      updatedContext: {
+        ...context,
+        ...(targetHub ? { last_discussed_hub: targetHub } : {}),
+      },
+      badges: [{ label: "NEED A DETAIL", variant: "cyan" }],
+    };
+  }
+
+  // ----------------------------------------------------------------------------
   // CASE 1: REPORT_INCIDENT
   // ----------------------------------------------------------------------------
   if (intent === "REPORT_INCIDENT" && targetHub && incidentType) {
     const hubMeta = CANONICAL_HUBS[targetHub];
     const hubName = hubMeta?.name_en || targetHub;
 
-    const alertId = `alert_chat_${targetHub.toLowerCase()}_${Date.now()}`;
+    const now = Date.now();
+    const alertId = `alert_chat_${targetHub.toLowerCase()}_${now}`;
     // Find representative edge for this hub
     const associatedEdge =
       CANONICAL_GRAPH_G0.find((e) => e.dest_hub_id === targetHub || e.origin_hub_id === targetHub)
         ?.edge_id || `E_CROWD_${targetHub}`;
+
+    const reportVote = {
+      vote_id: `v_chat_${now}`,
+      voter_session_id: "commuter_conversational_reporter",
+      direction: 1 as const,
+      reliability_weight: 0.30,
+      timestamp_ms: now,
+    };
+
+    const priorUsed =
+      preset === ScenarioPreset.PEAK_CRISIS_SURGE ? DEFAULT_PEAK_PRIOR : DEFAULT_OFF_PEAK_PRIOR;
+    const confidencePct = Number(
+      (computePosteriorConfidence(priorUsed, [reportVote], now) * 100).toFixed(1)
+    );
+    const alertStatus =
+      confidencePct >= TAU_BLOCKADE
+        ? AlertStatus.VERIFIED_ACTIVE
+        : AlertStatus.PENDING_CORROBORATION;
+    const corroborationsNeeded = fullWeightVotesToReach(
+      priorUsed,
+      TAU_BLOCKADE,
+      now
+    );
 
     const newAlert: StreetAlert = {
       alert_id: alertId,
       edge_id: associatedEdge,
       hub_id: targetHub,
       incident_type: incidentType,
-      status: AlertStatus.PENDING_CORROBORATION,
+      status: alertStatus,
       validation_status: ValidationStatus.GRAPH_GROUNDED,
       severity_alpha: incidentType === IncidentType.WATERLOGGING ? 2.4 : 1.9,
-      confidence_pct: 24.3, // Prior confidence for single uncorroborated report (Track 2)
+      confidence_pct: confidencePct,
       half_life_remaining_ms: 1800000, // 30-min half-life
-      created_timestamp_ms: Date.now(),
-      votes: [
-        {
-          vote_id: `v_chat_${Date.now()}`,
-          voter_session_id: "commuter_conversational_reporter",
-          direction: 1,
-          reliability_weight: 0.30,
-          timestamp_ms: Date.now(),
-        },
-      ],
+      created_timestamp_ms: now,
+      votes: [reportVote],
     };
 
     const replyText =
-      `Report submitted! Logged **${incidentType}** at **${hubName}** as \`PENDING_CORROBORATION\` with an initial Bayesian confidence of **24.3%**.\n\n` +
-      `🛡️ **Sanity Gate:** Under our Tier-2 Bayesian model, a single report does NOT sever transit corridors immediately (requires $\\ge 3$ community corroborations or $R_e \\ge 85\\%$). This stops false alarms and troll reports.\n\n` +
+      `Report submitted! Logged **${incidentType}** at **${hubName}** as \`${alertStatus}\` with an initial Bayesian confidence of **${confidencePct.toFixed(1)}%**.\n\n` +
+      `🛡️ **Sanity Gate:** Under our Tier-2 Bayesian model, a single 0.30-weight report does NOT sever transit corridors immediately. ` +
+      `The posterior must reach $R_e \\ge ${TAU_BLOCKADE}%$ (about ${corroborationsNeeded} full-weight corroborations from the ${Math.round(priorUsed * 100)}% baseline prior). This stops false alarms and troll reports.\n\n` +
       `You can corroborate this live in **Zone 3 Alert Feed** or vote to verify it!`;
 
     return {
@@ -294,7 +342,7 @@ export function processConversationTurn(
       newAlertToSubmit: newAlert,
       badges: [
         { label: `LOGGED: ${incidentType}`, variant: "amber" },
-        { label: "PENDING (24.3%)", variant: "amber" },
+        { label: `PENDING (${confidencePct.toFixed(1)}%)`, variant: "amber" },
         { label: hubName, variant: "cyan" },
       ],
       messageMetadata: {
@@ -302,8 +350,8 @@ export function processConversationTurn(
           hubId: targetHub,
           hubName,
           incidentType,
-          confidencePct: 24.3,
-          status: "PENDING_CORROBORATION",
+          confidencePct,
+          status: alertStatus,
         },
       },
     };
@@ -388,7 +436,7 @@ export function processConversationTurn(
     );
 
     if (alert) {
-      const isSevered = alert.confidence_pct >= 85.0;
+      const isSevered = alert.confidence_pct >= TAU_BLOCKADE;
       const decayMinsRemaining = Math.round(alert.half_life_remaining_ms / 60000);
 
       const replyText =
@@ -434,7 +482,17 @@ export function processConversationTurn(
   // CASE 4: ALTERNATIVE_ROUTE (e.g. "What if Farmgate floods? avoid Farmgate")
   // ----------------------------------------------------------------------------
   if (intent === "ALTERNATIVE_ROUTE") {
-    const hubToAvoid = avoidHub || HubId.H_FARMGATE;
+    if (!avoidHub) {
+      return {
+        replyText:
+          `I can suggest a detour, but I need to know which corridor to avoid. ` +
+          `Try *"avoid Farmgate"* or *"what if Mohakhali floods?"* so I can reroute your last trip without guessing.`,
+        intent: "ALTERNATIVE_ROUTE",
+        updatedContext: context,
+        badges: [{ label: "NEED A CORRIDOR", variant: "amber" }],
+      };
+    }
+    const hubToAvoid = avoidHub;
     const avoidName = CANONICAL_HUBS[hubToAvoid]?.name_en || hubToAvoid;
 
     const newAvoidList = Array.from(new Set([...context.avoid_hub_ids, hubToAvoid]));
@@ -522,18 +580,25 @@ export function processConversationTurn(
   // Parse with deterministic lexer first
   const parsed = parseBanglishQueryDeterministic(rawUserText);
 
-  // Inherit missing contextual values
-  const effectiveOrigin =
-    parsed.extracted_raw.origin_token ? parsed.origin_hub_id : context.last_origin_hub_id;
-  const effectiveDest =
-    parsed.extracted_raw.dest_token ? parsed.dest_hub_id : context.last_dest_hub_id;
+  // Inherit missing contextual values. Tokens are only present when the
+  // deterministic parser actually resolved that field; defaults in the parser
+  // are not evidence that the user said them.
+  const effectiveOrigin = parsed.origin_resolved
+    ? parsed.origin_hub_id
+    : context.last_origin_hub_id;
+  const effectiveDest = parsed.dest_resolved
+    ? parsed.dest_hub_id
+    : context.last_dest_hub_id;
   const effectiveStudent =
     parsed.extracted_raw.student_token !== undefined ? parsed.is_student : context.is_student;
   const effectiveBudget =
-    parsed.max_budget_bdt > 0 ? parsed.max_budget_bdt : context.last_budget_bdt;
+    parsed.extracted_raw.budget_token !== undefined
+      ? parsed.max_budget_bdt
+      : context.last_budget_bdt;
   const effectiveAvoid = Array.from(
     new Set([...context.avoid_hub_ids, ...(parsed.avoid_hub_ids || [])])
-  );
+  ).filter((hub) => hub !== effectiveOrigin && hub !== effectiveDest);
+  const reusedContext = !parsed.origin_resolved && !parsed.dest_resolved;
 
   const resolvedQuery: Partial<CommuterQuery> = {
     origin_hub_id: effectiveOrigin,
@@ -570,7 +635,7 @@ export function processConversationTurn(
     );
 
     replyText =
-      `Grounded route found for **${originName} → ${destName}**:\n\n` +
+      `${reusedContext ? "Using your last trip context. " : ""}Grounded route found for **${originName} → ${destName}**:\n\n` +
       `⚡ **Optimal Detour ($P^*$):**\n` +
       legLines.join("\n") +
       `\n\n💰 **Fare:** **${optimal.total_effective_fare_bdt} BDT** ${effectiveStudent ? "(Student Pass Verified: 10 BDT floor)" : "(Regular Ticket)"}\n` +
@@ -591,6 +656,7 @@ export function processConversationTurn(
       is_student: effectiveStudent,
       avoid_hub_ids: effectiveAvoid,
       selected_route: optimal,
+      last_discussed_hub: effectiveDest,
     },
     resolvedQuery,
     badges: optimal
@@ -598,6 +664,7 @@ export function processConversationTurn(
           { label: `${optimal.total_effective_fare_bdt} BDT`, variant: "emerald" },
           { label: `${Math.round(optimal.total_duration_ms / 60000)} MIN`, variant: "cyan" },
           { label: "GROUNDED", variant: "emerald" },
+          ...(reusedContext ? [{ label: "CONTEXT REUSED", variant: "amber" as const }] : []),
         ]
       : [{ label: "NO ROUTE", variant: "crimson" }],
     messageMetadata: optimal

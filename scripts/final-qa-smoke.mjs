@@ -1,9 +1,27 @@
 import assert from "node:assert/strict";
 
 const baseUrl = process.env.QA_BASE_URL ?? "http://localhost:3000";
+const cookieJar = new Map();
+
+function withCookies(headers = {}) {
+  const cookie = [...cookieJar].map(([key, value]) => `${key}=${value}`).join("; ");
+  return cookie ? { ...headers, Cookie: cookie } : headers;
+}
+
+function captureCookies(response) {
+  const values = typeof response.headers.getSetCookie === "function"
+    ? response.headers.getSetCookie()
+    : (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")] : []);
+  for (const value of values) {
+    const pair = value.split(";")[0];
+    const separator = pair.indexOf("=");
+    if (separator > 0) cookieJar.set(pair.slice(0, separator), pair.slice(separator + 1));
+  }
+}
 
 async function get(path) {
-  const response = await fetch(new URL(path, baseUrl));
+  const response = await fetch(new URL(path, baseUrl), { headers: withCookies() });
+  captureCookies(response);
   assert.equal(response.status, 200, `${path} returned ${response.status}`);
   return response;
 }
@@ -11,9 +29,10 @@ async function get(path) {
 async function post(path, body) {
   const response = await fetch(new URL(path, baseUrl), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withCookies({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
+  captureCookies(response);
   assert.equal(response.status, 200, `${path} returned ${response.status}`);
   return response.json();
 }
@@ -25,7 +44,7 @@ async function check(label, run) {
 
 try {
   await check("Global disclosure on every page", async () => {
-    for (const path of ["/", "/command-center", "/track-1-engine", "/track-2-trust-cms", "/track-3-commute", "/track-4-map-shell"]) {
+    for (const path of ["/", "/app", "/admin"]) {
       const html = await (await get(path)).text();
       assert.ok(html.includes("[SIMULATED DEMO TELEMETRY"), `${path} lacks disclosure`);
     }
@@ -170,7 +189,7 @@ try {
     assert.ok(turn4.newAlertToSubmit);
     assert.equal(turn4.newAlertToSubmit.hub_id, "H_SHAHBAGH");
     assert.equal(turn4.newAlertToSubmit.status, "PENDING_CORROBORATION");
-    assert.equal(turn4.newAlertToSubmit.confidence_pct, 24.3);
+    assert.equal(turn4.newAlertToSubmit.confidence_pct, 19.2);
     assert.ok(turn4.replyText.includes("Sanity Gate"));
     activeAlerts.push(turn4.newAlertToSubmit);
     context = turn4.updatedContext;
@@ -180,7 +199,7 @@ try {
       action: "chat_turn", query: "Can I trust that report?", context, activeAlerts,
     });
     assert.equal(turn5.intent, "ALERT_QUESTION");
-    assert.ok(turn5.replyText.includes("24.3%"));
+    assert.ok(turn5.replyText.includes("19.2%"));
     assert.ok(turn5.replyText.includes("30-Min Exponential Decay"));
     assert.ok(turn5.replyText.includes("Passable with Delay"));
   });
