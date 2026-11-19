@@ -5,7 +5,6 @@ import type { Viewport } from "next";
 import { DhakaPathProvider } from "../store/useDhakaPathStore";
 import { LangProvider } from "../lib/i18n";
 import { HonestyStrip } from "../ui/HonestyStrip";
-import { SiteFooter } from "../ui/SiteFooter";
 import { PwaRegister } from "../ui/PwaRegister";
 
 const fontSans = Plus_Jakarta_Sans({
@@ -54,7 +53,6 @@ export default function RootLayout({
           <DhakaPathProvider>
             <HonestyStrip />
             {children}
-            <SiteFooter />
           </DhakaPathProvider>
         </LangProvider>
         <PwaRegister />
