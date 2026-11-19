@@ -6,7 +6,6 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
-import { useLang } from "@/lib/i18n";
 import { ScenarioPreset } from "@/contracts/schema";
 import { AppHeader, BottomNav, TabId } from "@/ui/AppHeader";
 import { ScenarioBar } from "@/ui/ScenarioBar";
@@ -20,7 +19,6 @@ import { AssistantDock } from "@/ui/assistant/AssistantDock";
 const TABS: TabId[] = ["plan", "alerts", "network"];
 
 export default function AppPage() {
-  const { t } = useLang();
   const { setScenarioPreset, resetAll } = useDhakaPathStore();
   const [tab, setTab] = useState<TabId>("plan");
   const [mathOpen, setMathOpen] = useState(false);
@@ -68,10 +66,6 @@ export default function AppPage() {
         {tab === "alerts" && <AlertsTab />}
         {tab === "network" && <NetworkTab />}
       </main>
-
-      <footer className="hidden border-t border-line bg-white py-5 text-center text-[13px] text-ink-faint lg:block">
-        © 2026 DhakaPath · {t("INIF স্মার্ট সিটি হ্যাকাথন", "INIF Smart City Hackathon")} · {t("ঢাকায় তৈরি", "Made in Dhaka")}
-      </footer>
 
       <BottomNav tab={tab} onTab={goTab} />
       <AssistantDock />
