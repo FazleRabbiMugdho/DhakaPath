@@ -18,6 +18,7 @@ import {
   AuditInterceptionEvent,
   CommuterQuery,
   CounterfactualRoiMetrics,
+  DEFAULT_BUDGET_BDT,
   HubId,
   IncidentType,
   ParetoRouteOption,
@@ -53,7 +54,7 @@ import {
   verifySubgraphTrajectory,
 } from "../features/feature-1-commute/subgraphVerifier";
 import { SignboardDigitizeResult, digitizeSignboardImage } from "../features/feature-1-commute/signboardVision";
-import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { isSupabaseConfigured } from "../lib/supabase";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -292,19 +293,23 @@ function uid(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function persist(table: string, rows: object | object[]): void {
+// Writes go through /api/sync (validated, service-role key on the server);
+// the browser's anon key is read-only. Fire-and-forget: the demo keeps working
+// in memory when the backend is down.
+function persist(table: "street_alerts" | "interception_logs" | "ride_share_pools", row: object): void {
   if (!isSupabaseConfigured) return;
-  try {
-    void supabase
-      .from(table)
-      .upsert(rows as never)
-      .then(
-        () => undefined,
-        () => undefined
-      );
-  } catch {
-    // in-memory fallback: the demo keeps working without a backend
-  }
+  void fetch("/api/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ table, row }),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
+/** True when the origin/destination pair changes (a swap is the same trip). */
+function isNewTrip(prev: Pick<CommuterQuery, "origin_hub_id" | "dest_hub_id">, origin: HubId, dest: HubId): boolean {
+  const pair = new Set([prev.origin_hub_id, prev.dest_hub_id]);
+  return !(pair.has(origin) && pair.has(dest));
 }
 
 function persistAlert(a: StreetAlert): void {
@@ -505,7 +510,10 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       };
 
       const result = executeParetoSearch(queryForSearch, activePreset, alerts, effectivePools);
-      const sanitized = sanitizeAndFilterParetoRoutes(result.routes, activeQuery.is_student);
+      const sanitized = sanitizeAndFilterParetoRoutes(result.routes, activeQuery.is_student, {
+        surgeMultiplier: getScenarioParameters(activePreset).surge_multiplier,
+        poolSizes: effectivePools,
+      });
       const walkBlocked = result.walk_bridge_active && !options.allowWalkBridge;
       const routes = walkBlocked ? [] : sanitized.verifiedRoutes;
       return {
@@ -638,10 +646,15 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
           : parsed.extracted_raw.student_token !== undefined
             ? parsed.is_student
             : activeQueryRef.current.is_student;
+        const prevQuery = activeQueryRef.current;
+        const nextOrigin = parsed.origin_resolved ? parsed.origin_hub_id : prevQuery.origin_hub_id;
+        const nextDest = parsed.dest_resolved ? parsed.dest_hub_id : prevQuery.dest_hub_id;
         const budget =
           parsed.extracted_raw.budget_token !== undefined
             ? parsed.max_budget_bdt
-            : activeQueryRef.current.max_budget_bdt;
+            : isNewTrip(prevQuery, nextOrigin, nextDest)
+              ? DEFAULT_BUDGET_BDT
+              : prevQuery.max_budget_bdt;
         const avoid = new Set<HubId>(parsed.avoid_hub_ids);
         if (opts.bypassFlooded) disruptedHubIds.forEach((h) => avoid.add(h));
         avoid.delete(parsed.origin_hub_id);
@@ -697,17 +710,22 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       if (origin === dest) return;
       setSearchNotice(null);
       setInterception(null);
-      setActiveQuery((prev) => ({
-        ...prev,
-        action_id: uid("PLAN"),
-        raw_query_text: `${CANONICAL_HUBS[origin].name_en} to ${CANONICAL_HUBS[dest].name_en}`,
-        origin_hub_id: origin,
-        dest_hub_id: dest,
-        is_student: patch?.student ?? prev.is_student,
-        max_budget_bdt: patch?.budget ?? prev.max_budget_bdt,
-        avoid_hub_ids: prev.avoid_hub_ids.filter((h) => h !== origin && h !== dest),
-        timestamp_ms: Date.now(),
-      }));
+      setActiveQuery((prev) => {
+        // A different trip starts from fresh constraints (the demo's avoid list and
+        // budget must not silently follow the user); a swap keeps them.
+        const fresh = isNewTrip(prev, origin, dest);
+        return {
+          ...prev,
+          action_id: uid("PLAN"),
+          raw_query_text: `${CANONICAL_HUBS[origin].name_en} to ${CANONICAL_HUBS[dest].name_en}`,
+          origin_hub_id: origin,
+          dest_hub_id: dest,
+          is_student: patch?.student ?? prev.is_student,
+          max_budget_bdt: patch?.budget ?? (fresh ? DEFAULT_BUDGET_BDT : prev.max_budget_bdt),
+          avoid_hub_ids: fresh ? [] : prev.avoid_hub_ids.filter((h) => h !== origin && h !== dest),
+          timestamp_ms: Date.now(),
+        };
+      });
       setSelectedRouteId("");
     },
     []
@@ -891,7 +909,6 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
         edge_id: edgeId,
         hub_id: edge.origin_hub_id,
         pool_size_count: state.poolSizeCount,
-        member_session_ids: state.memberSessionIds,
         updated_timestamp_ms: Date.now(),
       });
     },

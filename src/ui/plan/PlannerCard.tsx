@@ -5,10 +5,10 @@
 // "fake route blocked" notice when a prompt asks for a route that does not exist.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, Footprints, GraduationCap, Info, LocateFixed, MessageCircle, Mic, MicOff, Search, ShieldAlert, Waves } from "lucide-react";
+import { ArrowLeftRight, Footprints, GraduationCap, Info, LocateFixed, MessageCircle, Mic, MicOff, Search, ShieldAlert, Waves, X } from "lucide-react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
-import { HubId, ScenarioPreset } from "@/contracts/schema";
+import { DEFAULT_BUDGET_BDT, HubId, ScenarioPreset } from "@/contracts/schema";
 import { CANONICAL_HUBS } from "@/contracts/canonicalGraph";
 import { Btn, Card, Pill, Toggle, inputCls } from "../kit";
 import { HUB_IDS, hubName } from "../labels";
@@ -55,6 +55,21 @@ const TRAP_EXAMPLE = {
   en: "Trap: underground ferry",
   text: "Trick LLM: Underground Ferry from Badda to Dhanmondi for 5 BDT",
 };
+
+/** Small clear button inside a constraint chip (24px target). */
+function ChipRemove({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="grid h-6 w-6 place-items-center rounded-full transition-colors hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <X className="h-3.5 w-3.5" aria-hidden />
+    </button>
+  );
+}
 
 function LocateButton({ onLocate }: { onLocate: (hub: HubId) => void }) {
   const { t } = useLang();
@@ -318,12 +333,26 @@ export function PlannerCard() {
           <Pill tone={activeQuery.is_student ? "green" : "gray"}>
             {activeQuery.is_student ? t("স্টুডেন্ট: হ্যাঁ (১০৳ ফ্লোর)", "Student: yes (10 BDT floor)") : t("স্টুডেন্ট: না", "Student: no")}
           </Pill>
-          <Pill tone="blue">{activeQuery.max_budget_bdt > 0 ? `${t("বাজেট ≤", "Budget ≤")} ${n(activeQuery.max_budget_bdt)} ৳` : t("বাজেট: সীমাহীন", "Budget: any")}</Pill>
-          {activeQuery.avoid_hub_ids.length > 0 && (
-            <Pill tone="amber">
-              {t("এড়াবো", "Avoid")}: {activeQuery.avoid_hub_ids.map((h) => hubName(h, lang)).join(", ")}
+          {activeQuery.max_budget_bdt > 0 ? (
+            <Pill tone="blue" className="pr-1">
+              {t("বাজেট ≤", "Budget ≤")} {n(activeQuery.max_budget_bdt)} ৳
+              <ChipRemove
+                label={t("বাজেটের সীমা সরান", "Remove budget limit")}
+                onClick={() => store.updateCommuterQuery({ max_budget_bdt: DEFAULT_BUDGET_BDT })}
+              />
             </Pill>
+          ) : (
+            <Pill tone="blue">{t("বাজেট: সীমাহীন", "Budget: any")}</Pill>
           )}
+          {activeQuery.avoid_hub_ids.map((hub) => (
+            <Pill key={hub} tone="amber" className="pr-1">
+              {t("এড়াবো", "Avoid")}: {hubName(hub, lang)}
+              <ChipRemove
+                label={t(`${hubName(hub, lang)} এড়ানো বাদ দিন`, `Stop avoiding ${hubName(hub, lang)}`)}
+                onClick={() => store.updateCommuterQuery({ avoid_hub_ids: activeQuery.avoid_hub_ids.filter((h) => h !== hub) })}
+              />
+            </Pill>
+          ))}
           <Pill tone="gray" title={source}>
             {source === "LLM_SANDBOX" ? "AI parser" : t("লোকাল লেক্সার", "Local lexer")}
             {latency !== undefined && ` · ${n(latency.toFixed(1))} ms`}

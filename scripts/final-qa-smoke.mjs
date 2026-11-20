@@ -102,6 +102,7 @@ try {
     const actionId = `qa_join_${Date.now()}`;
     const sessionUserId = `qa_user_${Date.now()}`;
     const payload = { actionId, edgeId: "E_RICK_MOTIJHEEL_LASTMILE", sessionUserId, direction: "JOIN" };
+    await get("/api/track-2-trust-cms"); // pools need an existing session cookie
     try {
       const first = await post("/api/track-2-trust-cms", { action: "JOIN_POOL", payload });
       const second = await post("/api/track-2-trust-cms", { action: "JOIN_POOL", payload });

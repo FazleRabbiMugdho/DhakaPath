@@ -15,6 +15,7 @@ import {
 } from "../../contracts/schema";
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../../contracts/canonicalGraph";
 import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../../engine/fareEngine";
+import { getExtraEdges } from "../../engine/graphExtensions";
 import {
   computePosteriorConfidence,
   DEFAULT_OFF_PEAK_PRIOR,
@@ -54,7 +55,7 @@ export function validateFareSubmission(
 ): FareValidationResult {
   const startTime = typeof performance !== "undefined" ? performance.now() : Date.now();
 
-  const edge = CANONICAL_GRAPH_G0.find((e) => e.edge_id === edgeId);
+  const edge = CANONICAL_GRAPH_G0.find((e) => e.edge_id === edgeId) ?? getExtraEdges().find((e) => e.edge_id === edgeId);
 
   if (!edge) {
     const elapsed = Math.max(0.04, (typeof performance !== "undefined" ? performance.now() : Date.now()) - startTime);

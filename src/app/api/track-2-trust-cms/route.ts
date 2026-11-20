@@ -5,6 +5,7 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody } from "@/lib/http";
 import {
   validateFareSubmission,
   injectSpoofedFareStressTest,
@@ -21,14 +22,14 @@ import {
 import {
   CrowdVote,
   ScenarioPreset,
-  StreetAlert,
   TransportMode,
 } from "../../../contracts/schema";
 import { CANONICAL_GRAPH_G0 } from "../../../contracts/canonicalGraph";
 import { getExtraEdges } from "../../../engine/graphExtensions";
 import { getScenarioParameters } from "../../../engine/scenarioStore";
 import { supabase, isSupabaseConfigured } from "../../../lib/supabase";
-import { attachSessionCookie, resolveSession } from "../../../lib/serverAuth";
+import { SUPABASE_TIMEOUT_MS } from "../../../lib/supabaseServer";
+import { attachSessionCookie, clientKey, rateLimit, resolveSession } from "../../../lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -69,13 +70,15 @@ export async function GET(req: NextRequest) {
 
   const session = resolveSession(req);
 
-  let alerts: StreetAlert[] = [];
+  let alertsCount = 0;
   if (isSupabaseConfigured) {
     try {
-      const { data, error } = await supabase.from("street_alerts").select("*");
-      if (!error && data && data.length > 0) {
-        alerts = data as StreetAlert[];
-      }
+      // Bounded: an unreachable Supabase must not stall the endpoint.
+      const { count, error } = await supabase
+        .from("street_alerts")
+        .select("alert_id", { count: "exact", head: true })
+        .abortSignal(AbortSignal.timeout(SUPABASE_TIMEOUT_MS));
+      if (!error && count) alertsCount = count;
     } catch {
       // In-memory fallback
     }
@@ -90,7 +93,7 @@ export async function GET(req: NextRequest) {
       track: "Track 2: Trust Shield, Bayesian CMS & Ride-Share Pool Bot",
       timestamp_ms: Date.now() + simOffsetMs,
       preset,
-      alertsCount: alerts.length,
+      alertsCount,
       pools: [poolMotijheel, poolMirpur],
     })
   );
@@ -98,12 +101,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return noStore(NextResponse.json({ status: "error", message: "Invalid JSON body" }, { status: 400 }));
+  // 256 votes per Bayesian request fit comfortably in 128 KB.
+  const parsed = await readJsonBody(req, 128 * 1024);
+  if (!parsed.ok) {
+    return noStore(NextResponse.json({ status: "error", message: parsed.error }, { status: parsed.status }));
   }
+  const body = parsed.body;
 
   if (!isRecord(body)) {
     return noStore(NextResponse.json({ status: "error", message: "Invalid request body" }, { status: 400 }));
@@ -187,6 +190,29 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        // A request without a session cookie would mint a fresh identity on
+        // every call and could fill any pool alone. Require a session issued by
+        // an earlier GET, and cap joins per client.
+        if (session.isNew) {
+          return attachSessionCookie(
+            noStore(
+              NextResponse.json(
+                { status: "error", message: "Session required: load the app (GET this endpoint) before joining a pool" },
+                { status: 401 }
+              )
+            ),
+            session
+          );
+        }
+        const poolLimit = rateLimit(`pool:${clientKey(req)}`, 30, 60 * 1000);
+        if (!poolLimit.ok) {
+          return noStore(
+            NextResponse.json(
+              { status: "error", message: "Rate limit exceeded" },
+              { status: 429, headers: { "Retry-After": String(poolLimit.retryAfterSeconds) } }
+            )
+          );
+        }
         const poolState = mutateRideSharePool(
           actionId,
           edge.edge_id,

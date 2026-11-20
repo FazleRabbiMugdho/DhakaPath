@@ -32,6 +32,9 @@ export enum TransportMode {
   WALK = "WALK",
 }
 
+/** Budget used when the commuter did not state one. 0 = no limit (see paretoRouter). */
+export const DEFAULT_BUDGET_BDT = 0;
+
 export enum ScenarioPreset {
   NORMAL_BASELINE = "NORMAL_BASELINE",
   PEAK_CRISIS_SURGE = "PEAK_CRISIS_SURGE",

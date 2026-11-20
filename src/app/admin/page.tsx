@@ -9,13 +9,14 @@ import { ArrowLeft, Loader2, Lock, LogOut, Network, ShieldCheck } from "lucide-r
 import { useLang } from "@/lib/i18n";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { Btn, Card, Field, SectionTitle, inputCls } from "@/ui/kit";
+import { TransitGraphMotif } from "@/ui/TransitGraphMotif";
 import { ScenarioBar } from "@/ui/ScenarioBar";
 import { NetworkTab } from "@/ui/network/NetworkTab";
 import { AlertsTab } from "@/ui/alerts/AlertsTab";
 import { HUB_IDS } from "@/ui/labels";
 import { CANONICAL_GRAPH_G0 } from "@/contracts/canonicalGraph";
 
-function LoginForm({ onAuth }: { onAuth: () => void }) {
+function LoginForm({ onAuth, configured }: { onAuth: () => void; configured: boolean }) {
   const { t } = useLang();
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
@@ -23,7 +24,7 @@ function LoginForm({ onAuth }: { onAuth: () => void }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !configured) return;
     setBusy(true);
     setErr("");
     try {
@@ -46,18 +47,28 @@ function LoginForm({ onAuth }: { onAuth: () => void }) {
   };
 
   return (
-    <div className="grid min-h-[80vh] place-items-center px-4">
-      <Card className="w-full max-w-sm p-6 sm:p-8">
+    <div className="relative grid min-h-[80vh] place-items-center overflow-hidden px-4">
+      {/* The network this console manages */}
+      <TransitGraphMotif flow className="absolute left-1/2 top-1/2 h-[150%] w-auto -translate-x-1/2 -translate-y-1/2 text-brand/[0.18]" />
+      <Card className="relative w-full max-w-sm p-6 sm:p-8">
         <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand text-white shadow-cta">
           <Lock className="h-6 w-6" />
         </span>
         <h1 className="mt-4 text-[26px] font-extrabold tracking-tight text-ink">{t("অ্যাডমিন লগইন", "Admin login")}</h1>
         <p className="mt-1 text-[14px] text-ink-soft">{t("নেটওয়ার্ক ও রিপোর্ট পরিচালনা করতে পাসকোড দিন।", "Enter the passcode to manage the network and reports.")}</p>
+        {!configured && (
+          <p role="status" className="mt-4 rounded-xl bg-danger-bg px-3 py-2 text-[13px] font-semibold text-danger">
+            {t("অ্যাডমিন বন্ধ আছে। সার্ভারে ", "Admin is turned off. Set ")}
+            <code className="font-mono">ADMIN_PASSCODE</code>
+            {t(" সেট করে আবার চালু করুন।", " on the server and restart it.")}
+          </p>
+        )}
         <form onSubmit={submit} className="mt-5 space-y-3">
           <Field label={t("পাসকোড", "Passcode")}>
             <input
               type="password"
-              autoFocus
+              autoFocus={configured}
+              disabled={!configured}
               value={code}
               onChange={(e) => { setCode(e.target.value); setErr(""); }}
               className={inputCls}
@@ -67,7 +78,7 @@ function LoginForm({ onAuth }: { onAuth: () => void }) {
             />
           </Field>
           {err && <p role="alert" className="rounded-xl bg-danger-bg px-3 py-2 text-[13px] font-semibold text-danger">{err}</p>}
-          <Btn type="submit" className="w-full" icon={busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />} disabled={busy}>
+          <Btn type="submit" className="w-full" icon={busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />} disabled={busy || !configured}>
             {t("প্রবেশ করুন", "Sign in")}
           </Btn>
         </form>
@@ -105,13 +116,16 @@ export default function AdminPage() {
   const { t, toggleLang, lang } = useLang();
   const [authed, setAuthed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [configured, setConfigured] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/admin/auth", { cache: "no-store" })
       .then((response) => response.json())
-      .then((data: { authenticated?: boolean }) => {
-        if (!cancelled) setAuthed(Boolean(data.authenticated));
+      .then((data: { authenticated?: boolean; configured?: boolean }) => {
+        if (cancelled) return;
+        setAuthed(Boolean(data.authenticated));
+        setConfigured(data.configured !== false);
       })
       .catch(() => {
         if (!cancelled) setAuthed(false);
@@ -131,7 +145,7 @@ export default function AdminPage() {
       </div>
     );
   }
-  if (!authed) return <LoginForm onAuth={() => setAuthed(true)} />;
+  if (!authed) return <LoginForm configured={configured} onAuth={() => setAuthed(true)} />;
 
   const logout = async () => {
     try {
