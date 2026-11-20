@@ -156,6 +156,9 @@ const T = {
   dlCta2: { bn: "অফলাইন কার্ড ট্রাই করুন", en: "Try the offline card" },
 };
 
+// A gentle river line, 12 crests across a 1200-wide viewBox.
+const WAVE_PATH = "M0 12 " + Array.from({ length: 12 }, (_, i) => `Q ${i * 100 + 50} ${i % 2 ? 20 : 4} ${(i + 1) * 100} 12`).join(" ");
+
 export default function LandingPage() {
   const { lang, toggleLang } = useLang();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -230,8 +233,10 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-24 top-10 h-[420px] w-[420px] rounded-full bg-[#1BA94B]/10 blur-3xl" />
           <div className="absolute -right-10 top-40 h-[360px] w-[360px] rounded-full bg-[#34D399]/10 blur-3xl" />
+          {/* Dhaka on the horizon, standing on the stats strip's border */}
+          <div className="dp-motif dp-motif-ridge absolute inset-x-0 bottom-0 h-24 bg-[#1BA94B]/[0.10] [--ridge-offset:-520px] sm:h-36" />
         </div>
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:py-24">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:py-24">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-[#CDEBD7] bg-[#E3F4E9] px-3.5 py-1.5 text-[13px] font-bold text-[#15863B]">
               <Sparkles className="h-3.5 w-3.5" /> {T.heroBadge[lang]}
@@ -291,6 +296,14 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
+        <div aria-hidden className="relative mt-4 hidden h-4 sm:block">
+          <div className="absolute left-[calc((100%-60px)/12)] right-[calc((100%-60px)/12)] top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#1BA94B]/30" />
+          <div className="relative grid h-full grid-cols-6 gap-3">
+            {MODES.map((m) => (
+              <span key={m.en} className="m-auto h-4 w-4 rounded-full border-[3px] border-[#1BA94B] bg-white" />
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ===================== SERVICE BLOCKS ===================== */}
@@ -301,6 +314,13 @@ export default function LandingPage() {
             {SERVICES.map((s, i) => (
               <ServiceBlock key={s.title.en} service={s} flip={i % 2 === 1} lang={lang} />
             ))}
+          </div>
+          <div aria-hidden className="relative mt-10 h-24 overflow-hidden">
+            <svg viewBox="0 0 1200 24" preserveAspectRatio="none" className="absolute inset-x-0 bottom-3 h-5 w-full text-[#1BA94B]/30">
+              <path d={WAVE_PATH} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <div className="dp-motif dp-motif-boat absolute bottom-4 left-[10%] h-20 w-44 bg-[#1BA94B]/25" />
+            <div className="dp-motif dp-motif-boat absolute bottom-4 right-[14%] h-12 w-28 -scale-x-100 bg-[#1BA94B]/[0.18]" />
           </div>
         </div>
       </section>
@@ -345,6 +365,12 @@ export default function LandingPage() {
               <PoolSplitCard lang={lang} />
             </div>
           </div>
+          <div aria-hidden className="relative mt-6 h-16">
+            <div className="absolute inset-x-0 bottom-1 border-t-2 border-dashed border-[#1BA94B]/25" />
+            {["left-[9%]", "left-[46%] hidden sm:block", "right-[7%]"].map((pos) => (
+              <div key={pos} className={`dp-motif dp-motif-rickshaw absolute bottom-1.5 h-14 w-20 bg-[#1BA94B]/25 ${pos}`} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -352,6 +378,7 @@ export default function LandingPage() {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
         <div className="relative overflow-hidden rounded-3xl bg-[#0B3321] px-8 py-12 text-white sm:px-12">
           <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-[#1BA94B]/40 blur-3xl" />
+          <div aria-hidden className="dp-motif dp-motif-ridge absolute inset-x-0 bottom-0 h-20 bg-white/[0.07] [--ridge-offset:-1900px] sm:h-28" />
           <div className="relative grid items-center gap-8 lg:grid-cols-[1.3fr_1fr]">
             <div>
               <h2 className="text-[30px] font-extrabold leading-tight tracking-tight sm:text-[38px]">{T.dlTitle[lang]}</h2>

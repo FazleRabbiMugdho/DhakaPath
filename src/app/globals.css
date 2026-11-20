@@ -37,6 +37,30 @@ html[lang="bn"] body {
   outline-offset: 2px;
 }
 
+/* Dhaka silhouette motifs (cut from public/art/landmarks-dark.jpg by scripts/build-motifs.py).
+   Used as masks, so the element's background colour is the ink: tint with palette utilities. */
+.dp-motif {
+  pointer-events: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+}
+.dp-motif-ridge {
+  -webkit-mask-image: url("/art/motifs/ridge.webp");
+  mask-image: url("/art/motifs/ridge.webp");
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-size: auto 100%;
+  mask-size: auto 100%;
+  -webkit-mask-position: var(--ridge-offset, 0px) bottom;
+  mask-position: var(--ridge-offset, 0px) bottom;
+}
+.dp-motif-rickshaw { -webkit-mask-image: url("/art/motifs/rickshaw.webp"); mask-image: url("/art/motifs/rickshaw.webp"); }
+.dp-motif-boat { -webkit-mask-image: url("/art/motifs/boat.webp"); mask-image: url("/art/motifs/boat.webp"); }
+
 /* Leaflet (real OpenStreetMap) */
 .leaflet-container {
   font-family: var(--font-sans), system-ui, sans-serif !important;

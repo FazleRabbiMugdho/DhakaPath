@@ -28,39 +28,46 @@ export function SiteFooter() {
   const { lang } = useLang();
 
   return (
-    <footer className="bg-[#0B3321] text-[#B7D7C3]">
-      <div className="mx-auto max-w-7xl px-4 pb-28 pt-14 sm:px-6 lg:pb-14">
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#1BA94B] text-white">
-                <Route className="h-5 w-5" strokeWidth={2.4} />
-              </span>
-              <span className="font-sans text-[19px] font-extrabold tracking-tight text-white">DhakaPath</span>
+    <footer className="text-[#B7D7C3]">
+      {/* Dhaka rises out of the footer: a pale far range behind the deep near range. */}
+      <div aria-hidden className="relative h-20 sm:h-28">
+        <div className="dp-motif dp-motif-ridge absolute inset-x-0 bottom-0 h-[115%] bg-[#0B3321]/[0.13] [--ridge-offset:-1180px]" />
+        <div className="dp-motif dp-motif-ridge absolute inset-x-0 bottom-0 h-full bg-[#0B3321]" />
+      </div>
+      <div className="bg-[#0B3321]">
+        <div className="mx-auto max-w-7xl px-4 pb-28 pt-10 sm:px-6 lg:pb-14">
+          <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#1BA94B] text-white">
+                  <Route className="h-5 w-5" strokeWidth={2.4} />
+                </span>
+                <span className="font-sans text-[19px] font-extrabold tracking-tight text-white">DhakaPath</span>
+              </div>
+              <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-[#8FB8A0]">{T.footerTagline[lang]}</p>
             </div>
-            <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-[#8FB8A0]">{T.footerTagline[lang]}</p>
+
+            {FOOTER_COLS.map((col) => (
+              <div key={col.h.en}>
+                <h3 className="text-[14px] font-bold uppercase tracking-wide text-white">{col.h[lang]}</h3>
+                <ul className="mt-4 space-y-2.5">
+                  {col.items[lang].map((it, idx) => (
+                    <li key={it}>
+                      <Link href={col.hrefs[idx]} className="text-[14px] text-[#8FB8A0] transition-colors hover:text-white">{it}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
 
-          {FOOTER_COLS.map((col) => (
-            <div key={col.h.en}>
-              <h3 className="text-[14px] font-bold uppercase tracking-wide text-white">{col.h[lang]}</h3>
-              <ul className="mt-4 space-y-2.5">
-                {col.items[lang].map((it, idx) => (
-                  <li key={it}>
-                    <Link href={col.hrefs[idx]} className="text-[14px] text-[#8FB8A0] transition-colors hover:text-white">{it}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-[13px] text-[#7FA891] sm:flex-row">
-          <span>{T.copyright[lang]}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 font-mono text-[11px] uppercase tracking-wide">
-            <Sparkles className="h-3 w-3 text-[#34D399]" /> Simulated Demo Telemetry — Benchmark Replay
-          </span>
-          <span>{T.madeIn[lang]}</span>
+          <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-[13px] text-[#7FA891] sm:flex-row">
+            <span>{T.copyright[lang]}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 font-mono text-[11px] uppercase tracking-wide">
+              <Sparkles className="h-3 w-3 text-[#34D399]" /> Simulated Demo Telemetry — Benchmark Replay
+            </span>
+            <span>{T.madeIn[lang]}</span>
+          </div>
         </div>
       </div>
     </footer>

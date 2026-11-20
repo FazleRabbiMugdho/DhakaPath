@@ -9,6 +9,7 @@ import { ArrowLeft, Loader2, Lock, LogOut, Network, ShieldCheck } from "lucide-r
 import { useLang } from "@/lib/i18n";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { Btn, Card, Field, SectionTitle, inputCls } from "@/ui/kit";
+import { TransitGraphMotif } from "@/ui/TransitGraphMotif";
 import { ScenarioBar } from "@/ui/ScenarioBar";
 import { NetworkTab } from "@/ui/network/NetworkTab";
 import { AlertsTab } from "@/ui/alerts/AlertsTab";
@@ -46,8 +47,10 @@ function LoginForm({ onAuth, configured }: { onAuth: () => void; configured: boo
   };
 
   return (
-    <div className="grid min-h-[80vh] place-items-center px-4">
-      <Card className="w-full max-w-sm p-6 sm:p-8">
+    <div className="relative grid min-h-[80vh] place-items-center overflow-hidden px-4">
+      {/* The network this console manages */}
+      <TransitGraphMotif flow className="absolute left-1/2 top-1/2 h-[150%] w-auto -translate-x-1/2 -translate-y-1/2 text-brand/[0.18]" />
+      <Card className="relative w-full max-w-sm p-6 sm:p-8">
         <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand text-white shadow-cta">
           <Lock className="h-6 w-6" />
         </span>

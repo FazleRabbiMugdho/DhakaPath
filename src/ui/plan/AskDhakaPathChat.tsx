@@ -349,7 +349,8 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
       {/* Message List */}
       <div
         ref={scrollRef}
-        className={`overflow-y-auto p-4 space-y-3 bg-[#FBFDFB] ${fill ? "flex-1 min-h-0" : "h-80"}`}
+        // Faded Dhaka skyline (alpha baked into the WebP); stays put while messages scroll.
+        className={`overflow-y-auto p-4 space-y-3 bg-[#FBFDFB] bg-[url('/art/banner-metro-chat.webp')] bg-cover bg-bottom bg-no-repeat ${fill ? "flex-1 min-h-0" : "h-80"}`}
         aria-live="polite"
       >
         {messages.map((m) => {
