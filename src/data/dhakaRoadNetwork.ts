@@ -238,6 +238,18 @@ export function getMetroRailPath(originHub: HubId | string, destHub: HubId | str
  * All coordinates strictly follow roads and intersections without cutting buildings.
  */
 export function getRoadPathBetweenHubs(originHub: HubId | string, destHub: HubId | string): LatLng[] {
+  // Flyover Bypass for Agargaon <-> Motijheel routes around Farmgate via Mohakhali / Moghbazar Flyover
+  if (originHub === HubId.H_AGARGAON && destHub === HubId.H_MOTIJHEEL) {
+    const p1 = ROAD_CORRIDORS[`${HubId.H_AGARGAON}_${HubId.H_MOHAKHALI}`] ?? [];
+    const p2 = ROAD_CORRIDORS[`${HubId.H_MOHAKHALI}_${HubId.H_MOTIJHEEL}`] ?? [];
+    return [...p1, ...p2.slice(1)];
+  }
+  if (originHub === HubId.H_MOTIJHEEL && destHub === HubId.H_AGARGAON) {
+    const p1 = ROAD_CORRIDORS[`${HubId.H_AGARGAON}_${HubId.H_MOHAKHALI}`] ?? [];
+    const p2 = ROAD_CORRIDORS[`${HubId.H_MOHAKHALI}_${HubId.H_MOTIJHEEL}`] ?? [];
+    return [...p1, ...p2.slice(1)].reverse();
+  }
+
   const keyForward = `${originHub}_${destHub}`;
   if (ROAD_CORRIDORS[keyForward]?.length) {
     return ROAD_CORRIDORS[keyForward];
@@ -283,15 +295,15 @@ export function getRoadDistanceKm(originHub: HubId | string, destHub: HubId | st
  * - TransportMode.BUS, RICKSHAW, CNG, LEGUNA, WALK: Follows actual road network geometry.
  */
 export function getLegGeometry(leg: Pick<RouteLeg, "origin_hub_id" | "dest_hub_id" | "mode">): LatLng[] {
+  let pts: LatLng[] = [];
   if (leg.origin_hub_id === leg.dest_hub_id) {
-    return METRO_HUB_CONNECTORS[leg.origin_hub_id] ? [...METRO_HUB_CONNECTORS[leg.origin_hub_id]] : [];
+    pts = METRO_HUB_CONNECTORS[leg.origin_hub_id] ? [...METRO_HUB_CONNECTORS[leg.origin_hub_id]] : [];
+  } else if (leg.mode === TransportMode.METRO) {
+    pts = getMetroRailPath(leg.origin_hub_id, leg.dest_hub_id);
+  } else {
+    pts = getRoadPathBetweenHubs(leg.origin_hub_id, leg.dest_hub_id);
   }
-
-  if (leg.mode === TransportMode.METRO) {
-    return getMetroRailPath(leg.origin_hub_id, leg.dest_hub_id);
-  }
-
-  return getRoadPathBetweenHubs(leg.origin_hub_id, leg.dest_hub_id);
+  return pts.filter((p): p is LatLng => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
 }
 
 /**

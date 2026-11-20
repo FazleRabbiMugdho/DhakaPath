@@ -16,6 +16,11 @@ import { EPSILON } from "../lib/utils";
 import { getExtraEdges, getGraphVersion } from "./graphExtensions";
 import { getScenarioParameters } from "./scenarioStore";
 
+const EDGE_INTERMEDIATE_HUBS: Record<string, HubId[]> = {
+  E_MRT6_MIRPUR10_MOTIJHEEL: [HubId.H_AGARGAON, HubId.H_FARMGATE, HubId.H_SHAHBAGH],
+  E_MRT6_MOTIJHEEL_MIRPUR10: [HubId.H_SHAHBAGH, HubId.H_FARMGATE, HubId.H_AGARGAON],
+};
+
 interface ParetoLabel {
   readonly current_hub: HubId;
   readonly visited_hub_mask: number;
@@ -231,6 +236,14 @@ export function executeParetoSearch(
         if (edge.mode === TransportMode.METRO && connectorHubs.has(current.current_hub)
           && !current.connector_used && current.metro_boarding_hub === null) continue;
 
+        // Emergency flyover bypass is reserved for peak crisis or when Farmgate is severed/avoided
+        if (edge.edge_id === "E_BUS_BIHANGA_AGARGAON_MOTIJHEEL") {
+          const isCrisisOrAvoid = preset === ScenarioPreset.PEAK_CRISIS_SURGE
+            || avoidHubs.has(HubId.H_FARMGATE)
+            || alertsByHub.has(HubId.H_FARMGATE);
+          if (!isCrisisOrAvoid) continue;
+        }
+
         const nextHub = edge.dest_hub_id;
         const nextIndex = CANONICAL_HUBS[nextHub]?.index;
         if (nextIndex === undefined) continue;
@@ -238,6 +251,8 @@ export function executeParetoSearch(
         if (!isConnector && (current.visited_hub_mask & nextBit) !== 0) continue;
         if (avoidHubs.has(nextHub) && nextHub !== query.origin_hub_id
           && nextHub !== query.dest_hub_id) continue;
+        const intermediate = EDGE_INTERMEDIATE_HUBS[edge.edge_id];
+        if (intermediate && intermediate.some((hub) => avoidHubs.has(hub))) continue;
 
         const alert = alertsByEdge.get(edge.edge_id) ?? alertsByHub.get(nextHub);
         const duration = computeEffectiveDurationMs(edge, alert, preset);

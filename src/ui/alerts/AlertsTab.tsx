@@ -14,6 +14,7 @@ import { CANONICAL_GRAPH_G0 } from "@/contracts/canonicalGraph";
 import type { FareValidationResult } from "@/features/feature-3-trust-cms/sanityFilter";
 import { Btn, Card, Field, Meter, Pill, Segmented, SectionTitle, inputCls } from "../kit";
 import { HUB_IDS, INCIDENTS, alertStatusName, hubName, incidentName, modeName, validationName } from "../labels";
+import { CardMotion } from "../motion/CardMotion";
 
 const INCIDENT_ICON: Record<IncidentType, React.ReactNode> = {
   [IncidentType.WATERLOGGING]: <Waves className="h-5 w-5" />,
@@ -50,7 +51,8 @@ function AlertCard({ alert }: { alert: StreetAlert }) {
   };
 
   return (
-    <Card className={live ? "p-5" : "p-5 opacity-70"}>
+    <CardMotion interactive index={0} group="alerts">
+      <Card className={live ? "p-5" : "p-5 opacity-70"}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${alert.status === AlertStatus.VERIFIED_ACTIVE ? "bg-danger-bg text-danger" : "bg-brand-soft text-brand-dark"}`}>{INCIDENT_ICON[alert.incident_type]}</span>
@@ -101,7 +103,8 @@ function AlertCard({ alert }: { alert: StreetAlert }) {
         </div>
       )}
       {note && <p role="status" className="mt-3 rounded-xl bg-warn-bg px-3 py-2 text-[12.5px] font-semibold text-warn">{note}</p>}
-    </Card>
+      </Card>
+    </CardMotion>
   );
 }
 

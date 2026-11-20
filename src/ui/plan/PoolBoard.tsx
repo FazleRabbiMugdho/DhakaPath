@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Btn, Card, Pill } from "../kit";
 import { hubName } from "../labels";
 import { ScenarioPreset } from "@/contracts/schema";
+import { CardMotion } from "../motion/CardMotion";
 
 function PoolRow({ entry }: { entry: PoolBoardEntry }) {
   const { lang, t, n } = useLang();
@@ -31,45 +32,47 @@ function PoolRow({ entry }: { entry: PoolBoardEntry }) {
   };
 
   return (
-    <li className="rounded-2xl border border-line p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-[15px] font-bold text-ink">{entry.edge.route_name}</div>
-          <div className="mt-0.5 text-[13px] text-ink-soft">
-            {hubName(entry.edge.origin_hub_id, lang)} · {entry.edge.boarding_landmark}
+    <CardMotion interactive index={0} group="pool">
+      <li className="rounded-2xl border border-line p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-bold text-ink">{entry.edge.route_name}</div>
+            <div className="mt-0.5 text-[13px] text-ink-soft">
+              {hubName(entry.edge.origin_hub_id, lang)} · {entry.edge.boarding_landmark}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1" aria-label={`${entry.size}/4`}>
+            {[0, 1, 2, 3].map((i) => (
+              <span key={i} className={cn("grid h-7 w-7 place-items-center rounded-full border-2", i < entry.size ? "border-brand bg-brand-soft text-brand-dark" : "border-dashed border-line text-ink-faint")}>
+                <UserRound className="h-3.5 w-3.5" />
+              </span>
+            ))}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1" aria-label={`${entry.size}/4`}>
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className={cn("grid h-7 w-7 place-items-center rounded-full border-2", i < entry.size ? "border-brand bg-brand-soft text-brand-dark" : "border-dashed border-line text-ink-faint")}>
-              <UserRound className="h-3.5 w-3.5" />
-            </span>
-          ))}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Pill tone="gray">{t("একা", "Solo")} {n(entry.soloBdt)} ৳</Pill>
+          <Pill tone="green">
+            {entry.joined ? t("আপনার ভাগ", "Your share") : t("যোগ দিলে", "If you join")} {n(entry.joined ? entry.perPersonBdt : next.perPersonFareBdt)} ৳
+          </Pill>
+          <Pill tone="green">−{n(entry.joined ? entry.savingsBdt : next.savingsBdt)} ৳ {t("সাশ্রয়", "saved")}</Pill>
         </div>
-      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Pill tone="gray">{t("একা", "Solo")} {n(entry.soloBdt)} ৳</Pill>
-        <Pill tone="green">
-          {entry.joined ? t("আপনার ভাগ", "Your share") : t("যোগ দিলে", "If you join")} {n(entry.joined ? entry.perPersonBdt : next.perPersonFareBdt)} ৳
-        </Pill>
-        <Pill tone="green">−{n(entry.joined ? entry.savingsBdt : next.savingsBdt)} ৳ {t("সাশ্রয়", "saved")}</Pill>
-      </div>
+        <p className="mt-3 flex items-start gap-2 rounded-xl bg-brand-mint px-3 py-2 text-[13px] leading-snug text-ink-soft">
+          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+          {t(
+            `বট: ${n(nextSize)} জনে ভাগ করলে জন প্রতি ${n(next.perPersonFareBdt)} ৳ (${n(next.baseFareBdt)} × ${n(surge.toFixed(1))} ÷ ${n(nextSize)})`,
+            `Bot: split by ${nextSize}, each pays ${next.perPersonFareBdt} BDT (${next.baseFareBdt} × ${surge.toFixed(1)} ÷ ${nextSize})`
+          )}
+        </p>
 
-      <p className="mt-3 flex items-start gap-2 rounded-xl bg-brand-mint px-3 py-2 text-[13px] leading-snug text-ink-soft">
-        <Bot className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-        {t(
-          `বট: ${n(nextSize)} জনে ভাগ করলে জন প্রতি ${n(next.perPersonFareBdt)} ৳ (${n(next.baseFareBdt)} × ${n(surge.toFixed(1))} ÷ ${n(nextSize)})`,
-          `Bot: split by ${nextSize}, each pays ${next.perPersonFareBdt} BDT (${next.baseFareBdt} × ${surge.toFixed(1)} ÷ ${nextSize})`
-        )}
-      </p>
-
-      <Btn size="sm" variant={entry.joined ? "outline" : "primary"} className="mt-3" disabled={locked} onClick={act}>
-        {entry.joined
-          ? `${t("পুল ছাড়ুন", "Leave pool")} (${t("একা", "solo")} ${n(entry.soloBdt)} ৳)`
-          : `${t("পুলে যোগ দিন", "Join pool")} (${n(entry.size)}/৪ → ${n(nextSize)}/৪) · ${t("ভাগ লক", "lock split")}`}
-      </Btn>
-    </li>
+        <Btn size="sm" variant={entry.joined ? "outline" : "primary"} className="mt-3" disabled={locked} onClick={act}>
+          {entry.joined
+            ? `${t("পুল ছাড়ুন", "Leave pool")} (${t("একা", "solo")} ${n(entry.soloBdt)} ৳)`
+            : `${t("পুলে যোগ দিন", "Join pool")} (${n(entry.size)}/৪ → ${n(nextSize)}/৪) · ${t("ভাগ লক", "lock split")}`}
+        </Btn>
+      </li>
+    </CardMotion>
   );
 }
 

@@ -18,6 +18,7 @@ import {
   Route, Zap, Gauge, CheckCircle2, Languages,
   Clock, Wallet, ChevronRight, Sparkles,
 } from "lucide-react";
+import { CardMotion } from "@/ui/motion/CardMotion";
 
 
 // Western → Bangla digit localisation for dynamic numbers.
@@ -117,7 +118,7 @@ const STATS = [
 const T = {
   headerCta: { bn: "লাইভ কমান্ড সেন্টার", en: "Live Command Center" },
   langLabel: { bn: "English", en: "বাংলা" }, // shows the OTHER language to switch to
-  heroBadge: { bn: "দেশের ১ নম্বর ট্রানজিট ভেরিফায়ার", en: "Bangladesh's #1 transit verifier" },
+  heroBadge: { bn: "মাল্টি-মোডাল ট্রানজিট ভেরিফায়ার", en: "Multi-modal transit verifier" },
   heroH1a: { bn: "ঢাকার পথ,", en: "Dhaka's routes," },
   heroH1green: { bn: "এক অ্যাপেই", en: "one app," },
   heroH1b: { bn: "সমাধান।", en: "one answer." },
@@ -127,7 +128,7 @@ const T = {
   },
   heroCta1: { bn: "লাইভ কমান্ড সেন্টার দেখুন", en: "See the Live Command Center" },
   heroCta2: { bn: "সার্ভিস জানুন", en: "Explore services" },
-  heroNote: { bn: "কোনো লগইন নেই · ১০০% অফলাইন-সেফ · সিমুলেটেড ডেমো টেলিমেট্রি", en: "No login · 100% offline-safe · simulated demo telemetry" },
+  heroNote: { bn: "কোনো লগইন নেই · অফলাইন-প্রস্তুত · সিমুলেটেড ডেমো টেলিমেট্রি", en: "No login · offline-ready · simulated demo telemetry" },
   modesEyebrow: { bn: "DhakaPath প্ল্যাটফর্ম", en: "DhakaPath platform" },
   modesTitle: { bn: "এক গ্রাফে ঢাকার সব মোড", en: "Every Dhaka mode in one graph" },
   servicesEyebrow: { bn: "সার্ভিসসমূহ", en: "Services" },
@@ -268,14 +269,14 @@ export default function LandingPage() {
       {/* ===================== STAT BAR ===================== */}
       <section className="border-y border-[#DCEDE2] bg-white">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 py-10 sm:px-6 lg:grid-cols-4">
-          {STATS.map((s) => (
-            <div key={s.label.en} className="text-center">
+          {STATS.map((s, i) => (
+            <CardMotion key={s.label.en} index={i} group="stats" className="text-center">
               <div className={`text-[30px] font-extrabold tracking-tight text-[#1BA94B] sm:text-[34px] ${bn ? "" : "font-mono"}`}>
                 {s.value[lang]}
                 <span className="text-[18px] text-[#4C6356]">{s.suffix}</span>
               </div>
               <div className="mt-1 text-[14px] font-medium text-[#4C6356]">{s.label[lang]}</div>
-            </div>
+            </CardMotion>
           ))}
         </div>
       </section>
@@ -284,8 +285,8 @@ export default function LandingPage() {
       <section id="modes" className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
         <SectionHead eyebrow={T.modesEyebrow[lang]} title={T.modesTitle[lang]} />
         <div className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-6">
-          {MODES.map((m) => (
-            <div key={m.en} className="group flex flex-col items-center gap-2 rounded-2xl border border-[#DCEDE2] bg-white p-4 transition-all hover:-translate-y-1 hover:border-[#1BA94B]/40 hover:shadow-[0_18px_40px_-20px_rgba(27,169,75,0.5)]">
+          {MODES.map((m, i) => (
+            <CardMotion key={m.en} index={i} group="modes" interactive className="group flex flex-col items-center gap-2 rounded-2xl border border-[#DCEDE2] bg-white p-4">
               <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-[#F1FAF4]">
                 <Image src={m.icon} alt={m.en} width={56} height={56} className="h-[85%] w-[85%] object-contain" unoptimized />
               </span>
@@ -293,7 +294,7 @@ export default function LandingPage() {
                 <div className="text-[14px] font-bold text-[#0E2A1A]">{m[lang]}</div>
                 <div className="font-sans text-[11px] font-medium text-[#8AA294]">{m.en}</div>
               </div>
-            </div>
+            </CardMotion>
           ))}
         </div>
         <div aria-hidden className="relative mt-4 hidden h-4 sm:block">
@@ -312,7 +313,9 @@ export default function LandingPage() {
           <SectionHead eyebrow={T.servicesEyebrow[lang]} title={T.servicesTitle[lang]} />
           <div className="mt-10 space-y-8">
             {SERVICES.map((s, i) => (
-              <ServiceBlock key={s.title.en} service={s} flip={i % 2 === 1} lang={lang} />
+              <CardMotion key={s.title.en} index={i} group="services" className="w-full">
+                <ServiceBlock service={s} flip={i % 2 === 1} lang={lang} />
+              </CardMotion>
             ))}
           </div>
           <div aria-hidden className="relative mt-10 h-24 overflow-hidden">
@@ -330,10 +333,16 @@ export default function LandingPage() {
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.05fr]">
           <div className="order-2 lg:order-1">
             <div className="grid grid-cols-2 gap-3">
-              <TrustCard icon={<ShieldCheck className="h-5 w-5" />} value={locNum("≥3", lang) + (bn ? " ভোট" : " votes")} label={bn ? "ব্লকেড নিশ্চিত করতে" : "to confirm a blockade"} lang={lang} />
-              <TrustCard icon={<Clock className="h-5 w-5" />} value={bn ? "৩০ মিনিট" : "30 min"} label={bn ? "হাফ-লাইফ ডিকে" : "half-life decay"} lang={lang} />
-              <TrustCard icon={<Zap className="h-5 w-5" />} value="<0.1 ms" label={bn ? "ভুয়া ভাড়া ব্লক" : "fake fare blocked"} accent lang={lang} />
-              <TrustCard icon={<Gauge className="h-5 w-5" />} value={bn ? "৯১.৮%" : "91.8%"} label={bn ? "Rₑ(t) সিভিয়ার থ্রেশহোল্ড" : "Rₑ(t) severe threshold"} lang={lang} />
+              {[
+                { icon: <ShieldCheck className="h-5 w-5" />, value: locNum("≥3", lang) + (bn ? " ভোট" : " votes"), label: bn ? "ব্লকেড নিশ্চিত করতে" : "to confirm a blockade", accent: false },
+                { icon: <Clock className="h-5 w-5" />, value: bn ? "৩০ মিনিট" : "30 min", label: bn ? "হাফ-লাইফ ডিকে" : "half-life decay", accent: false },
+                { icon: <Zap className="h-5 w-5" />, value: "<0.1 ms", label: bn ? "ভুয়া ভাড়া ব্লক" : "fake fare blocked", accent: true },
+                { icon: <Gauge className="h-5 w-5" />, value: bn ? "৯১.৮%" : "91.8%", label: bn ? "Rₑ(t) সিভিয়ার থ্রেশহোল্ড" : "Rₑ(t) severe threshold", accent: false },
+              ].map((tc, i) => (
+                <CardMotion key={tc.label} index={i} group="trust" className="w-full">
+                  <TrustCard {...tc} lang={lang} />
+                </CardMotion>
+              ))}
             </div>
           </div>
           <div className="order-1 lg:order-2">
@@ -362,7 +371,9 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <PoolSplitCard lang={lang} />
+              <CardMotion index={0} group="pool" interactive className="col-span-2">
+                <PoolSplitCard lang={lang} />
+              </CardMotion>
             </div>
           </div>
           <div aria-hidden className="relative mt-6 h-16">

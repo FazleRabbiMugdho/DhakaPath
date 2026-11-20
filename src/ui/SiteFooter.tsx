@@ -30,7 +30,7 @@ export function SiteFooter() {
   return (
     <footer className="text-[#B7D7C3]">
       {/* Dhaka rises out of the footer: a pale far range behind the deep near range. */}
-      <div aria-hidden className="relative h-20 sm:h-28">
+      <div aria-hidden className="relative h-20 sm:h-28 overflow-hidden">
         <div className="dp-motif dp-motif-ridge absolute inset-x-0 bottom-0 h-[115%] bg-[#0B3321]/[0.13] [--ridge-offset:-1180px]" />
         <div className="dp-motif dp-motif-ridge absolute inset-x-0 bottom-0 h-full bg-[#0B3321]" />
       </div>

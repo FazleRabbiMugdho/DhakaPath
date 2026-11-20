@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/http";
 import {
   parseBanglishQueryDeterministic,
-  safeExtractJson,
   BanglishParseResult,
 } from "../../../features/feature-1-commute/banglishParser";
 import { verifySubgraphTrajectory } from "../../../features/feature-1-commute/subgraphVerifier";
@@ -16,9 +15,14 @@ import { digitizeSignboardImage } from "../../../features/feature-1-commute/sign
 import {
   processConversationTurn,
   ConversationContext,
+  ConversationHints,
+  isSmallTalk,
 } from "../../../features/feature-1-commute/conversationEngine";
 import {
-  DEFAULT_BUDGET_BDT,
+  resolveChatHints,
+  type ChatHintsResult,
+} from "../../../features/feature-1-commute/llmIntent";
+import {
   HubId,
   ParetoRouteOption,
   RouteLeg,
@@ -38,15 +42,6 @@ const MAX_OCR_TEXT_CHARS = 10000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_BASE64_CHARS = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 1024;
 const MAX_ROUTE_LEGS = 30;
-
-const DEFAULT_CONTEXT: ConversationContext = {
-  last_origin_hub_id: HubId.H_MIRPUR10,
-  last_dest_hub_id: HubId.H_MOTIJHEEL,
-  last_budget_bdt: DEFAULT_BUDGET_BDT,
-  is_student: true,
-  avoid_hub_ids: [],
-  selected_route: null,
-};
 
 function json(data: unknown, status = 200): NextResponse {
   const response = NextResponse.json(data, { status });
@@ -85,8 +80,6 @@ function validateRouteLeg(value: unknown): RouteLeg | null {
     return null;
   }
 
-  // The verifier only needs topology, fare and duration. Accept compact legacy
-  // fixtures by supplying safe defaults for the UI-only leg fields.
   const effectiveFare = nonNegativeNumber(value.effective_fare_bdt);
   const effectiveDuration = nonNegativeNumber(value.effective_duration_ms);
   if (effectiveFare === null || effectiveDuration === null) return null;
@@ -172,13 +165,22 @@ function validateRoute(value: unknown): ParetoRouteOption | null {
 }
 
 function sanitizeContext(value: unknown): ConversationContext | null {
-  if (value === undefined) return { ...DEFAULT_CONTEXT };
+  if (value === undefined || value === null) {
+    return {
+      last_origin_hub_id: HubId.H_MIRPUR10,
+      last_dest_hub_id: HubId.H_MOTIJHEEL,
+      last_budget_bdt: 0,
+      is_student: false,
+      avoid_hub_ids: [],
+      selected_route: null,
+    };
+  }
   if (!isRecord(value)) return null;
 
-  const origin = value.last_origin_hub_id ?? DEFAULT_CONTEXT.last_origin_hub_id;
-  const dest = value.last_dest_hub_id ?? DEFAULT_CONTEXT.last_dest_hub_id;
-  const budget = value.last_budget_bdt ?? DEFAULT_CONTEXT.last_budget_bdt;
-  const student = value.is_student ?? DEFAULT_CONTEXT.is_student;
+  const origin = value.last_origin_hub_id;
+  const dest = value.last_dest_hub_id;
+  const budget = value.last_budget_bdt;
+  const student = value.is_student;
   const avoid = validHubList(value.avoid_hub_ids ?? []);
   if (
     !validHub(origin) ||
@@ -219,88 +221,6 @@ function sanitizeContext(value: unknown): ConversationContext | null {
   return context;
 }
 
-function mergeValidatedLlmFields(
-  deterministic: BanglishParseResult,
-  raw: unknown,
-  latencyMs: number
-): BanglishParseResult | null {
-  if (!isRecord(raw)) return null;
-  const llmOrigin = validHub(raw.origin_hub_id) ? raw.origin_hub_id : null;
-  const llmDest = validHub(raw.dest_hub_id) ? raw.dest_hub_id : null;
-  if (!llmOrigin && !llmDest) return null;
-
-  let changed = false;
-  const merged: BanglishParseResult = { ...deterministic };
-  if (!deterministic.origin_resolved && llmOrigin) {
-    merged.origin_hub_id = llmOrigin;
-    merged.origin_resolved = true;
-    changed = true;
-  }
-  if (!deterministic.dest_resolved && llmDest) {
-    merged.dest_hub_id = llmDest;
-    merged.dest_resolved = true;
-    changed = true;
-  }
-  if (!changed) return null;
-
-  merged.parser_source = "LLM_SANDBOX";
-  merged.parse_latency_ms = latencyMs;
-  return merged;
-}
-
-function parseImageDataUrl(value: unknown): { mime: string; data: string } | null {
-  if (typeof value !== "string") return null;
-  const match = value.match(/^data:image\/(png|jpe?g|webp|heic|heif);base64,([A-Za-z0-9+/=\r\n]+)$/i);
-  if (!match) return null;
-  const mime = `image/${match[1].toLowerCase()}`;
-  const base64 = match[2].replace(/\s+/g, "");
-  if (!base64 || base64.length > MAX_BASE64_CHARS) return null;
-  let bytes: number;
-  try {
-    bytes = Buffer.from(base64, "base64").length;
-  } catch {
-    return null;
-  }
-  if (bytes < 100 || bytes > MAX_IMAGE_BYTES) return null;
-  return { mime, data: base64 };
-}
-
-// Shared OpenRouter free-tier fallback. Returns the assistant text or null on any failure.
-async function callOpenRouter(system: string, user: string, jsonMode: boolean, timeoutMs = 2500): Promise<string | null> {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) return null;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-        "HTTP-Referer": "https://dhakapath.app",
-        "X-Title": "DhakaPath",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.1-8b-instruct:free",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-        temperature: jsonMode ? 0.1 : 0.4,
-        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
 export async function POST(req: NextRequest) {
   const startTime = performance.now();
 
@@ -321,7 +241,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // --------------------------------------------------------------------------
-    // ACTION 1: PARSE BANGLISH COMMUTER INTENT (Groq / Gemini / Deterministic)
+    // ACTION 1: PARSE BANGLISH COMMUTER INTENT (Groq / OpenRouter / Deterministic)
     // --------------------------------------------------------------------------
     if (action === "parse_intent") {
       if (typeof body.query !== "string") {
@@ -348,77 +268,28 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      let result = deterministicResult;
-
-      // Only consult an LLM when the deterministic lexer could not resolve both
-      // sides. LLM hub fields are whitelisted; budget/student/avoid values are
-      // never allowed to invent facts that were not in the text.
+      // Only consult LLM when the deterministic lexer could not resolve both sides.
+      // LLM hub fields are whitelisted; budget/student/avoid values are never allowed
+      // to invent facts that were not in the text.
       if (!deterministicResult.origin_resolved || !deterministicResult.dest_resolved) {
-        const groqApiKey = process.env.GROQ_API_KEY;
-        if (groqApiKey) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 900);
-            const systemPrompt = `You are a strict transit intent parser for Dhaka, Bangladesh.
-Return ONLY valid JSON with keys:
-"origin_hub_id" (one of: H_UTTARA, H_MIRPUR10, H_AGARGAON, H_MOHAKHALI, H_BADDA, H_BANASREE, H_MALIBAGH, H_FARMGATE, H_MOHAMMADPUR, H_DHANMONDI, H_SCIENCELAB, H_SHAHBAGH, H_MOTIJHEEL, H_JATRABARI, H_GULISTAN),
-"dest_hub_id" (same hub enum).
-If a side is not clearly one of these hubs, omit that key.`;
-
-            try {
-              const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${groqApiKey}`,
-                },
-                body: JSON.stringify({
-                  model: "llama-3.1-8b-instant",
-                  messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: rawQuery },
-                  ],
-                  temperature: 0.1,
-                  response_format: { type: "json_object" },
-                }),
-                signal: controller.signal,
-              });
-
-              if (groqRes.ok) {
-                const groqData = await groqRes.json();
-                const content = groqData.choices?.[0]?.message?.content || "";
-                const parsedJson = safeExtractJson<unknown>(content, null);
-                const merged = mergeValidatedLlmFields(
-                  deterministicResult,
-                  parsedJson,
-                  Number((performance.now() - startTime).toFixed(2))
-                );
-                if (merged) result = merged;
-              }
-            } finally {
-              clearTimeout(timeoutId);
-            }
-          } catch {
-            // Deterministic fallback.
-          }
-        }
-
-        if (result === deterministicResult) {
-          const orSystem = `You are a strict transit intent parser for Dhaka, Bangladesh. Return ONLY JSON with keys origin_hub_id and dest_hub_id (one of H_UTTARA,H_MIRPUR10,H_AGARGAON,H_MOHAKHALI,H_BADDA,H_BANASREE,H_MALIBAGH,H_FARMGATE,H_MOHAMMADPUR,H_DHANMONDI,H_SCIENCELAB,H_SHAHBAGH,H_MOTIJHEEL,H_JATRABARI,H_GULISTAN). If a place is not one of these hubs, omit that side.`;
-          const orContent = await callOpenRouter(orSystem, rawQuery, true);
-          if (orContent) {
-            const merged = mergeValidatedLlmFields(
-              deterministicResult,
-              safeExtractJson<unknown>(orContent, null),
-              Number((performance.now() - startTime).toFixed(2))
-            );
-            if (merged) result = merged;
+        const llmResult: ChatHintsResult | null = await resolveChatHints(rawQuery, 2200);
+        if (llmResult) {
+          const merged = mergeValidatedLlmFields(
+            deterministicResult,
+            { origin_hub_id: llmResult.hints.originHubId, dest_hub_id: llmResult.hints.destHubId },
+            Number((performance.now() - startTime).toFixed(2))
+          );
+          if (merged) {
+            return json({
+              ...merged,
+              latency_ms: Number((performance.now() - startTime).toFixed(2)),
+            });
           }
         }
       }
 
       return json({
-        ...result,
+        ...deterministicResult,
         latency_ms: Number((performance.now() - startTime).toFixed(2)),
       });
     }
@@ -522,9 +393,32 @@ If a side is not clearly one of these hubs, omit that key.`;
         return json({ error: "Invalid activeAlerts payload" }, 400);
       }
 
-      const turnResult = processConversationTurn(rawQuery, context, preset, activeAlerts);
+      // Deterministic engine first. The LLM is consulted only when the rules
+      // could not interpret the message, and its answer is limited to intent,
+      // hub names and incident vocabulary (never fares, budgets or durations).
+      let turnResult = processConversationTurn(rawQuery, context, preset, activeAlerts);
+      let assistedBy: "groq" | "openrouter" | null = null;
+
+      if (turnResult.intent === "CLARIFY" && !isSmallTalk(rawQuery)) {
+        const resolved: ChatHintsResult | null = await resolveChatHints(rawQuery, 3200);
+        if (resolved) {
+          const assisted = processConversationTurn(rawQuery, context, preset, activeAlerts, resolved.hints);
+          if (assisted.intent !== "CLARIFY") {
+            turnResult = {
+              ...assisted,
+              badges: [{ label: "AI-ASSISTED", variant: "cyan" }, ...(assisted.badges ?? [])],
+            };
+            assistedBy = resolved.provider;
+          }
+        }
+      }
+
       return json({
         ...turnResult,
+        // The chat client reads `metadata`; keep `messageMetadata` for older callers.
+        metadata: turnResult.messageMetadata,
+        ai_assisted_by: assistedBy,
+        parser_source: assistedBy ? "LLM_SANDBOX" : "DETERMINISTIC_REGEX_FALLBACK",
         latency_ms: Number((performance.now() - startTime).toFixed(2)),
       });
     }
@@ -600,4 +494,50 @@ If a side is not clearly one of these hubs, omit that key.`;
     console.error("track-3-commute failed", error);
     return json({ error: "Internal API Error" }, 500);
   }
+}
+
+function parseImageDataUrl(value: unknown): { mime: string; data: string } | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^data:image\/(png|jpe?g|webp|heic|heif);base64,([A-Za-z0-9+/=\r\n]+)$/i);
+  if (!match) return null;
+  const mime = `image/${match[1].toLowerCase()}`;
+  const base64 = match[2].replace(/\s+/g, "");
+  if (!base64 || base64.length > MAX_BASE64_CHARS) return null;
+  let bytes: number;
+  try {
+    bytes = Buffer.from(base64, "base64").length;
+  } catch {
+    return null;
+  }
+  if (bytes < 100 || bytes > MAX_IMAGE_BYTES) return null;
+  return { mime, data: base64 };
+}
+
+function mergeValidatedLlmFields(
+  deterministic: BanglishParseResult,
+  raw: unknown,
+  latencyMs: number
+): BanglishParseResult | null {
+  if (!isRecord(raw)) return null;
+  const llmOrigin = validHub(raw.origin_hub_id) ? raw.origin_hub_id : null;
+  const llmDest = validHub(raw.dest_hub_id) ? raw.dest_hub_id : null;
+  if (!llmOrigin && !llmDest) return null;
+
+  let changed = false;
+  const merged: BanglishParseResult = { ...deterministic };
+  if (!deterministic.origin_resolved && llmOrigin) {
+    merged.origin_hub_id = llmOrigin;
+    merged.origin_resolved = true;
+    changed = true;
+  }
+  if (!deterministic.dest_resolved && llmDest) {
+    merged.dest_hub_id = llmDest;
+    merged.dest_resolved = true;
+    changed = true;
+  }
+  if (!changed) return null;
+
+  merged.parser_source = "LLM_SANDBOX";
+  merged.parse_latency_ms = latencyMs;
+  return merged;
 }

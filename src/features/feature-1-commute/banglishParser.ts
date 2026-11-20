@@ -21,6 +21,10 @@ export interface BanglishParseResult {
   adversarialHallucinationDetected: boolean;
   origin_resolved: boolean;
   dest_resolved: boolean;
+  explicit_dest_attempted?: boolean;
+  explicit_origin_attempted?: boolean;
+  unresolved_dest_token?: string;
+  unresolved_origin_token?: string;
   hallucinatedSummary?: string;
   parser_source: "LLM_SANDBOX" | "DETERMINISTIC_REGEX_FALLBACK";
   parse_latency_ms: number;
@@ -235,6 +239,38 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
     }
   }
 
+  // Check if user explicitly tried to supply origin or destination words that failed to resolve
+  let explicit_dest_attempted = false;
+  let unresolved_dest_token: string | undefined;
+  let explicit_origin_attempted = false;
+  let unresolved_origin_token: string | undefined;
+
+  if (!destResolved) {
+    const destTryMatch =
+      text.match(/(?:to|->|→)\s+([A-Za-z0-9\u0980-\u09FF\-_]{3,})/i) ||
+      text.match(/([A-Za-z0-9\u0980-\u09FF\-_]{3,})\s+(?:jabo|zabo|porjonto|যাব|যেতে|পর্যন্ত)/i);
+    if (destTryMatch && destTryMatch[1]) {
+      const word = destTryMatch[1].trim().toLowerCase();
+      if (!/^(?:bus|metro|rickshaw|student|pass|budget|fare|taka|tk|bdt|fast|speed|go|travel|now|today)$/i.test(word)) {
+        explicit_dest_attempted = true;
+        unresolved_dest_token = destTryMatch[1].trim();
+      }
+    }
+  }
+
+  if (!originResolved) {
+    const originTryMatch =
+      text.match(/\bfrom\s+([A-Za-z0-9\u0980-\u09FF\-_]{3,})/i) ||
+      text.match(/([A-Za-z0-9\u0980-\u09FF\-_]{3,})\s+(?:theke|thekey|থেকে)/i);
+    if (originTryMatch && originTryMatch[1]) {
+      const word = originTryMatch[1].trim().toLowerCase();
+      if (!/^(?:bus|metro|rickshaw|student|pass|budget|fare|taka|tk|bdt|fast|speed|go|travel|now|today)$/i.test(word)) {
+        explicit_origin_attempted = true;
+        unresolved_origin_token = originTryMatch[1].trim();
+      }
+    }
+  }
+
   // Ensure origin and destination are distinct when both were inferred.
   if (originResolved && destResolved && origin_hub_id === dest_hub_id) {
     const candidate = uniqueHits.find((hit) => hit.hub_id !== origin_hub_id);
@@ -288,6 +324,10 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
     adversarialHallucinationDetected: false,
     origin_resolved: originResolved,
     dest_resolved: destResolved,
+    explicit_dest_attempted,
+    explicit_origin_attempted,
+    unresolved_dest_token,
+    unresolved_origin_token,
     parser_source: "DETERMINISTIC_REGEX_FALLBACK",
     parse_latency_ms: latency,
     confidence_score: confidence,
@@ -312,9 +352,9 @@ export async function parseCommuterIntent(rawText: string): Promise<BanglishPars
     return deterministicFallback;
   }
 
-  // Try sandboxed server API with 800ms abort controller
+  // Try sandboxed server API with 2500ms abort controller
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 800);
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
   try {
     const response = await fetch("/api/track-3-commute", {
       method: "POST",

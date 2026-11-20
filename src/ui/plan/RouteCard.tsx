@@ -14,6 +14,7 @@ import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Btn, Card, Pill } from "../kit";
 import { MODE_STYLE, hubName, modeName } from "../labels";
+import { CardMotion } from "../motion/CardMotion";
 
 const TAG: Record<RouteTag, { bn: string; en: string }> = {
   OPTIMAL: { bn: "সেরা ভারসাম্য (P*)", en: "Best balance (P*)" },
@@ -112,7 +113,8 @@ export function RouteCard({
   const myPools = poolBoard.filter((p) => r.legs.some((l) => l.edge_id === p.edge.edge_id));
 
   return (
-    <Card className={cn("overflow-hidden transition-all", selected ? "border-brand shadow-lift ring-2 ring-brand/15" : "hover:border-[#BFDCC9]")}>
+    <CardMotion index={index} group="routes" interactive>
+      <Card className={cn("overflow-hidden transition-all", selected ? "border-brand shadow-lift ring-2 ring-brand/15" : "hover:border-[#BFDCC9]")}>
       <button type="button" onClick={() => selectRoute(r.route_id)} aria-expanded={selected} aria-label={`${t("রুট", "Route")} ${index + 1}`} className="block w-full p-5 text-left">
         <div className="flex flex-wrap items-center gap-1.5">
           {ranked.tags.map((tag) => (
@@ -183,5 +185,6 @@ export function RouteCard({
         </div>
       )}
     </Card>
+  </CardMotion>
   );
 }

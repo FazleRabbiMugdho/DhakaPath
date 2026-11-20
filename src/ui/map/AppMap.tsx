@@ -9,12 +9,13 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, ZoomControl, useMap } from "react-leaflet";
 import { METRO_MRT6, BIKOLPO_BUS, UTTARA_BUS } from "@/data/dhakaTransitData";
-import { CANONICAL_HUBS } from "@/contracts/canonicalGraph";
-import { HubId, TransportMode } from "@/contracts/schema";
+import { CANONICAL_HUBS, CANONICAL_GRAPH_G0 } from "@/contracts/canonicalGraph";
+import { HubId, TransportMode, IncidentType } from "@/contracts/schema";
 import { getLegGeometry, getLegDistanceKm, getMultiHubRoadPath, ensureContinuousRouteLegs } from "@/data/dhakaRoadNetwork";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
 import { MODE_STYLE, hubName, incidentName, alertStatusName, modeName } from "../labels";
+import { cn } from "@/lib/utils";
 
 export interface MapLayers {
   metro: boolean;
@@ -68,13 +69,31 @@ export default function AppMap({
   }, [selectedRoute]);
 
 
-  const fitPoints = useMemo(() => legs.flatMap((l) => l.pts), [legs]);
+  const fitPoints = useMemo(
+    () => legs.flatMap((l) => l.pts).filter((p): p is [number, number] => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])),
+    [legs]
+  );
 
   // Naive / flooded baseline also follows the actual street corridor step by step
   const shadowPts = useMemo(
-    () => getMultiHubRoadPath(shadowHubPath),
+    () => getMultiHubRoadPath(shadowHubPath).filter((p): p is [number, number] => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])),
     [shadowHubPath]
   );
+
+  // Active incident corridors (e.g. Malibagh gridlock, Farmgate waterlogging)
+  const activeAlertCorridors = useMemo(() => {
+    return alerts
+      .filter((a) => a.status !== "EXPIRED" && a.status !== "RESOLVED" && Boolean(a.edge_id) && a.confidence_pct >= 50)
+      .map((alert) => {
+        const edge = CANONICAL_GRAPH_G0.find((e) => e.edge_id === alert.edge_id);
+        if (!edge) return null;
+        const pts = getLegGeometry({ origin_hub_id: edge.origin_hub_id, dest_hub_id: edge.dest_hub_id, mode: edge.mode });
+        if (pts.length < 2) return null;
+        const isSevered = alert.incident_type === IncidentType.WATERLOGGING || alert.incident_type === IncidentType.INTERSECTION_BLOCKADE;
+        return { alert, edge, pts, isSevered };
+      })
+      .filter((item): item is { alert: typeof alerts[0]; edge: typeof CANONICAL_GRAPH_G0[0]; pts: [number, number][]; isSevered: boolean } => Boolean(item));
+  }, [alerts]);
 
   const origin = CANONICAL_HUBS[activeQuery.origin_hub_id];
   const dest = CANONICAL_HUBS[activeQuery.dest_hub_id];
@@ -120,6 +139,27 @@ export default function AppMap({
         </Polyline>
       )}
 
+      {/* Active incident corridors (e.g. Malibagh gridlock, Farmgate waterlogging) */}
+      {activeAlertCorridors.map(({ alert, edge, pts, isSevered }) => (
+        <Polyline
+          key={`alert-corridor-${alert.alert_id}`}
+          positions={pts}
+          pathOptions={{
+            color: isSevered ? "#DC2626" : "#D97706",
+            weight: 5,
+            opacity: 0.85,
+            dashArray: isSevered ? "4 8" : "6 6",
+            lineCap: "round",
+          }}
+        >
+          <Tooltip sticky>
+            <strong>{hubName(edge.origin_hub_id, lang)} → {hubName(edge.dest_hub_id, lang)}</strong>
+            <br />
+            {isSevered ? "⛔ " : "⚠️ "}{incidentName(alert.incident_type, lang)} · {alertStatusName(alert.status, lang)} ({n(alert.confidence_pct.toFixed(1))}%)
+          </Tooltip>
+        </Polyline>
+      ))}
+
       {/* 1. Seamless white underlay casing spanning the entire continuous route */}
       {fitPoints.length > 1 && (
         <Polyline
@@ -162,29 +202,179 @@ export default function AppMap({
       {/* hubs */}
       {Object.values(CANONICAL_HUBS).map((hub) => {
         const alert = alerts.find((a) => a.hub_id === hub.hub_id && a.status !== "EXPIRED" && a.status !== "RESOLVED");
-        const disrupted = disruptedHubIds.includes(hub.hub_id as HubId);
+        const isSevered = disruptedHubIds.includes(hub.hub_id as HubId);
+        const isCongested = Boolean(alert && !isSevered && alert.confidence_pct >= 50);
+
         return (
           <React.Fragment key={hub.hub_id}>
-            {disrupted && (
-              <CircleMarker center={[hub.lat, hub.lng]} radius={22} pathOptions={{ color: "#DC2626", fillColor: "#F87171", fillOpacity: 0.22, weight: 2, className: "dp-pulse" }} />
+            {isSevered && (
+              <CircleMarker
+                center={[hub.lat, hub.lng]}
+                radius={24}
+                interactive={false}
+                pathOptions={{
+                  color: "#DC2626",
+                  fillColor: "#F87171",
+                  fillOpacity: 0.22,
+                  weight: 2,
+                  className: "dp-pulse",
+                  interactive: false,
+                }}
+              />
+            )}
+            {isCongested && (
+              <CircleMarker
+                center={[hub.lat, hub.lng]}
+                radius={22}
+                interactive={false}
+                pathOptions={{
+                  color: "#D97706",
+                  fillColor: "#FBBF24",
+                  fillOpacity: 0.28,
+                  weight: 2,
+                  className: "dp-pulse-amber",
+                  interactive: false,
+                }}
+              />
             )}
             <CircleMarker
               center={[hub.lat, hub.lng]}
-              radius={disrupted ? 8 : 6}
-              pathOptions={{ color: disrupted ? "#DC2626" : "#15863B", fillColor: disrupted ? "#DC2626" : "#fff", fillOpacity: 1, weight: 3 }}
+              radius={isSevered ? 10 : isCongested ? 8.5 : 6}
+              pathOptions={{
+                color: isSevered ? "#B91C1C" : isCongested ? "#D97706" : "#15863B",
+                fillColor: isSevered ? "#DC2626" : isCongested ? "#F59E0B" : "#fff",
+                fillOpacity: 1,
+                weight: 3,
+              }}
             >
-              <Tooltip direction="top" offset={[0, -8]}>{hubName(hub.hub_id as HubId, lang)}</Tooltip>
+              <Tooltip
+                direction="top"
+                offset={[0, -10]}
+                opacity={1}
+                className={isSevered ? "dp-crisis-tooltip" : isCongested ? "dp-warn-tooltip" : undefined}
+              >
+                {alert ? (
+                  <div className="p-2 space-y-1.5 min-w-[220px] max-w-[280px]">
+                    <div className="flex items-center justify-between gap-2 border-b border-black/10 pb-1">
+                      <span className="font-black text-[13px] flex items-center gap-1.5 text-ink">
+                        {isSevered ? "⛔" : "⚠️"} {hubName(hub.hub_id as HubId, lang)}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[9.5px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider text-white shadow-xs",
+                          isSevered ? "bg-red-600" : "bg-amber-600"
+                        )}
+                      >
+                        {isSevered ? t("করিডোর অবরুদ্ধ", "SEVERED") : t("ধীরগতি", "GRIDLOCK")}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11.5px] font-bold">
+                      <span className={isSevered ? "text-red-700" : "text-amber-800"}>
+                        {isSevered ? "💧 " : "🚗 "}{incidentName(alert.incident_type, lang)}
+                      </span>
+                      <span className="text-[11px] font-mono font-semibold px-1 py-0.5 rounded bg-black/5">
+                        R<sub>e</sub> {n(alert.confidence_pct.toFixed(1))}%
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-700 leading-snug">
+                      {alert.incident_type === IncidentType.WATERLOGGING
+                        ? t(
+                            "হাঁটু থেকে কোমর সমান পানি। ফার্মগেট করিডোরে বাস চলাচল বন্ধ।",
+                            "Knee-to-waist deep water. Surface transit halted."
+                          )
+                        : alert.incident_type === IncidentType.SEVERE_GRIDLOCK
+                        ? t(
+                            "মালিবাগ রেলগেটে দীর্ঘ জটলা। অতিরিক্ত ৩০-৪৫ মিনিট বিলম্ব।",
+                            "Severe railgate bottleneck. Delays of 30-45 minutes."
+                          )
+                        : t("করিডোরে যান চলাচল ব্যাহত।", "Corridor transit disrupted.")}
+                    </div>
+
+                    {isSevered && (
+                      <div className="bg-emerald-50 border border-emerald-300 rounded px-1.5 py-1 text-[10.5px] font-bold text-emerald-900 flex items-center gap-1">
+                        <span>🔀</span>
+                        <span>{t("উড়ালসেতু বাইপাস সক্রিয় (বিহঙ্গ)", "Flyover bypass active (Bihanga)")}</span>
+                      </div>
+                    )}
+
+                    <div className="text-[10px] text-slate-500 pt-1 border-t border-black/5 flex items-center justify-between">
+                      <span>{alert.votes.length} {t("নাগরিক রিপোর্ট যাচাইকৃত", "verified reports")}</span>
+                      <span className="font-semibold text-brand-dark">{t("ক্লিক করে বিস্তারিত", "Click for actions")}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="font-semibold text-[12px] px-1">{hubName(hub.hub_id as HubId, lang)}</span>
+                )}
+              </Tooltip>
               <Popup>
-                <div className="space-y-2 p-1 min-w-[190px]">
-                  <div className="text-[15px] font-extrabold text-ink">{hubName(hub.hub_id as HubId, lang)}</div>
+                <div className="space-y-2.5 p-1 min-w-[240px] max-w-[290px]">
+                  <div className="flex items-center justify-between gap-2 border-b border-line pb-1.5">
+                    <div>
+                      <div className="text-[15px] font-black text-ink">{hubName(hub.hub_id as HubId, lang)}</div>
+                      <div className="text-[10.5px] text-slate-500 font-medium">Hub: {hub.hub_id}</div>
+                    </div>
+                    {isSevered ? (
+                      <span className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                        {t("অবরুদ্ধ", "SEVERED")}
+                      </span>
+                    ) : isCongested ? (
+                      <span className="bg-amber-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {t("তীব্র জটলা", "GRIDLOCK")}
+                      </span>
+                    ) : (
+                      <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {t("স্বাভাবিক", "NORMAL")}
+                      </span>
+                    )}
+                  </div>
+
                   {alert ? (
-                    <div className="rounded-xl bg-danger-bg px-2.5 py-1.5 text-[12.5px] font-semibold text-danger">
-                      {incidentName(alert.incident_type, lang)} · {alertStatusName(alert.status, lang)} · R<sub>e</sub> {n(alert.confidence_pct.toFixed(1))}%
+                    <div className="space-y-2">
+                      <div
+                        className={cn(
+                          "rounded-xl p-2.5 space-y-1.5 text-[12px]",
+                          isSevered ? "bg-red-50 text-red-900 border border-red-200" : "bg-amber-50 text-amber-900 border border-amber-200"
+                        )}
+                      >
+                        <div className="font-black text-[13px] flex items-center gap-1.5">
+                          <span>{isSevered ? "⛔" : "⚠️"}</span>
+                          <span>{incidentName(alert.incident_type, lang)}</span>
+                        </div>
+                        <div className="text-[11.5px] leading-snug">
+                          {alert.incident_type === IncidentType.WATERLOGGING
+                            ? t(
+                                "পানি জমে ফার্মগেট করিডোর অবরুদ্ধ। মিরপুর-মতিঝিল সংযোগ বন্ধ। ইঞ্জিনিয়ারিং বাইপাস সক্রিয়।",
+                                "Severe waterlogging halting surface buses. Mirpur-Motijheel corridor severed. Flyover detour active."
+                              )
+                            : alert.incident_type === IncidentType.SEVERE_GRIDLOCK
+                            ? t(
+                                "মালিবাগ মোড়ে তীব্র অচলাবস্থা। যান চলাচলের গতি প্রায় শূন্য।",
+                                "Standstill bottleneck. Surface speeds under 5 km/h."
+                              )
+                            : t("করিডোরে যান চলাচল ব্যাহত।", "Corridor transit disrupted.")}
+                        </div>
+                        <div className="pt-1 border-t border-current/15 flex items-center justify-between text-[11px] font-semibold">
+                          <span>{t("বিশ্বস্ততা স্কোর", "Trust Score")}: <strong>{n(alert.confidence_pct.toFixed(1))}%</strong></span>
+                          <span>{alert.votes.length} {t("টি রিপোর্ট", "votes")}</span>
+                        </div>
+                      </div>
+
+                      {isSevered && (
+                        <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-2 text-[11.5px] text-emerald-900">
+                          <div className="font-bold text-emerald-800 flex items-center gap-1 mb-0.5">
+                            <span>✅</span>
+                            <span>{t("স্মার্ট বাইপাস চালু", "Active Smart Detour")}</span>
+                          </div>
+                          <div>{t("বিহঙ্গ পরিবহন (আগারগাঁও-মহাখালী উড়ালসেতু) দিয়ে নিরাপদ বাইপাস।", "Bypassing Farmgate via Agargaon-Mohakhali Flyover (Bihanga Paribahan).")}</div>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="text-[12px] font-semibold text-brand-dark flex items-center gap-1.5">
+                    <div className="text-[12px] font-semibold text-brand-dark flex items-center gap-1.5 py-1">
                       <span className="inline-block w-2 h-2 rounded-full bg-brand"></span>
-                      {t("চলাচল স্বাভাবিক", "Operating normally")}
+                      {t("চলাচল স্বাভাবিক রয়েছে", "Operating normally, no disruptions")}
                     </div>
                   )}
 

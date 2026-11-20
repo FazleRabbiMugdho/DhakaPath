@@ -94,6 +94,48 @@ export interface ChatTurnResult {
 }
 
 /**
+ * Language-understanding hints supplied by the server-side LLM layer.
+ *
+ * Hints may only upgrade a CLARIFY turn — they can never override a
+ * deterministic verdict. They carry intent and place names only: fares,
+ * budgets, student status and route geometry always come from the engine.
+ */
+export interface ConversationHints {
+  intent?: ChatTurnIntent;
+  originHubId?: HubId;
+  destHubId?: HubId;
+  incidentHubId?: HubId;
+  incidentType?: IncidentType;
+}
+
+/**
+ * True when the message names a fresh trip, either as two hubs or as one hub
+ * followed by an origin marker ("Mirpur 10 theke ..."). Used so that a fare
+ * question about a NEW trip is routed through the planner instead of
+ * describing the previous route.
+ */
+function namesNewTrip(
+  text: string,
+  mentions: ReadonlyArray<{ end: number }>
+): boolean {
+  if (mentions.length >= 2) return true;
+  if (mentions.length === 0) return false;
+  const after = text.slice(mentions[0].end, mentions[0].end + 16);
+  return /(?:theke|thekey|from|থেকে)/iu.test(after);
+}
+
+const GREETING_RE =
+  /^(?:hi|hello|hey|salam|assalamu\s*alaikum|slm|hola|নমস্কার|সালাম|হ্যালো|হাই)(?:[!.\s]|$)/iu;
+const THANKS_RE =
+  /^(?:thank\s*you|thanks|thx|ধন্যবাদ|shukriya|shokriya)(?:[!.\s]|$)/iu;
+
+/** Greetings and thanks should answer instantly, never wait on a model. */
+export function isSmallTalk(text: string): boolean {
+  const trimmed = text.trim();
+  return GREETING_RE.test(trimmed) || THANKS_RE.test(trimmed);
+}
+
+/**
  * How many full-weight (1.0) corroboration votes are needed to move the
  * posterior from `prior` to `targetPct`? Used to keep chat copy honest instead
  * of hard-coding "3 corroborations".
@@ -158,14 +200,17 @@ export function classifyConversationTurn(
 
   // 1. REPORT_INCIDENT check
   // Matches e.g. "Shahbagh e pani uthse", "report Farmgate blockade", "Mohakhali te jam"
+  // The vocabulary deliberately includes bare nouns ("pani", "jam", "block",
+  // "water logging"): those ARE the report in Banglish, and requiring a second
+  // verb used to turn them into silent detour requests.
   const isReportingPhrasing =
     hasIncidentKeyword(normalized) &&
-    /(?:uthse|utheche|hoyeche|report|lagche|dekha|জমেছে|উঠেছে|উঠছে|হয়েছে|রিপোর্ট|বন্ধ|জ্যাম|পানি)/iu.test(normalized);
+    /(?:uthse|utheche|hoyeche|report|lagche|dekha|pani|flood(?:ed|ing)?|water\s*log(?:ging)?|waterlog(?:ging)?|jam|gridlock|block(?:ade|ed|age)?|strike|hartal|construction|traffic|জমেছে|উঠেছে|উঠছে|হয়েছে|রিপোর্ট|বন্ধ|জ্যাম|পানি|বন্যা|ডুবে|জলজট|যানজট|সংস্কার|ভাঙা)/iu.test(normalized);
   if (
     incidentType &&
     isReportingPhrasing &&
     !hasTripSyntax &&
-    !/trust|can i|bhorosha|reliable|kivabe|why|কেন|ভাড়া|status|ki ache|কি ache|কি অবস্থা/iu.test(normalized)
+    !/trust|can i|bhorosha|reliable|kivabe|why|কেন|ভাড়া|status|ki ache|কি ache|কি অবস্থা|^is\s|^are\s|^does\s|^do\s|^did\s|^is\s+there|^are\s+there/iu.test(normalized)
   ) {
     const hub = incidentHub || context.last_discussed_hub || null;
     if (hub) {
@@ -180,7 +225,11 @@ export function classifyConversationTurn(
 
   // 2. FARE_QUESTION check. This also catches "Mirpur 10 taka koto?" so the
   // number in the destination name is never mistaken for a 10 BDT budget.
+  // A message that names a NEW trip goes to ROUTE_SEARCH instead: its reply
+  // already includes the verified fare, and describing the previous route's
+  // fare for a different journey is worse than doing the search.
   if (
+    !namesNewTrip(normalized, mentions) &&
     /(?:why.*(?:fare|cost|price|48)|fare\s*(?:breakdown|rule|details|chart|info)?|how\s*(?:much|is).*fare|how\s*does.*(?:student|pass|fare|discount)|(?:student|metro|bus)\s*(?:fare|pass|discount|rule|rate)|kivabe.*holo|bhara.*kivabe|ভাড়া.*(?:কেন|হিসাব|কত|নিয়ম|চার্ট)|(?:ছাত্র|স্টুডেন্ট|মেট্রো|বাস).*(?:ভাড়া|ছাড়)|student pass.*rule|10 taka keno|(?:\d+|taka|tk|bdt|৳|টাকা)\s*(?:koto|kto|কত)|(?:koto|kto|কত).*(?:taka|tk|bdt|৳|টাকা))/iu.test(normalized)
   ) {
     return {
@@ -250,33 +299,49 @@ export function processConversationTurn(
   rawUserText: string,
   context: ConversationContext,
   preset: ScenarioPreset,
-  activeAlerts: ReadonlyArray<StreetAlert>
+  activeAlerts: ReadonlyArray<StreetAlert>,
+  hints?: ConversationHints
 ): ChatTurnResult {
-  const { intent, targetHub, incidentType, avoidHub } = classifyConversationTurn(
-    rawUserText,
-    context
-  );
+  const classification = classifyConversationTurn(rawUserText, context);
+  let intent = classification.intent;
+  let targetHub = classification.targetHub;
+  let incidentType = classification.incidentType;
+  let avoidHub = classification.avoidHub;
+
+  // Hints are a fallback for language the rules could not interpret. They are
+  // ignored whenever the deterministic classifier already understood the turn.
+  if (hints && intent === "CLARIFY") {
+    if (hints.intent) intent = hints.intent;
+    if (hints.incidentType) incidentType = hints.incidentType;
+    if (hints.incidentHubId) targetHub = hints.incidentHubId;
+    else if (hints.destHubId) targetHub = hints.destHubId;
+    else if (hints.originHubId) targetHub = hints.originHubId;
+    if (intent === "ALTERNATIVE_ROUTE" && !avoidHub) {
+      avoidHub = hints.incidentHubId ?? hints.originHubId ?? hints.destHubId ?? null;
+    }
+  }
 
   // ----------------------------------------------------------------------------
   // CASE 0: CLARIFY
   // ----------------------------------------------------------------------------
   if (intent === "CLARIFY") {
-    const isGreeting = /^(?:hi|hello|hey|salam|assalamu\s*alaikum|slm|hola|নমস্কার|সালাম|হ্যালো|হাই)(?:[!.\s]|$)/iu.test(rawUserText.trim());
-    const isThanks = /^(?:thank\s*you|thanks|thx|ধন্যবাদ|shukriya|shokriya)(?:[!.\s]|$)/iu.test(rawUserText.trim());
+    const isGreeting = GREETING_RE.test(rawUserText.trim());
+    const isThanks = THANKS_RE.test(rawUserText.trim());
 
     if (isGreeting) {
       return {
         replyText:
-          `Assalamu Alaikum! I am your Ask DhakaPath commute assistant. How can I help with your journey today?\n\n` +
-          `• 🗺️ **Find Routes:** *"Mirpur 10 to Motijheel, student"* or *"Uttara to Dhanmondi"*\n` +
-          `• 💰 **Fare Inquiries:** *"Why that fare?"* or *"How does student discount work?"*\n` +
-          `• ⚠️ **Live Conditions & Detours:** *"Avoid Farmgate"* or *"Shahbagh e pani uthse"*`,
+          `Assalamu Alaikum! 👋 I am your **Ask DhakaPath** commute assistant.\n\n` +
+          `How can I help with your journey today?\n` +
+          `• **Find Routes:** *"Mirpur 10 to Motijheel, student"* or *"Uttara to Dhanmondi"*\n` +
+          `• **Fare Inquiries:** *"Why that fare?"* or *"How does student discount work?"*\n` +
+          `• **Live Conditions & Detours:** *"Avoid Farmgate"* or *"Shahbagh e pani uthse"*`,
         intent: "CLARIFY",
         updatedContext: {
           ...context,
           ...(targetHub ? { last_discussed_hub: targetHub } : {}),
         },
-        badges: [{ label: "READY", variant: "emerald" }],
+        badges: [{ label: "ACTIVE", variant: "emerald" }],
       };
     }
 
@@ -428,10 +493,10 @@ export function processConversationTurn(
     });
 
     const replyText =
-      `Here is the exact mathematically verified fare breakdown for **${originName} → ${destName}**:\n\n` +
+      `Here is the verified fare breakdown for **${originName} → ${destName}**:\n\n` +
       legExplanations.join("\n") +
       `\n\n💰 **Total Verified Fare: ${route.total_effective_fare_bdt} BDT** (Regular fare would be ${route.total_regular_fare_bdt} BDT, saving you **+${route.total_regular_fare_bdt - route.total_effective_fare_bdt} BDT**).\n` +
-      `🛡️ Status: \`GRAPH_GROUNDED: V(P*)=1\` — calculated purely by deterministic equations, zero LLM guesswork!`;
+      `🛡️ Status: \`GRAPH_GROUNDED\` — calculated directly from official BRTA statutory schedules and DMTCL station tariffs with zero guesswork.`;
 
     return {
       replyText,
@@ -474,10 +539,9 @@ export function processConversationTurn(
         `• **Incident:** ${alert.incident_type}\n` +
         `• **Bayesian Posterior Confidence $R_e(t)$:** **${alert.confidence_pct.toFixed(1)}%**\n` +
         `• **Status:** \`${alert.status}\` (${alert.votes.length} corroboration vote(s))\n` +
-        `• **Corridor Impact:** ${
-          isSevered
-            ? `🚨 **SEVERED ($T_{eff} \\to \\infty$).** Motorized surface edges are completely blocked. DhakaPath automatically reroutes traffic through grade-separated MRT-6 or Walk-Bridges.`
-            : `⚠️ **Passable with Delay.** Vehicle speeds are slowed down, but the corridor is not yet severed.`
+        `• **Corridor Impact:** ${isSevered
+          ? `🚨 **SEVERED ($T_{eff} \\to \\infty$).** Motorized surface edges are completely blocked. DhakaPath automatically reroutes traffic through grade-separated MRT-6 or Walk-Bridges.`
+          : `⚠️ **Passable with Delay.** Vehicle speeds are slowed down, but the corridor is not yet severed.`
         }\n` +
         `• **30-Min Exponential Decay:** Decays toward baseline with $\\lambda = \\ln(2)/30$. Expires automatically if uncorroborated in ~${decayMinsRemaining} mins.\n\n` +
         `You can click **[+1 Corroborate]** or **[-1 Resolve]** on the Zone 3 card to update live confidence!`;
@@ -559,12 +623,22 @@ export function processConversationTurn(
     let replyText = "";
     if (newOptimal) {
       const legDesc = newOptimal.legs
-        .map((l, i) => `${i + 1}. **${l.mode}** (${l.route_name}) → ${l.effective_fare_bdt} BDT`)
+        .map((l, i) => {
+          const modeEmoji =
+            l.mode === TransportMode.METRO
+              ? "🚇"
+              : l.mode === TransportMode.BUS
+                ? "🚌"
+                : l.mode === TransportMode.RICKSHAW
+                  ? "🛺"
+                  : "🚶";
+          return `• Step ${i + 1}: ${modeEmoji} **${l.mode}** (${l.route_name}) → **${l.effective_fare_bdt} BDT** · ~${Math.round(l.effective_duration_ms / 60000)} mins`;
+        })
         .join("\n");
 
       replyText =
         `Detour Calculated! Rerouting **${originName} → ${destName}** to safely **bypass ${avoidName}**:\n\n` +
-        `⚡ **Optimal Detour ($P^*$):**\n` +
+        `⚡ **Detour Route Plan:**\n` +
         `${legDesc}\n\n` +
         `📊 **Total:** **${newOptimal.total_effective_fare_bdt} BDT** • **${Math.round(newOptimal.total_duration_ms / 60000)} mins** • **${newOptimal.transfers_count} transfer(s)**.\n` +
         `🛡️ Avoided flooded/severed corridor at ${avoidName}. Route cards and map have updated automatically!`;
@@ -593,12 +667,12 @@ export function processConversationTurn(
         avoidedHubs: newAvoidList,
         routeSummary: newOptimal
           ? {
-              fareBdt: newOptimal.total_effective_fare_bdt,
-              regularFareBdt: newOptimal.total_regular_fare_bdt,
-              durationMin: Math.round(newOptimal.total_duration_ms / 60000),
-              transfers: newOptimal.transfers_count,
-              legs: newOptimal.legs.map((l) => `${l.mode}: ${l.effective_fare_bdt} BDT`),
-            }
+            fareBdt: newOptimal.total_effective_fare_bdt,
+            regularFareBdt: newOptimal.total_regular_fare_bdt,
+            durationMin: Math.round(newOptimal.total_duration_ms / 60000),
+            transfers: newOptimal.transfers_count,
+            legs: newOptimal.legs.map((l) => `${l.mode}: ${l.effective_fare_bdt} BDT`),
+          }
           : undefined,
       },
     };
@@ -609,6 +683,53 @@ export function processConversationTurn(
   // ----------------------------------------------------------------------------
   // Parse with deterministic lexer first
   const parsed = parseBanglishQueryDeterministic(rawUserText);
+
+  // The LLM can name the hubs the lexer could not resolve. It is still only a
+  // fallback: a hub the lexer already found is never overwritten.
+  if (hints && intent === "ROUTE_SEARCH") {
+    if (hints.originHubId && !parsed.origin_resolved) {
+      parsed.origin_hub_id = hints.originHubId;
+      parsed.origin_resolved = true;
+    }
+    if (hints.destHubId && !parsed.dest_resolved) {
+      parsed.dest_hub_id = hints.destHubId;
+      parsed.dest_resolved = true;
+    }
+  }
+
+  // If user explicitly attempted to specify a destination that failed to resolve,
+  // do NOT silently fall back to the previous destination in context.
+  if (parsed.explicit_dest_attempted && !parsed.dest_resolved) {
+    const originName = parsed.origin_resolved
+      ? CANONICAL_HUBS[parsed.origin_hub_id]?.name_en || parsed.origin_hub_id
+      : CANONICAL_HUBS[context.last_origin_hub_id]?.name_en || context.last_origin_hub_id;
+    const tokenStr = parsed.unresolved_dest_token ? ` "${parsed.unresolved_dest_token}"` : "";
+    return {
+      replyText: `I found starting location **${originName}**, but couldn't recognize destination${tokenStr} in our Dhaka transit network.\n\nCould you clarify where you'd like to travel to? (e.g. *"to Mohammadpur"*, *"to Motijheel"*, or *"to Farmgate"*)`,
+      intent: "CLARIFY",
+      updatedContext: {
+        ...context,
+        ...(parsed.origin_resolved ? { last_origin_hub_id: parsed.origin_hub_id, last_discussed_hub: parsed.origin_hub_id } : {}),
+      },
+      badges: [{ label: "UNKNOWN DESTINATION", variant: "amber" }],
+    };
+  }
+
+  if (parsed.explicit_origin_attempted && !parsed.origin_resolved) {
+    const destName = parsed.dest_resolved
+      ? CANONICAL_HUBS[parsed.dest_hub_id]?.name_en || parsed.dest_hub_id
+      : CANONICAL_HUBS[context.last_dest_hub_id]?.name_en || context.last_dest_hub_id;
+    const tokenStr = parsed.unresolved_origin_token ? ` "${parsed.unresolved_origin_token}"` : "";
+    return {
+      replyText: `I see you want to travel to **${destName}**, but couldn't recognize your departure point${tokenStr}.\n\nWhere are you starting from? (e.g. *"from Mirpur 10"* or *"from Mohakhali"*)`,
+      intent: "CLARIFY",
+      updatedContext: {
+        ...context,
+        ...(parsed.dest_resolved ? { last_dest_hub_id: parsed.dest_hub_id, last_discussed_hub: parsed.dest_hub_id } : {}),
+      },
+      badges: [{ label: "UNKNOWN ORIGIN", variant: "amber" }],
+    };
+  }
 
   // Inherit missing contextual values. Tokens are only present when the
   // deterministic parser actually resolved that field; defaults in the parser
@@ -676,17 +797,25 @@ export function processConversationTurn(
 
   let replyText = "";
   if (optimal) {
-    const legLines = optimal.legs.map(
-      (l, idx) => `• Leg ${idx + 1}: **${l.mode}** (${l.route_name}) — **${l.effective_fare_bdt} BDT**, ${Math.round(l.effective_duration_ms / 60000)} min`
-    );
+    const legLines = optimal.legs.map((l, idx) => {
+      const modeEmoji =
+        l.mode === TransportMode.METRO
+          ? "🚇"
+          : l.mode === TransportMode.BUS
+            ? "🚌"
+            : l.mode === TransportMode.RICKSHAW
+              ? "🛺"
+              : "🚶";
+      return `• Step ${idx + 1}: ${modeEmoji} **${l.mode}** (${l.route_name}) — **${l.effective_fare_bdt} BDT**, ~${Math.round(l.effective_duration_ms / 60000)} mins`;
+    });
 
     replyText =
       `${reusedContext ? "Using your last trip context. " : ""}Grounded route found for **${originName} → ${destName}**:\n\n` +
-      `⚡ **Optimal Detour ($P^*$):**\n` +
+      `⚡ **Route Plan:**\n` +
       legLines.join("\n") +
       `\n\n💰 **Fare:** **${optimal.total_effective_fare_bdt} BDT** ${effectiveStudent ? "(Student Pass Verified: 10 BDT floor)" : "(Regular Ticket)"}\n` +
       `⏱️ **Duration:** **${Math.round(optimal.total_duration_ms / 60000)} mins** • Transfers: **${optimal.transfers_count}**\n` +
-      `🛡️ Verified $V(P^*)=1$ across 15 canonical hubs. Check detailed route cards below!`;
+      `🛡️ Verified against official BRTA & DMTCL transit data. Check detailed route cards below!`;
   } else {
     const diagnosis = diagnoseEmptyResult(
       { ...(resolvedQuery as CommuterQuery), action_id: "CHAT_DIAGNOSE", timestamp_ms: Date.now() },
@@ -718,22 +847,22 @@ export function processConversationTurn(
     resolvedQuery,
     badges: optimal
       ? [
-          { label: `${optimal.total_effective_fare_bdt} BDT`, variant: "emerald" },
-          { label: `${Math.round(optimal.total_duration_ms / 60000)} MIN`, variant: "cyan" },
-          { label: "GROUNDED", variant: "emerald" },
-          ...(reusedContext ? [{ label: "CONTEXT REUSED", variant: "amber" as const }] : []),
-        ]
+        { label: `${optimal.total_effective_fare_bdt} BDT`, variant: "emerald" },
+        { label: `${Math.round(optimal.total_duration_ms / 60000)} MIN`, variant: "cyan" },
+        { label: "VERIFIED ROUTE", variant: "emerald" },
+        ...(reusedContext ? [{ label: "CONTEXT REUSED", variant: "amber" as const }] : []),
+      ]
       : [{ label: "NO ROUTE", variant: "crimson" }],
     messageMetadata: optimal
       ? {
-          routeSummary: {
-            fareBdt: optimal.total_effective_fare_bdt,
-            regularFareBdt: optimal.total_regular_fare_bdt,
-            durationMin: Math.round(optimal.total_duration_ms / 60000),
-            transfers: optimal.transfers_count,
-            legs: optimal.legs.map((l) => `${l.mode}: ${l.effective_fare_bdt} BDT`),
-          },
-        }
+        routeSummary: {
+          fareBdt: optimal.total_effective_fare_bdt,
+          regularFareBdt: optimal.total_regular_fare_bdt,
+          durationMin: Math.round(optimal.total_duration_ms / 60000),
+          transfers: optimal.transfers_count,
+          legs: optimal.legs.map((l) => `${l.mode}: ${l.effective_fare_bdt} BDT`),
+        },
+      }
       : undefined,
   };
 }

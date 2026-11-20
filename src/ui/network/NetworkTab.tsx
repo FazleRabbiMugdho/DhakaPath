@@ -5,7 +5,7 @@
 // Anything added here goes through the same grounding checks and feeds the router at once.
 
 import React, { useMemo, useRef, useState } from "react";
-import { Camera, CheckCircle2, CircleX, FileImage, Plus, Trash2 } from "lucide-react";
+import { Camera, CheckCircle2, CircleX, FileImage, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
 import { AlertStatus, HubId, TransitEdge, TransportMode } from "@/contracts/schema";
@@ -137,7 +137,7 @@ function LinkList({ hub }: { hub: HubId | null }) {
 // ---------------------------------------------------------------------------
 function SignboardScanner() {
   const { lang, t, n } = useLang();
-  const { ocrResult, ocrBusy, scanSignboard, commitOcrEdges, discardOcrEdges } = useDhakaPathStore();
+  const { ocrResult, ocrImageDataUrl, ocrBusy, scanSignboard, commitOcrEdges, discardOcrEdges, retryOcr, clearOcrImage } = useDhakaPathStore();
   const [typed, setTyped] = useState("");
   const [drag, setDrag] = useState(false);
   const [committed, setCommitted] = useState<string | null>(null);
@@ -152,6 +152,11 @@ function SignboardScanner() {
       void scanSignboard({ file: f });
     }
   };
+
+  // Sync typed text with OCR result when it arrives (so user can edit)
+  const ocrRawText = ocrResult?.rawText ?? "";
+  const hasImage = Boolean(ocrImageDataUrl);
+  const ocrFailed = hasImage && ocrResult && ocrResult.extractedEdges.length === 0 && ocrResult.rejectedEdges.length > 0;
 
   return (
     <Card className="p-5 sm:p-6">
@@ -179,6 +184,20 @@ function SignboardScanner() {
         <input ref={fileRef} type="file" accept="image/*" className="sr-only" aria-label={t("সাইনবোর্ডের ছবি", "Signboard photo")} onChange={(e) => { scanFile(e.target.files?.[0]); e.target.value = ""; }} />
       </div>
 
+      {/* Image uploaded: show retry/clear controls */}
+      {hasImage && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {ocrFailed && (
+            <Btn size="sm" variant="outline" busy={ocrBusy} icon={<RotateCcw className="h-4 w-4" />} onClick={() => void retryOcr()}>
+              {t("পুনরায় চেষ্টা করুন", "Retry OCR")}
+            </Btn>
+          )}
+          <Btn size="sm" variant="ghost" onClick={() => { clearOcrImage(); setPreview(null); setTyped(""); setCommitted(null); }}>
+            {t("ছবি সরান", "Clear image")}
+          </Btn>
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap gap-2">
         {SIGNBOARD_PRESET_OPTIONS.map((p) => (
           <Btn key={p.id} size="sm" variant="soft" disabled={ocrBusy} onClick={() => { setCommitted(null); void scanSignboard({ presetId: p.id }); }}>
@@ -188,12 +207,19 @@ function SignboardScanner() {
       </div>
 
       <div className="mt-4">
-        <Field label={t("অথবা লেখাটি টাইপ করুন", "Or type the text")} hint={t("প্রতি লাইনে: মিরপুর ১০ -> ফার্মগেট : ২৫ টাকা", "One per line: Mirpur 10 -> Farmgate : 25 taka")}>
-          <textarea rows={3} value={typed} onChange={(e) => setTyped(e.target.value)} className={`${inputCls} resize-none font-mono text-[13px]`} />
+        <Field label={t("OCR ফলাফল / লেখা টাইপ করুন", "OCR result / type text")} hint={t("প্রতি লাইনে: মিরপুর ১০ -> ফার্মগেট : ২৫ টাকা", "One per line: Mirpur 10 -> Farmgate : 25 taka")}>
+          <textarea rows={4} value={typed || ocrRawText} onChange={(e) => setTyped(e.target.value)} className={`${inputCls} resize-none font-mono text-[13px]`} placeholder={hasImage ? t("OCR ফলাফল এখানে দেখাবে — সম্পাদনা করুন", "OCR result appears here — edit if needed") : t("হাতের কলমে লিখুন", "Type manually")} />
         </Field>
-        <Btn size="sm" className="mt-2" disabled={!typed.trim() || ocrBusy} onClick={() => { setCommitted(null); void scanSignboard({ rawText: typed }); }}>
-          {t("লেখা থেকে পড়ুন", "Read text")}
-        </Btn>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Btn size="sm" className="mt-2" disabled={!(typed || ocrRawText).trim() || ocrBusy} onClick={() => { setCommitted(null); void scanSignboard({ rawText: typed || ocrRawText }); }}>
+            {t("লেখা থেকে পড়ুন", "Process text")}
+          </Btn>
+          {hasImage && !ocrBusy && (
+            <Btn size="sm" variant="outline" onClick={() => void retryOcr()}>
+              {t("ছবি থেকে পুনরায় পড়ুন", "Re-scan image")}
+            </Btn>
+          )}
+        </div>
       </div>
 
       {ocrResult && (

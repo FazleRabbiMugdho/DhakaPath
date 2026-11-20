@@ -139,6 +139,7 @@ interface DhakaPathStoreState {
   // graph
   extraEdges: ReadonlyArray<TransitEdge>;
   ocrResult: SignboardDigitizeResult | null;
+  ocrImageDataUrl: string | null;
   ocrBusy: boolean;
   // actions
   setScenarioPreset: (preset: ScenarioPreset) => void;
@@ -163,6 +164,9 @@ interface DhakaPathStoreState {
   scanSignboard: (input: { presetId?: string; file?: File; rawText?: string }) => Promise<void>;
   commitOcrEdges: () => Promise<ActionResult>;
   discardOcrEdges: () => void;
+  retryOcr: () => Promise<void>;
+  clearOcrImage: () => void;
+  verifyRoute: (route: ParetoRouteOption) => Promise<ActionResult>;
   addLink: (input: NewLinkInput) => Promise<ActionResult>;
   removeLink: (edgeId: string) => Promise<void>;
   addLog: (event: Omit<AuditInterceptionEvent, "event_id" | "timestamp_ms">) => void;
@@ -178,12 +182,12 @@ const SCENARIO_LOCK_MS = 150;
 
 const DEFAULT_QUERY: CommuterQuery = {
   action_id: "QUERY_INIT_DEFAULT",
-  raw_query_text: "bhai Mirpur 10 theke Motijheel jabo, student id ache, 55 takar moddhe. Farmgate e naki pani uthse?",
+  raw_query_text: "bhai Mirpur 10 theke Motijheel jabo, student id ache, 55 takar moddhe.",
   origin_hub_id: HubId.H_MIRPUR10,
   dest_hub_id: HubId.H_MOTIJHEEL,
   is_student: true,
   max_budget_bdt: 55,
-  avoid_hub_ids: [HubId.H_FARMGATE],
+  avoid_hub_ids: [],
   timestamp_ms: 0,
 };
 
@@ -431,6 +435,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   const [extraEdges, setExtraEdgesState] = useState<ReadonlyArray<TransitEdge>>([]);
   const [ocrResult, setOcrResult] = useState<SignboardDigitizeResult | null>(null);
   const [ocrBusy, setOcrBusy] = useState<boolean>(false);
+  const [ocrImageDataUrl, setOcrImageDataUrl] = useState<string | null>(null);
 
   const lockUntil = useRef<number>(0);
   const activeQueryRef = useRef(activeQuery);
@@ -478,7 +483,18 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
   const prior = activePreset === ScenarioPreset.PEAK_CRISIS_SURGE ? DEFAULT_PEAK_PRIOR : DEFAULT_OFF_PEAK_PRIOR;
 
   const alerts = useMemo<ReadonlyArray<StreetAlert>>(() => {
-    const source = activePreset === ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT ? [...crowdAlerts, staleAlert(t0)] : crowdAlerts;
+    let source: StreetAlert[];
+    if (activePreset === ScenarioPreset.NORMAL_BASELINE) {
+      // On normal baseline, pre-seeded crisis incidents (Farmgate flood, Malibagh gridlock) do not exist;
+      // only user-submitted real-time reports are tracked.
+      source = crowdAlerts.filter(
+        (a) => !a.alert_id.startsWith("alert_farmgate") && !a.alert_id.startsWith("alert_malibagh")
+      );
+    } else if (activePreset === ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT) {
+      source = [...crowdAlerts, staleAlert(t0)];
+    } else {
+      source = [...crowdAlerts];
+    }
     return source.map((a) => deriveAlert(a, simNow, prior, overridden));
   }, [crowdAlerts, activePreset, simNow, prior, overridden, t0]);
 
@@ -504,13 +520,15 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      const studentActive = options.forceStudent;
       const queryForSearch: CommuterQuery = {
         ...activeQuery,
+        is_student: studentActive,
         avoid_hub_ids: Array.from(effectiveAvoid),
       };
 
       const result = executeParetoSearch(queryForSearch, activePreset, alerts, effectivePools);
-      const sanitized = sanitizeAndFilterParetoRoutes(result.routes, activeQuery.is_student, {
+      const sanitized = sanitizeAndFilterParetoRoutes(result.routes, studentActive, {
         surgeMultiplier: getScenarioParameters(activePreset).surge_multiplier,
         poolSizes: effectivePools,
       });
@@ -527,7 +545,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return { ranked: [] as RankedRoute[], walkBridgeActive: false, walkBridgeBlocked: false, failed: true, interceptions: [] as AuditInterceptionEvent[], ms: 0 };
     }
-  }, [activeQuery, activePreset, alerts, disruptedHubIds, poolJoined, options.bypassFlooded, options.allowWalkBridge, extraEdges]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeQuery, activePreset, alerts, disruptedHubIds, poolJoined, options, extraEdges]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (routing.ms > 0) setEngineLatencyMs(Math.max(0.05, Number(routing.ms.toFixed(2))));
@@ -585,6 +603,15 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       setLastActionId(`SCENARIO_${preset}_${Math.round(simOffsetMs / MIN)}`);
       setActivePreset(preset);
 
+      if (preset === ScenarioPreset.PEAK_CRISIS_SURGE) {
+        setOptionsState((prev) => ({ ...prev, bypassFlooded: true }));
+      } else if (preset === ScenarioPreset.NORMAL_BASELINE) {
+        setActiveQuery((prev) => ({
+          ...prev,
+          avoid_hub_ids: [],
+        }));
+      }
+
       if (preset === ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT) {
         // 1) spoofed 500 BDT bus fare through the Tier-1 sanity gate
         const fare = validateFareSubmission("E_BUS_SURFACE_MIRPUR10_FARMGATE", 500);
@@ -641,11 +668,9 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       setOptionsState(opts);
       try {
         const parsed = await parseCommuterIntent(text);
-        const student = opts.forceStudent
-          ? true
-          : parsed.extracted_raw.student_token !== undefined
-            ? parsed.is_student
-            : activeQueryRef.current.is_student;
+        const hasExplicitStudentInText = parsed.extracted_raw.student_token !== undefined;
+        const student = hasExplicitStudentInText ? parsed.is_student : opts.forceStudent;
+        setOptionsState((prev) => ({ ...prev, ...opts, forceStudent: student }));
         const prevQuery = activeQueryRef.current;
         const nextOrigin = parsed.origin_resolved ? parsed.origin_hub_id : prevQuery.origin_hub_id;
         const nextDest = parsed.dest_resolved ? parsed.dest_hub_id : prevQuery.dest_hub_id;
@@ -656,7 +681,6 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
               ? DEFAULT_BUDGET_BDT
               : prevQuery.max_budget_bdt;
         const avoid = new Set<HubId>(parsed.avoid_hub_ids);
-        if (opts.bypassFlooded) disruptedHubIds.forEach((h) => avoid.add(h));
         avoid.delete(parsed.origin_hub_id);
         avoid.delete(parsed.dest_hub_id);
         const finalParsed: BanglishParseResult = { ...parsed, is_student: student, avoid_hub_ids: Array.from(avoid) };
@@ -720,7 +744,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
           raw_query_text: `${CANONICAL_HUBS[origin].name_en} to ${CANONICAL_HUBS[dest].name_en}`,
           origin_hub_id: origin,
           dest_hub_id: dest,
-          is_student: patch?.student ?? prev.is_student,
+          is_student: patch?.student ?? options.forceStudent,
           max_budget_bdt: patch?.budget ?? (fresh ? DEFAULT_BUDGET_BDT : prev.max_budget_bdt),
           avoid_hub_ids: fresh ? [] : prev.avoid_hub_ids.filter((h) => h !== origin && h !== dest),
           timestamp_ms: Date.now(),
@@ -728,8 +752,16 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       });
       setSelectedRouteId("");
     },
-    []
+    [options.forceStudent]
   );
+
+  const setOptions = useCallback((newOpts: SearchOptions | ((prev: SearchOptions) => SearchOptions)) => {
+    setOptionsState((prev) => {
+      const next = typeof newOpts === "function" ? newOpts(prev) : newOpts;
+      setActiveQuery((q) => (q.is_student !== next.forceStudent ? { ...q, is_student: next.forceStudent } : q));
+      return next;
+    });
+  }, []);
 
   const updateCommuterQuery = useCallback((patch: Partial<CommuterQuery>) => {
     setActiveQuery((prev) => ({ ...prev, ...patch, timestamp_ms: Date.now() }));
@@ -741,6 +773,24 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       await search(text, options);
     },
     [activeQuery.raw_query_text, options, search]
+  );
+
+  const verifyRoute = useCallback(
+    async (route: ParetoRouteOption): Promise<ActionResult> => {
+      try {
+        // Use the client-side subgraph verifier
+        const verification = verifySubgraphTrajectory(route, activeQuery.is_student);
+        if (verification.isValid) {
+          return { ok: true, message: "Route verified: V(P*)=1 — all legs grounded in Canonical G_0" };
+        } else {
+          const reason = verification.violationClause ?? "Route failed grounding check";
+          return { ok: false, message: `Verification failed: ${reason}` };
+        }
+      } catch (err) {
+        return { ok: false, message: `Verification error: ${String(err)}` };
+      }
+    },
+    [activeQuery.is_student]
   );
 
 
@@ -936,28 +986,43 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
         let rawOcrText = input.rawText;
         if (input.file) {
           const dataUrl = await fileToResizedDataUrl(input.file);
+          // Store the image for retry capability
+          setOcrImageDataUrl(dataUrl);
           try {
             const res = await fetch("/api/track-3-commute", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ action: "ocr_image", base64Image: dataUrl }),
             });
-            const data = (await res.json()) as { ok?: boolean; rawOcrText?: string };
-            if (data.ok && data.rawOcrText) rawOcrText = data.rawOcrText;
-          } catch {
-            // offline: fall through to an empty result with guidance
-          }
-          if (!rawOcrText) {
+            const data = (await res.json()) as { ok?: boolean; rawOcrText?: string; reason?: string };
+            if (data.ok && data.rawOcrText) {
+              rawOcrText = data.rawOcrText;
+            } else {
+              // Vision failed - return early with error state but keep image for retry
+              setOcrResult({
+                rawText: "",
+                extractedEdges: [],
+                rejectedEdges: [{ edgeCandidate: {}, reason: data.reason || "Vision OCR failed or unavailable" }],
+                confidencePct: 0,
+                processingLatencyMs: 0,
+                source: "HEURISTIC_VISION_OCR",
+              });
+              return;
+            }
+          } catch (err) {
             setOcrResult({
               rawText: "",
               extractedEdges: [],
-              rejectedEdges: [],
+              rejectedEdges: [{ edgeCandidate: {}, reason: String(err) }],
               confidencePct: 0,
               processingLatencyMs: 0,
               source: "HEURISTIC_VISION_OCR",
             });
             return;
           }
+        } else {
+          // No file - clear stored image
+          setOcrImageDataUrl(null);
         }
         const result = await digitizeSignboardImage(
           input.presetId ? { presetId: input.presetId } : { rawOcrText: rawOcrText ?? "" }
@@ -976,6 +1041,48 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     },
     [addLog]
   );
+
+  const retryOcr = useCallback(async () => {
+    if (!ocrImageDataUrl) return;
+    setOcrBusy(true);
+    try {
+      const res = await fetch("/api/track-3-commute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ocr_image", base64Image: ocrImageDataUrl }),
+      });
+      const data = (await res.json()) as { ok?: boolean; rawOcrText?: string; reason?: string };
+      if (data.ok && data.rawOcrText) {
+        const result = await digitizeSignboardImage({ rawOcrText: data.rawOcrText });
+        setOcrResult(result);
+      } else {
+        setOcrResult({
+          rawText: "",
+          extractedEdges: [],
+          rejectedEdges: [{ edgeCandidate: {}, reason: data.reason || "Retry failed: vision OCR unavailable" }],
+          confidencePct: 0,
+          processingLatencyMs: 0,
+          source: "HEURISTIC_VISION_OCR",
+        });
+      }
+    } catch (err) {
+      setOcrResult({
+        rawText: "",
+        extractedEdges: [],
+        rejectedEdges: [{ edgeCandidate: {}, reason: String(err) }],
+        confidencePct: 0,
+        processingLatencyMs: 0,
+        source: "HEURISTIC_VISION_OCR",
+      });
+    } finally {
+      setOcrBusy(false);
+    }
+  }, [ocrImageDataUrl]);
+
+  const clearOcrImage = useCallback(() => {
+    setOcrImageDataUrl(null);
+    setOcrResult(null);
+  }, []);
 
   // Shared guard for any edge entering the live graph (OCR commit and admin add).
   const edgeEntryProblem = useCallback(
@@ -1225,6 +1332,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       poolBoard,
       extraEdges,
       ocrResult,
+      ocrImageDataUrl,
       ocrBusy,
       setScenarioPreset,
       setSimOffsetMs,
@@ -1236,8 +1344,9 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       corroborateAlert,
       addStreetAlert,
       updateCommuterQuery,
-      setOptions: setOptionsState,
+      setOptions,
       selectRoute,
+      verifyRoute,
       voteAlert,
       overrideAlert,
       reportIncident,
@@ -1248,6 +1357,8 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       scanSignboard,
       commitOcrEdges,
       discardOcrEdges,
+      retryOcr,
+      clearOcrImage,
       addLink,
       removeLink,
       addLog,
@@ -1258,7 +1369,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       isParsing, options, interception, searchNotice, routing, selectedRoute, shadowHubPath, roi, alerts, disruptedHubIds, logs,
       poolBoard, extraEdges, ocrResult, ocrBusy, setScenarioPreset, setSimOffsetMs, resetAll, search, planDirect, submitCommuterSearch,
       corroborateAlert, addStreetAlert, updateCommuterQuery, selectRoute, voteAlert, overrideAlert, reportIncident, checkFare,
-      joinPool, joinRideSharePool, leavePool, scanSignboard, commitOcrEdges, discardOcrEdges, addLink, removeLink, addLog, addInterceptionLog,
+      joinPool, joinRideSharePool, leavePool, scanSignboard, commitOcrEdges, discardOcrEdges, retryOcr, clearOcrImage, addLink, removeLink, addLog, addInterceptionLog,
     ]
   );
 

@@ -7,6 +7,7 @@ import { LangProvider } from "../lib/i18n";
 import { HonestyStrip } from "../ui/HonestyStrip";
 import { SiteFooter } from "../ui/SiteFooter";
 import { PwaRegister } from "../ui/PwaRegister";
+import { SmoothScrollProvider } from "../hooks/useSmoothScroll";
 
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -52,9 +53,11 @@ export default function RootLayout({
       <body className="min-h-screen bg-brand-canvas text-ink antialiased">
         <LangProvider>
           <DhakaPathProvider>
-            <HonestyStrip />
-            {children}
-            <SiteFooter />
+            <SmoothScrollProvider>
+              <HonestyStrip />
+              {children}
+              <SiteFooter />
+            </SmoothScrollProvider>
           </DhakaPathProvider>
         </LangProvider>
         <PwaRegister />

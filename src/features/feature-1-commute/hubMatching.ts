@@ -18,21 +18,194 @@ export interface HubMention {
 }
 
 const EXTRA_ALIASES: Record<HubId, string[]> = {
-  [HubId.H_UTTARA]: ["uttara", "uttora", "উত্তরা", "house building", "housebuilding", "azampur", "diabari", "হাউজবিল্ডিং", "উত্তরা উত্তর"],
-  [HubId.H_MIRPUR10]: ["mirpur 10", "mirpur-10", "mirpur10", "mirpur", "মিরপুর ১০", "মিরপুর 10", "মিরপুর", "golchottor", "গোলচত্বর"],
-  [HubId.H_AGARGAON]: ["agargaon", "agar gaon", "আগারগাঁও", "passport office", "agargao"],
-  [HubId.H_MOHAKHALI]: ["mohakhali", "maakhali", "মহাখালী", "wireless"],
-  [HubId.H_BADDA]: ["badda", "বাড্ডা", "badda link road", "badda link", "middle badda", "link road"],
-  [HubId.H_BANASREE]: ["banasree", "bonosree", "বনশ্রী", "rampura bridge", "rampura"],
-  [HubId.H_MALIBAGH]: ["malibagh", "malibag", "মালিবাগ", "mouchak", "মৌচাক", "railgate"],
-  [HubId.H_FARMGATE]: ["farmgate", "farm gate", "ফার্মগেট", "ফার্ম গেট", "ananda", "ananda cinema"],
-  [HubId.H_MOHAMMADPUR]: ["mohammadpur", "mohammodpur", "মোহাম্মদপুর", "town hall", "asad gate", "shiya mosjid"],
-  [HubId.H_DHANMONDI]: ["dhanmondi", "dhanmandi", "ধানমন্ডি", "ধানমন্ডী", "dhanmondi 27", "dhanmondi 32"],
-  [HubId.H_SCIENCELAB]: ["science lab", "sciencelab", "সায়েন্স ল্যাব", "সায়েন্স ল্যাব", "city college"],
-  [HubId.H_SHAHBAGH]: ["shahbagh", "shahbag", "শাহবাগ", "tsc", "du", "pg hospital", "dhaka university"],
-  [HubId.H_GULISTAN]: ["gulistan", "গুলিস্তান", "zero point", "fulbaria"],
-  [HubId.H_MOTIJHEEL]: ["motijheel", "motijhil", "matijheel", "মতিঝিল", "shapla chottor", "শাপলা চত্বর", "dilkusha"],
-  [HubId.H_JATRABARI]: ["jatrabari", "jattrabari", "jattrobari", "যাত্রাবাড়ী", "যাত্রাবাড়ি", "যাত্রাবাড়ী", "sayedabad", "সায়েদাবাদ", "সায়েদাবাদ"],
+  [HubId.H_UTTARA]: [
+    "uttara",
+    "uttora",
+    "উত্তরা",
+    "house building",
+    "housebuilding",
+    "azampur",
+    "diabari",
+    "uttara north",
+    "uttara south",
+    "uttara center",
+    "sector 3",
+    "sector 7",
+    "sector 10",
+    "হাউজবিল্ডিং",
+    "উত্তরা উত্তর",
+  ],
+  [HubId.H_MIRPUR10]: [
+    "mirpur 10",
+    "mirpur-10",
+    "mirpur10",
+    "mirpur",
+    "mirpur 1",
+    "mirpur 2",
+    "mirpur 11",
+    "mirpur 12",
+    "mirpur 14",
+    "মিরপুর ১০",
+    "মিরপুর 10",
+    "মিরপুর",
+    "golchottor",
+    "গোলচত্বর",
+  ],
+  [HubId.H_AGARGAON]: [
+    "agargaon",
+    "agar gaon",
+    "agargoan",
+    "agargaun",
+    "agargao",
+    "passport office",
+    "agargaon metro",
+    "আগারগাঁও",
+  ],
+  [HubId.H_MOHAKHALI]: [
+    "mohakhali",
+    "moakhali",
+    "maakhali",
+    "mohakhali wireless",
+    "wireless gate",
+    "wireless",
+    "mohakhali bus terminal",
+    "মহাখালী",
+    "ওয়্যারলেস",
+  ],
+  [HubId.H_BADDA]: [
+    "badda",
+    "middle badda",
+    "north badda",
+    "south badda",
+    "বাড্ডা",
+    "badda link road",
+    "badda link",
+    "link road",
+    "লিঙ্ক রোড",
+  ],
+  [HubId.H_BANASREE]: [
+    "banasree",
+    "bonosree",
+    "bonoshree",
+    "banashree",
+    "বনশ্রী",
+    "rampura bridge",
+    "rampura",
+    "রামপুরা",
+  ],
+  [HubId.H_MALIBAGH]: [
+    "malibagh",
+    "malibag",
+    "মালিবাগ",
+    "mouchak",
+    "moucak",
+    "railgate",
+    "malibag mor",
+    "মৌচাক",
+  ],
+  [HubId.H_FARMGATE]: [
+    "farmgate",
+    "farm gate",
+    "framgate",
+    "farmget",
+    "farmgat",
+    "farm gte",
+    "ফার্মগেট",
+    "ফার্ম গেট",
+    "ananda",
+    "ananda cinema",
+    "khamarbari",
+  ],
+  [HubId.H_MOHAMMADPUR]: [
+    "mohammadpur",
+    "mohammodpur",
+    "mohmadpur",
+    "mohamadpur",
+    "mahammadpur",
+    "mohammad pur",
+    "mohammod pur",
+    "mdpur",
+    "মোহাম্মদপুর",
+    "town hall",
+    "townhall",
+    "asad gate",
+    "asadgate",
+    "shiya mosjid",
+    "shia masjid",
+    "ring road",
+    "tajmahal road",
+  ],
+  [HubId.H_DHANMONDI]: [
+    "dhanmondi",
+    "dhanmandi",
+    "danmondi",
+    "ধানমন্ডি",
+    "ধানমন্ডী",
+    "dhanmondi 27",
+    "dhanmondi 32",
+    "kalabagan",
+    "sobhanbag",
+    "shukrabad",
+  ],
+  [HubId.H_SCIENCELAB]: [
+    "science lab",
+    "sciencelab",
+    "science laboratory",
+    "সায়েন্স ল্যাব",
+    "সায়েন্স ল্যাব",
+    "city college",
+    "new market",
+    "nilkhet",
+  ],
+  [HubId.H_SHAHBAGH]: [
+    "shahbagh",
+    "shahbag",
+    "shahbaag",
+    "shahbag mor",
+    "শাহবাগ",
+    "tsc",
+    "du",
+    "pg hospital",
+    "bsmmu",
+    "dhaka university",
+  ],
+  [HubId.H_GULISTAN]: [
+    "gulistan",
+    "golistan",
+    "gulestan",
+    "গুলিস্তান",
+    "zero point",
+    "fulbaria",
+    "paltan",
+    "stadium",
+  ],
+  [HubId.H_MOTIJHEEL]: [
+    "motijheel",
+    "motijhil",
+    "matijheel",
+    "motijel",
+    "matijhil",
+    "মতিঝিল",
+    "shapla chottor",
+    "shapla",
+    "শাপলা চত্বর",
+    "dilkusha",
+    "bangladesh bank",
+  ],
+  [HubId.H_JATRABARI]: [
+    "jatrabari",
+    "jattrabari",
+    "jattrobari",
+    "যাত্রাবাড়ী",
+    "যাত্রাবাড়ি",
+    "যাত্রাবাড়ী",
+    "sayedabad",
+    "saydabad",
+    "sayedabaad",
+    "dholairpar",
+    "সায়েদাবাদ",
+    "সায়েদাবাদ",
+  ],
 };
 
 const ALL_ALIASES: Record<HubId, ReadonlyArray<string>> = Object.fromEntries(
@@ -48,6 +221,13 @@ const ALL_ALIASES: Record<HubId, ReadonlyArray<string>> = Object.fromEntries(
 
 const BENGALI_LETTER = /[\u0980-\u09FF]/;
 
+// Bengali is agglutinative: place names take case and definite suffixes
+// (ফার্মগেট -> ফার্মগেটে, মিরপুর -> মিরপুরের, শাহবাগ -> শাহবাগের). A strict
+// "no Bengali letter may follow" boundary rejects every inflected form, so a
+// short, closed list of suffixes is allowed before the boundary check.
+const BENGALI_CASE_SUFFIX =
+  "(?:য়ের|টিতে|টায়|টার|ের|তে|কে|টা|টি|য়ে|ে|য়)?";
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -58,7 +238,9 @@ function aliasPattern(alias: string): RegExp {
   const first = alias[0] ?? "";
   const last = alias[alias.length - 1] ?? "";
   const prefix = BENGALI_LETTER.test(first) ? "(?<![\\u0980-\\u09FF])" : "(?<![A-Za-z0-9])";
-  const suffix = BENGALI_LETTER.test(last) ? "(?![\\u0980-\\u09FF])" : "(?![A-Za-z0-9])";
+  const suffix = BENGALI_LETTER.test(last)
+    ? `${BENGALI_CASE_SUFFIX}(?![\\u0980-\\u09FF])`
+    : "(?![A-Za-z0-9])";
   return new RegExp(`${prefix}${body}${suffix}`, "giu");
 }
 
@@ -67,6 +249,56 @@ const COMPILED_ALIASES: ReadonlyArray<{ hub_id: HubId; alias: string; regex: Reg
   Object.entries(ALL_ALIASES)
     .flatMap(([hub_id, aliases]) => aliases.map((alias) => ({ hub_id: hub_id as HubId, alias, regex: aliasPattern(alias) })))
     .sort((a, b) => b.alias.length - a.alias.length);
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+  const m = a.length;
+  const n = b.length;
+  const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j];
+      if (a[i - 1] === b[j - 1]) {
+        dp[j] = prev;
+      } else {
+        dp[j] = Math.min(prev + 1, dp[j] + 1, dp[j - 1] + 1);
+      }
+      prev = temp;
+    }
+  }
+  return dp[n];
+}
+
+const FUZZY_PRIMARY_HUBS: ReadonlyArray<{ hub_id: HubId; name: string }> = [
+  { hub_id: HubId.H_UTTARA, name: "uttara" },
+  { hub_id: HubId.H_MIRPUR10, name: "mirpur" },
+  { hub_id: HubId.H_AGARGAON, name: "agargaon" },
+  { hub_id: HubId.H_MOHAKHALI, name: "mohakhali" },
+  { hub_id: HubId.H_BADDA, name: "badda" },
+  { hub_id: HubId.H_BANASREE, name: "banasree" },
+  { hub_id: HubId.H_MALIBAGH, name: "malibagh" },
+  { hub_id: HubId.H_FARMGATE, name: "farmgate" },
+  { hub_id: HubId.H_MOHAMMADPUR, name: "mohammadpur" },
+  { hub_id: HubId.H_DHANMONDI, name: "dhanmondi" },
+  { hub_id: HubId.H_SCIENCELAB, name: "sciencelab" },
+  { hub_id: HubId.H_SHAHBAGH, name: "shahbagh" },
+  { hub_id: HubId.H_GULISTAN, name: "gulistan" },
+  { hub_id: HubId.H_MOTIJHEEL, name: "motijheel" },
+  { hub_id: HubId.H_JATRABARI, name: "jatrabari" },
+];
+
+const NON_HUB_STOPWORDS = new Set([
+  "about", "after", "again", "alert", "allow", "another", "around", "baddass",
+  "before", "better", "block", "bridge", "budget", "buses", "cannot", "cheapest",
+  "commute", "current", "detour", "during", "faster", "fastest", "first",
+  "flooded", "going", "minute", "minutes", "normal", "please", "report", "routes",
+  "school", "second", "street", "student", "ticket", "traffic", "transit", "travel",
+  "verified", "walkbridge", "without"
+]);
 
 export function findHubMentions(text: string): HubMention[] {
   if (!text || typeof text !== "string") return [];
@@ -96,6 +328,37 @@ export function findHubMentions(text: string): HubMention[] {
     if (accepted.some((existing) => mention.start < existing.end && mention.end > existing.start)) continue;
     accepted.push(mention);
   }
+
+  // Fuzzy token check for misspelled place names (e.g. "mohmadpur", "framgate", "dhanmandi")
+  const wordRe = /\b[A-Za-z]{5,}\b/g;
+  let wordMatch: RegExpExecArray | null;
+  while ((wordMatch = wordRe.exec(text)) !== null) {
+    const rawWord = wordMatch[0];
+    const lowerWord = rawWord.toLowerCase();
+    const start = wordMatch.index;
+    const end = start + rawWord.length;
+
+    // Skip if span already covered by an exact alias match
+    if (accepted.some((existing) => start < existing.end && end > existing.start)) continue;
+    if (NON_HUB_STOPWORDS.has(lowerWord)) continue;
+
+    for (const cand of FUZZY_PRIMARY_HUBS) {
+      const maxDist = cand.name.length >= 7 ? 2 : 1;
+      const dist = levenshteinDistance(lowerWord, cand.name);
+      if (dist <= maxDist && Math.abs(lowerWord.length - cand.name.length) <= 2) {
+        accepted.push({
+          hub_id: cand.hub_id,
+          start,
+          end,
+          matched: rawWord,
+          alias: cand.name,
+        });
+        break;
+      }
+    }
+  }
+
+  accepted.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
   return accepted;
 }
 
