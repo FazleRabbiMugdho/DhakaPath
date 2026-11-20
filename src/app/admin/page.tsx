@@ -30,7 +30,7 @@ function LoginForm({ onAuth }: { onAuth: () => void }) {
       const response = await fetch("/api/admin/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode: code }),
+        body: JSON.stringify({ passcode: code.trim() }),
       });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {

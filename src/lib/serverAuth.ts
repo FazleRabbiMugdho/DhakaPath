@@ -73,7 +73,7 @@ function verifyToken(kind: string, token: string | undefined, now = Date.now()):
 }
 
 function adminPasscode(): string {
-  return process.env.ADMIN_PASSCODE || "dhakapath2026";
+  return (process.env.ADMIN_PASSCODE || "dhakapath2026").trim();
 }
 
 export function isAdminConfigured(): boolean {
@@ -84,7 +84,7 @@ export function verifyAdminPasscode(input: unknown): boolean {
   if (typeof input !== "string") return false;
   const expected = adminPasscode();
   if (!expected) return false;
-  return safeEqual(input, expected);
+  return safeEqual(input.trim(), expected);
 }
 
 export function createAdminCookie(): {
