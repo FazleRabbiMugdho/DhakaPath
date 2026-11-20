@@ -78,7 +78,11 @@ function verifyToken(kind: string, token: string | undefined, now = Date.now()):
 
 // No built-in fallback: admin stays disabled until ADMIN_PASSCODE is set (see .env.example).
 function adminPasscode(): string {
-  return (process.env.ADMIN_PASSCODE ?? "").trim();
+  let val = (process.env.ADMIN_PASSCODE ?? "").trim();
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    val = val.slice(1, -1).trim();
+  }
+  return val;
 }
 
 export function isAdminConfigured(): boolean {
@@ -181,9 +185,10 @@ export function attachSessionCookie(
  */
 export function clientKey(req: NextRequest): string {
   if (process.env.VERCEL === "1") {
-    // Vercel overwrites these with the real client address.
+    // Vercel sets these headers with the real client address.
     const vercelIp =
       req.headers.get("x-vercel-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
       req.headers.get("x-real-ip")?.trim();
     if (vercelIp) return vercelIp;
   }

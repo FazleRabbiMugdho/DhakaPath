@@ -34,16 +34,16 @@ export async function GET(req: NextRequest) {
   );
 }
 
-const LOGIN_WINDOW_MS = 5 * 60 * 1000;
+const LOGIN_WINDOW_MS = 2 * 60 * 1000;
 // Failed logins from all callers combined: rotating IPs cannot brute-force the
 // passcode. Trade-off: a flood of failures can lock admin out for one window.
 const GLOBAL_FAILURE_KEY = "admin-login-failures:global";
-const GLOBAL_FAILURE_MAX = 20;
+const GLOBAL_FAILURE_MAX = 30;
 
 function tooMany(retryAfterSeconds: number): NextResponse {
   return noStore(
     NextResponse.json(
-      { ok: false, error: "Too many login attempts" },
+      { ok: false, error: `Too many login attempts. Please wait ${retryAfterSeconds}s.` },
       { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
     )
   );
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const global = isRateLimited(GLOBAL_FAILURE_KEY, GLOBAL_FAILURE_MAX);
   if (global.limited) return tooMany(global.retryAfterSeconds);
 
-  const limit = rateLimit(`admin-login:${clientKey(req)}`, 5, LOGIN_WINDOW_MS);
+  const limit = rateLimit(`admin-login:${clientKey(req)}`, 8, LOGIN_WINDOW_MS);
   if (!limit.ok) return tooMany(limit.retryAfterSeconds);
 
   const parsed = await readJsonBody(req, 4 * 1024);
