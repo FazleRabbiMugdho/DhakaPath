@@ -20,8 +20,13 @@ export function AssistantDock() {
       // Ctrl+/ toggles the assistant
       if (e.ctrlKey && e.key === "/") { e.preventDefault(); setOpen((v) => !v); }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("open-ask-dhakapath", onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("open-ask-dhakapath", onOpen);
+    };
   }, []);
 
   return (

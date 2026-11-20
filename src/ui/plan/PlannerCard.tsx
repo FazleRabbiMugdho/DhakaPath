@@ -5,7 +5,7 @@
 // "fake route blocked" notice when a prompt asks for a route that does not exist.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, Footprints, GraduationCap, Info, LocateFixed, Mic, MicOff, Search, ShieldAlert, Waves, X } from "lucide-react";
+import { ArrowLeftRight, Footprints, GraduationCap, Info, LocateFixed, MessageCircle, Mic, MicOff, Search, ShieldAlert, Waves, X } from "lucide-react";
 import { useDhakaPathStore } from "@/store/useDhakaPathStore";
 import { useLang } from "@/lib/i18n";
 import { DEFAULT_BUDGET_BDT, HubId, ScenarioPreset } from "@/contracts/schema";
@@ -197,6 +197,15 @@ export function PlannerCard() {
       <Btn className="mt-3 w-full" busy={isParsing} icon={<Search className="h-5 w-5" />} onClick={() => run(text)}>
         {t("যাচাই করা রুট খুঁজুন", "Find verified routes")}
       </Btn>
+
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("open-ask-dhakapath"))}
+        className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-brand/30 bg-brand-soft/40 px-3.5 py-2 text-[13px] font-bold text-brand-dark transition-colors hover:border-brand hover:bg-brand-soft"
+      >
+        <MessageCircle className="h-4 w-4 text-brand" />
+        <span>{t("সহকারীর সাথে চ্যাট করুন (Ask DhakaPath)", "Chat with AI Assistant (Ask DhakaPath)")}</span>
+      </button>
 
       {searchNotice && (
         <div role="status" className="mt-3 flex items-start gap-2 rounded-2xl border border-warn-line bg-warn-bg p-3 text-[13px] text-warn">

@@ -22,7 +22,6 @@ const contentSecurityPolicy = [
 
 const nextConfig = {
   poweredByHeader: false,
-  agentRules: false,
   async headers() {
     return [
       {

@@ -21,9 +21,10 @@ const ADMIN_TTL_MS = 8 * 60 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Next bundles each route handler separately, so a module-level random secret
-// would sign cookies that another route cannot verify. Cache one secret per
-// Node process; production deployments should still set SESSION_SECRET so all
-// instances agree.
+// would sign cookies that another route cannot verify. We prefer an explicit
+// SESSION_SECRET; without it, a secret derived from ADMIN_PASSCODE keeps
+// multi-instance serverless deployments (e.g. Vercel) consistent across cold
+// starts. This per-process random secret is the last resort.
 const RUNTIME_SECRET = (() => {
   const globalWithSecret = globalThis as typeof globalThis & {
     __dhakapathRuntimeSecret?: string;
@@ -38,6 +39,10 @@ function signingSecret(kind: string): string {
   return (
     process.env.SESSION_SECRET ||
     process.env.ADMIN_SESSION_SECRET ||
+    // Serverless instances (e.g. Vercel cold starts) must agree on the secret.
+    // Derive it from the deployment's own passcode: never from a value in the
+    // source, which would let anyone forge cookies.
+    (adminPasscode() ? `${createHmac("sha256", adminPasscode()).update("dhakapath-cookie-secret").digest("hex")}:${kind}` : "") ||
     `${RUNTIME_SECRET}:${kind}`
   );
 }
@@ -73,7 +78,7 @@ function verifyToken(kind: string, token: string | undefined, now = Date.now()):
 
 // No built-in fallback: admin stays disabled until ADMIN_PASSCODE is set (see .env.example).
 function adminPasscode(): string {
-  return process.env.ADMIN_PASSCODE ?? "";
+  return (process.env.ADMIN_PASSCODE ?? "").trim();
 }
 
 export function isAdminConfigured(): boolean {
@@ -84,7 +89,7 @@ export function verifyAdminPasscode(input: unknown): boolean {
   if (typeof input !== "string") return false;
   const expected = adminPasscode();
   if (!expected) return false;
-  return safeEqual(input, expected);
+  return safeEqual(input.trim(), expected);
 }
 
 export function createAdminCookie(): {

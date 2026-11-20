@@ -36,11 +36,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 GROQ_API_KEY=...                       # online Banglish parsing (800 ms timeout, then local lexer)
 OPENROUTER_API_KEY=...                 # free-tier LLM fallback when Groq is absent
 GEMINI_API_KEY=...                     # signboard photo transcription
-ADMIN_PASSCODE=...                     # server-only admin login (demo default: dhakapath2026 outside production)
+ADMIN_PASSCODE=...                     # server-only admin login (required; admin is disabled until set)
 SESSION_SECRET=...                     # signs anonymous + admin cookies; use a long random value in production
 ```
 
-Admin authentication is verified by `/api/admin/auth` and carried in an HttpOnly, SameSite=Strict cookie. No passcode or session token is exposed through `NEXT_PUBLIC_*`. If `ADMIN_PASSCODE` is unset in production, admin login stays disabled.
+Admin authentication is verified by `/api/admin/auth` and carried in an HttpOnly, SameSite=Strict cookie. No passcode or session token is exposed through `NEXT_PUBLIC_*`. There is no default passcode: admin stays disabled until `ADMIN_PASSCODE` is set.
 
 The SQL for the four tables with open anonymous RLS is in `supabase/migrations/0001_dhakapath_core.sql`.
 
@@ -133,7 +133,7 @@ All telemetry in the demo is simulated and labelled as such on every screen. Sup
 ## Update — conversational assistant, admin console, PWA
 
 - **Ask DhakaPath (Part 5):** a floating multi-turn assistant on every screen (bottom-right, or Ctrl+/). It understands Banglish/Bangla/English, plans routes, submits street reports through conversation, answers fare and reliability follow-ups, and keeps context. Replies are grounded by the same engine; LaTeX/markdown is rendered as clean text.
-- **Admin console (`/admin`):** server-verified passcode login (`ADMIN_PASSCODE`, demo default `dhakapath2026` outside production) backed by a signed HttpOnly cookie. Admins manage the transit network (add/remove links, signboard digitiser) and moderate alerts (confirm/clear/override), fare sanity, and the safety log. Committed links persist through `/api/admin/edges` for every user and reload. The public `/app` stays anonymous.
+- **Admin console (`/admin`):** server-verified passcode login (`ADMIN_PASSCODE`, required) backed by a signed HttpOnly cookie. Admins manage the transit network (add/remove links, signboard digitiser) and moderate alerts (confirm/clear/override), fare sanity, and the safety log. Committed links persist through `/api/admin/edges` for every user and reload. The public `/app` stays anonymous.
 - **PWA / offline:** installable (`manifest.webmanifest`) with a service worker that precaches the shell and serves it offline; the map falls back to the 15-hub schematic when tiles can't load.
 - **Current location:** "My location" uses the browser geolocation API to pick the nearest hub as the origin.
 - **LLM fallback chain:** Groq → OpenRouter (`OPENROUTER_API_KEY`, free model) → deterministic lexer, so parsing degrades gracefully.
