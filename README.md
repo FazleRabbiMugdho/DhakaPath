@@ -36,11 +36,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 GROQ_API_KEY=...                       # online Banglish parsing (800 ms timeout, then local lexer)
 OPENROUTER_API_KEY=...                 # free-tier LLM fallback when Groq is absent
 GEMINI_API_KEY=...                     # signboard photo transcription
-ADMIN_PASSCODE=...                     # server-only admin login (demo default: dhakapath2026 outside production)
+ADMIN_PASSCODE=...                     # server-only admin login (default: dhakapath2026)
 SESSION_SECRET=...                     # signs anonymous + admin cookies; use a long random value in production
 ```
 
-Admin authentication is verified by `/api/admin/auth` and carried in an HttpOnly, SameSite=Strict cookie. No passcode or session token is exposed through `NEXT_PUBLIC_*`. If `ADMIN_PASSCODE` is unset in production, admin login stays disabled.
+Admin authentication is verified by `/api/admin/auth` and carried in an HttpOnly, SameSite=Strict cookie. No passcode or session token is exposed through `NEXT_PUBLIC_*`. The default passcode is `dhakapath2026` unless customized via `ADMIN_PASSCODE`.
 
 The SQL for the four tables with open anonymous RLS is in `supabase/migrations/0001_dhakapath_core.sql`.
 
