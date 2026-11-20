@@ -5,8 +5,9 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { CommuterQuery, ScenarioPreset, HubId } from "@/contracts/schema";
-import { executeParetoSearch } from "@/engine/paretoRouter";
+import { readJsonBody } from "@/lib/http";
+import { CommuterQuery, DEFAULT_BUDGET_BDT, ScenarioPreset, HubId } from "@/contracts/schema";
+import { diagnoseEmptyResult, executeParetoSearch } from "@/engine/paretoRouter";
 import { computeCounterfactualRoi } from "@/engine/shadowBaseline";
 import { projectScenario } from "@/engine/scenarioStore";
 
@@ -31,12 +32,11 @@ function noStore(response: NextResponse): NextResponse {
 export async function POST(req: NextRequest) {
   const startTime = performance.now();
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return noStore(NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 }));
+  const parsed = await readJsonBody(req);
+  if (!parsed.ok) {
+    return noStore(NextResponse.json({ success: false, error: parsed.error }, { status: parsed.status }));
   }
+  const body = parsed.body;
 
   if (!isRecord(body)) {
     return noStore(NextResponse.json({ success: false, error: "Invalid request body" }, { status: 400 }));
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
       origin_hub_id: origin,
       dest_hub_id: dest,
       is_student: (input.is_student as boolean | undefined) ?? true,
-      max_budget_bdt: (input.max_budget_bdt as number | undefined) ?? 55,
+      max_budget_bdt: (input.max_budget_bdt as number | undefined) ?? DEFAULT_BUDGET_BDT,
       avoid_hub_ids: avoidHubIds,
       timestamp_ms: Date.now(),
     };
@@ -179,6 +179,11 @@ export async function POST(req: NextRequest) {
       scenario.active_alerts
     );
 
+    // An empty result says why, so clients can tell "over budget" from "cut off".
+    const emptyDiagnosis = paretoResult.routes.length === 0
+      ? diagnoseEmptyResult(query, preset, scenario.active_alerts, poolSizes)
+      : null;
+
     const totalServerLatencyMs = +(performance.now() - startTime).toFixed(3);
 
     return noStore(
@@ -191,6 +196,7 @@ export async function POST(req: NextRequest) {
         scenario,
         query,
         routes: paretoResult.routes,
+        ...(emptyDiagnosis ? { empty_reason: emptyDiagnosis.reason, available_fare_bdt: emptyDiagnosis.available_fare_bdt } : {}),
         roi: roiMetrics,
       })
     );

@@ -5,6 +5,7 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody } from "@/lib/http";
 import {
   parseBanglishQueryDeterministic,
   safeExtractJson,
@@ -17,18 +18,18 @@ import {
   ConversationContext,
 } from "../../../features/feature-1-commute/conversationEngine";
 import {
-  AlertStatus,
-  CrowdVote,
+  DEFAULT_BUDGET_BDT,
   HubId,
-  IncidentType,
   ParetoRouteOption,
   RouteLeg,
   ScenarioPreset,
-  StreetAlert,
   TransportMode,
   ValidationStatus,
 } from "../../../contracts/schema";
-import { clientKey, rateLimit } from "../../../lib/serverAuth";
+import { clientKey, rateLimit, resolveSession } from "../../../lib/serverAuth";
+import { getScenarioParameters } from "../../../engine/scenarioStore";
+import { getJoinedPoolSizes } from "../../../features/feature-3-trust-cms/rideSharePool";
+import { isRecord, sanitizeAlerts, validHub, VALIDATION_STATUSES } from "../../../lib/payloadValidation";
 
 export const dynamic = "force-dynamic";
 
@@ -37,33 +38,20 @@ const MAX_OCR_TEXT_CHARS = 10000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_BASE64_CHARS = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 1024;
 const MAX_ROUTE_LEGS = 30;
-const MAX_ALERTS = 100;
-const HUBS = new Set<string>(Object.values(HubId));
-const INCIDENT_TYPES = new Set<string>(Object.values(IncidentType));
-const ALERT_STATUSES = new Set<string>(Object.values(AlertStatus));
-const VALIDATION_STATUSES = new Set<string>(Object.values(ValidationStatus));
 
 const DEFAULT_CONTEXT: ConversationContext = {
   last_origin_hub_id: HubId.H_MIRPUR10,
   last_dest_hub_id: HubId.H_MOTIJHEEL,
-  last_budget_bdt: 55,
+  last_budget_bdt: DEFAULT_BUDGET_BDT,
   is_student: true,
   avoid_hub_ids: [],
   selected_route: null,
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 function json(data: unknown, status = 200): NextResponse {
   const response = NextResponse.json(data, { status });
   response.headers.set("Cache-Control", "no-store");
   return response;
-}
-
-function validHub(value: unknown): value is HubId {
-  return typeof value === "string" && HUBS.has(value);
 }
 
 function validHubList(value: unknown, max = 30): HubId[] | null {
@@ -231,89 +219,6 @@ function sanitizeContext(value: unknown): ConversationContext | null {
   return context;
 }
 
-function sanitizeAlerts(value: unknown): StreetAlert[] | null {
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > MAX_ALERTS) return null;
-
-  const alerts: StreetAlert[] = [];
-  for (const raw of value) {
-    if (!isRecord(raw)) return null;
-    if (
-      typeof raw.alert_id !== "string" ||
-      !raw.alert_id ||
-      raw.alert_id.length > 160 ||
-      typeof raw.edge_id !== "string" ||
-      !raw.edge_id ||
-      raw.edge_id.length > 120 ||
-      !validHub(raw.hub_id) ||
-      typeof raw.incident_type !== "string" ||
-      !INCIDENT_TYPES.has(raw.incident_type) ||
-      typeof raw.status !== "string" ||
-      !ALERT_STATUSES.has(raw.status) ||
-      typeof raw.validation_status !== "string" ||
-      !VALIDATION_STATUSES.has(raw.validation_status) ||
-      typeof raw.severity_alpha !== "number" ||
-      !Number.isFinite(raw.severity_alpha) ||
-      raw.severity_alpha < 0 ||
-      raw.severity_alpha > 10 ||
-      typeof raw.confidence_pct !== "number" ||
-      !Number.isFinite(raw.confidence_pct) ||
-      raw.confidence_pct < 0 ||
-      raw.confidence_pct > 100 ||
-      typeof raw.half_life_remaining_ms !== "number" ||
-      !Number.isFinite(raw.half_life_remaining_ms) ||
-      raw.half_life_remaining_ms < 0 ||
-      typeof raw.created_timestamp_ms !== "number" ||
-      !Number.isFinite(raw.created_timestamp_ms) ||
-      !Array.isArray(raw.votes) ||
-      raw.votes.length > 256
-    ) {
-      return null;
-    }
-
-    const votes: CrowdVote[] = [];
-    for (const rawVote of raw.votes) {
-      if (
-        !isRecord(rawVote) ||
-        (rawVote.direction !== 1 && rawVote.direction !== -1) ||
-        typeof rawVote.reliability_weight !== "number" ||
-        !Number.isFinite(rawVote.reliability_weight) ||
-        rawVote.reliability_weight < 0 ||
-        rawVote.reliability_weight > 1 ||
-        typeof rawVote.timestamp_ms !== "number" ||
-        !Number.isFinite(rawVote.timestamp_ms)
-      ) {
-        return null;
-      }
-      votes.push({
-        vote_id: typeof rawVote.vote_id === "string" ? rawVote.vote_id.slice(0, 160) : `vote_${votes.length}`,
-        voter_session_id:
-          typeof rawVote.voter_session_id === "string"
-            ? rawVote.voter_session_id.slice(0, 160)
-            : "api_supplied",
-        direction: rawVote.direction,
-        reliability_weight: rawVote.reliability_weight,
-        timestamp_ms: rawVote.timestamp_ms,
-      });
-    }
-
-    alerts.push({
-      alert_id: raw.alert_id,
-      edge_id: raw.edge_id,
-      hub_id: raw.hub_id,
-      incident_type: raw.incident_type as IncidentType,
-      status: raw.status as AlertStatus,
-      validation_status: raw.validation_status as ValidationStatus,
-      severity_alpha: raw.severity_alpha,
-      confidence_pct: raw.confidence_pct,
-      half_life_remaining_ms: raw.half_life_remaining_ms,
-      created_timestamp_ms: raw.created_timestamp_ms,
-      votes,
-    });
-  }
-  return alerts;
-}
-
 function mergeValidatedLlmFields(
   deterministic: BanglishParseResult,
   raw: unknown,
@@ -399,12 +304,12 @@ async function callOpenRouter(system: string, user: string, jsonMode: boolean, t
 export async function POST(req: NextRequest) {
   const startTime = performance.now();
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: "Invalid JSON body" }, 400);
+  // Signboard photos travel as base64 data URLs (≤ 5 MB image ≈ 6.7 MB text).
+  const parsed = await readJsonBody(req, MAX_BASE64_CHARS + 64 * 1024);
+  if (!parsed.ok) {
+    return json({ error: parsed.error }, parsed.status);
   }
+  const body = parsed.body;
   if (!isRecord(body)) {
     return json({ error: "Invalid request body" }, 400);
   }
@@ -563,7 +468,16 @@ If a side is not clearly one of these hubs, omit that key.`;
         return json({ error: "Invalid is_student flag" }, 400);
       }
 
-      const verifierResult = verifySubgraphTrajectory(route, Boolean(body.is_student));
+      const verifyPreset = body.preset === undefined ? ScenarioPreset.NORMAL_BASELINE : (body.preset as ScenarioPreset);
+      if (!Object.values(ScenarioPreset).includes(verifyPreset)) {
+        return json({ error: "Invalid scenario preset" }, 400);
+      }
+
+      // Surge and pool size come from server state, never from the route payload.
+      const verifierResult = verifySubgraphTrajectory(route, Boolean(body.is_student), {
+        surgeMultiplier: getScenarioParameters(verifyPreset).surge_multiplier,
+        poolSizes: getJoinedPoolSizes(resolveSession(req).sessionId),
+      });
       return json({
         ...verifierResult,
         latency_ms: Number((performance.now() - startTime).toFixed(2)),

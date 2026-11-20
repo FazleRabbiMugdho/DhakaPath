@@ -37,7 +37,8 @@ export function computePosteriorConfidence(
   votes: ReadonlyArray<Pick<CrowdVote, "direction" | "reliability_weight" | "timestamp_ms">>,
   nowMs: number
 ): number {
-  const safePrior = Math.min(1 - EPSILON, Math.max(EPSILON, prior));
+  const finitePrior = Number.isFinite(prior) ? prior : DEFAULT_OFF_PEAK_PRIOR;
+  const safePrior = Math.min(1 - EPSILON, Math.max(EPSILON, finitePrior));
   let logOdds = Math.log((safePrior + EPSILON) / (1 - safePrior + EPSILON));
 
   for (const v of votes) {

@@ -5,6 +5,7 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody } from "@/lib/http";
 import {
   HubId,
   TransitEdge,
@@ -14,10 +15,21 @@ import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../../../../contracts/canoni
 import { getExtraEdges, setExtraEdges } from "../../../../engine/graphExtensions";
 import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../../../../engine/fareEngine";
 import { isAdminRequest } from "../../../../lib/serverAuth";
+import { haversineKm } from "../../../../data/dhakaRoadNetwork";
 
 export const dynamic = "force-dynamic";
 
 const MAX_EXTRA_EDGES = 500;
+// Upper bounds on average speed per mode (MRT-6 design speed is 100 km/h).
+const MAX_SPEED_KMH: Record<TransportMode, number> = {
+  [TransportMode.WALK]: 7,
+  [TransportMode.RICKSHAW]: 20,
+  [TransportMode.LEGUNA]: 40,
+  [TransportMode.BUS]: 60,
+  [TransportMode.METRO]: 100,
+};
+// Road distance can't be much shorter than the straight line between hubs.
+const MIN_DISTANCE_RATIO = 0.8;
 const CANONICAL_IDS = new Set(CANONICAL_GRAPH_G0.map((edge) => edge.edge_id));
 
 function noStore(response: NextResponse): NextResponse {
@@ -65,6 +77,18 @@ function validateAndNormalizeEdge(raw: unknown): { edge?: TransitEdge; error?: s
   const durationMs = input.base_duration_ms;
   if (!isFiniteNumber(durationMs) || durationMs <= 0 || durationMs > 24 * 60 * 60 * 1000) {
     return { error: "base_duration_ms must be positive and under 24 hours" };
+  }
+  // Physical plausibility: the router prefers fast links, so an impossible one
+  // (e.g. a 600 km/h bus) would hijack every route.
+  if (origin !== dest) {
+    const straightKm = haversineKm([CANONICAL_HUBS[origin].lat, CANONICAL_HUBS[origin].lng], [CANONICAL_HUBS[dest].lat, CANONICAL_HUBS[dest].lng]);
+    if (distanceKm < MIN_DISTANCE_RATIO * straightKm) {
+      return { error: `distance_km must be at least ${(MIN_DISTANCE_RATIO * straightKm).toFixed(1)} km (straight-line distance between the hubs is ${straightKm.toFixed(1)} km)` };
+    }
+  }
+  const speedKmh = distanceKm / (durationMs / 3_600_000);
+  if (speedKmh > MAX_SPEED_KMH[mode]) {
+    return { error: `Implied speed ${speedKmh.toFixed(0)} km/h exceeds the ${MAX_SPEED_KMH[mode]} km/h limit for ${mode}` };
   }
   const landmark =
     typeof input.boarding_landmark === "string"
@@ -121,12 +145,11 @@ export async function POST(req: NextRequest) {
     return noStore(NextResponse.json({ ok: false, error: "Extension graph is full" }, { status: 409 }));
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return noStore(NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 }));
+  const parsed = await readJsonBody(req, 8 * 1024);
+  if (!parsed.ok) {
+    return noStore(NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status }));
   }
+  const body = parsed.body;
 
   const rawEdge = body && typeof body === "object" && !Array.isArray(body)
     ? (body as { edge?: unknown }).edge ?? body
@@ -150,12 +173,8 @@ export async function DELETE(req: NextRequest) {
   let edgeId = url.searchParams.get("edgeId") ?? "";
 
   if (!edgeId) {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      body = null;
-    }
+    const parsed = await readJsonBody(req, 4 * 1024);
+    const body = parsed.ok ? parsed.body : null;
     if (body && typeof body === "object" && !Array.isArray(body)) {
       const candidate = (body as { edgeId?: unknown }).edgeId;
       if (typeof candidate === "string") edgeId = candidate;

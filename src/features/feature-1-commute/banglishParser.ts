@@ -4,7 +4,7 @@
 // INIF 2026 DhakaPath — Track 3 (Dev 3: AI, NLP & Vision Engineer)
 // ==============================================================================
 
-import { HubId } from "../../contracts/schema";
+import { DEFAULT_BUDGET_BDT, HubId } from "../../contracts/schema";
 import {
   findHubMentions,
   HubMention,
@@ -180,7 +180,9 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
   let destResolved = false;
 
   const thekeRegex = /^\s*(?:theke|thekey|from|থেকে)(?=$|[\s,;.!?।])/i;
-  const jaboRegex = /^\s*(?:jabo|zabo|porjonto|to|যাব|যেতে|পর্যন্ত)(?=$|[\s,;.!?।])/i;
+  const jaboRegex = /^\s*(?:jabo|zabo|porjonto|যাব|যেতে|পর্যন্ত)(?=$|[\s,;.!?।])/i;
+  // English "X to Y" / "X -> Y": the hub *before* the connector is the origin.
+  const toConnectorRegex = /^\s*(?:to\b|->|→)/i;
 
   let explicitOrigin: HubMention | null = null;
   let explicitDest: HubMention | null = null;
@@ -189,7 +191,7 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
     const postSnippet = text.slice(hit.end, hit.end + 16);
     const preSnippet = text.slice(Math.max(0, hit.start - 12), hit.start);
 
-    if (!explicitOrigin && (thekeRegex.test(postSnippet) || /\bfrom\s*$/i.test(preSnippet))) {
+    if (!explicitOrigin && (thekeRegex.test(postSnippet) || toConnectorRegex.test(postSnippet) || /\bfrom\s*$/i.test(preSnippet))) {
       explicitOrigin = hit;
     }
     if (!explicitDest && (jaboRegex.test(postSnippet) || /\bto\s*$/i.test(preSnippet) || /(?:->|→)\s*$/i.test(preSnippet))) {
@@ -246,10 +248,13 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
   const numericText = normalizeDigitsToAscii(text);
   const isFareQuestion = /(?:koto|kto|how\s+much|কত|ভাড়া\s*কত)/iu.test(numericText);
   const hasExplicitBudgetContext = /(?:budget|under|within|max|moddhe|মধ্যে|takar\s*moddhe|মাসিক)/iu.test(numericText);
-  let max_budget_bdt = 100;
+  let max_budget_bdt = DEFAULT_BUDGET_BDT;
   let budget_token: string | undefined;
 
-  if (!isFareQuestion || hasExplicitBudgetContext) {
+  const noBudgetMatch = numericText.match(/\b(?:no|any)\s+budget\b|\bbudget\s+(?:nai|nei|nay)\b|বাজেট\s*নেই/iu);
+  if (noBudgetMatch) {
+    budget_token = noBudgetMatch[0].trim(); // explicit "no limit" (DEFAULT_BUDGET_BDT = 0)
+  } else if (!isFareQuestion || hasExplicitBudgetContext) {
     const budgetMatch =
       numericText.match(/(?:budget|max|under|within)\s*[:=-]?\s*(\d{1,4})/i) ||
       numericText.match(/(\d{1,4})\s*(?:taka|takar|tk|bdt|৳|টাকা)\s*(?:er\s*)?(?:moddhe|মধ্যে|under|within|max)?/i);

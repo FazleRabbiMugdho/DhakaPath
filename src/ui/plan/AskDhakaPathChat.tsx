@@ -22,7 +22,7 @@ import {
   ChatMessage,
   ConversationContext,
 } from "@/features/feature-1-commute/conversationEngine";
-import { CommuterQuery, HubId, StreetAlert } from "@/contracts/schema";
+import { CommuterQuery, DEFAULT_BUDGET_BDT, HubId, StreetAlert } from "@/contracts/schema";
 
 type ChatTurnResponse = {
   replyText?: string;
@@ -299,7 +299,7 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
     setContext({
       last_origin_hub_id: HubId.H_MIRPUR10,
       last_dest_hub_id: HubId.H_MOTIJHEEL,
-      last_budget_bdt: 55,
+      last_budget_bdt: DEFAULT_BUDGET_BDT,
       is_student: true,
       avoid_hub_ids: [],
       selected_route: null,

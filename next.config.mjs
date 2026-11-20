@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === "production";
+// HTTPS-only directives break plain-HTTP hosting (e.g. `npm start` on a LAN for a phone demo),
+// so send them only when the deployment is known to be HTTPS.
+const httpsOnly = isProd && (process.env.VERCEL === "1" || process.env.FORCE_HTTPS === "1");
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -14,7 +17,7 @@ const contentSecurityPolicy = [
   "connect-src 'self' https: wss:",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
-  ...(isProd ? ["upgrade-insecure-requests"] : []),
+  ...(httpsOnly ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const nextConfig = {
@@ -29,10 +32,11 @@ const nextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // The planner uses "my location" and voice search on our own origin.
+          { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(self)" },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "X-DNS-Prefetch-Control", value: "off" },
-          ...(isProd
+          ...(httpsOnly
             ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
             : []),
         ],

@@ -13,11 +13,12 @@ import {
   IncidentType,
   ValidationStatus,
   CommuterQuery,
+  DEFAULT_BUDGET_BDT,
   ParetoRouteOption,
   TransportMode,
 } from "../../contracts/schema";
 import { CANONICAL_HUBS, CANONICAL_GRAPH_G0 } from "../../contracts/canonicalGraph";
-import { executeParetoSearch } from "../../engine/paretoRouter";
+import { diagnoseEmptyResult, executeParetoSearch } from "../../engine/paretoRouter";
 import { parseBanglishQueryDeterministic } from "./banglishParser";
 import {
   findHubMentions,
@@ -591,12 +592,18 @@ export function processConversationTurn(
     : context.last_dest_hub_id;
   const effectiveStudent =
     parsed.extracted_raw.student_token !== undefined ? parsed.is_student : context.is_student;
+  // A new trip starts from fresh constraints; only refinements of the same trip
+  // inherit the previous budget and avoid list.
+  const tripChanged =
+    effectiveOrigin !== context.last_origin_hub_id || effectiveDest !== context.last_dest_hub_id;
   const effectiveBudget =
     parsed.extracted_raw.budget_token !== undefined
       ? parsed.max_budget_bdt
-      : context.last_budget_bdt;
+      : tripChanged
+        ? DEFAULT_BUDGET_BDT
+        : context.last_budget_bdt;
   const effectiveAvoid = Array.from(
-    new Set([...context.avoid_hub_ids, ...(parsed.avoid_hub_ids || [])])
+    new Set([...(tripChanged ? [] : context.avoid_hub_ids), ...(parsed.avoid_hub_ids || [])])
   ).filter((hub) => hub !== effectiveOrigin && hub !== effectiveDest);
   const reusedContext = !parsed.origin_resolved && !parsed.dest_resolved;
 
@@ -642,7 +649,18 @@ export function processConversationTurn(
       `⏱️ **Duration:** **${Math.round(optimal.total_duration_ms / 60000)} mins** • Transfers: **${optimal.transfers_count}**\n` +
       `🛡️ Verified $V(P^*)=1$ across 15 canonical hubs. Check detailed route cards below!`;
   } else {
-    replyText = `Searched for **${originName} → ${destName}**, but could not find a path under ${effectiveBudget} BDT budget. Try increasing budget or removing avoided hubs!`;
+    const diagnosis = diagnoseEmptyResult(
+      { ...(resolvedQuery as CommuterQuery), action_id: "CHAT_DIAGNOSE", timestamp_ms: Date.now() },
+      preset,
+      activeAlerts
+    );
+    const avoidedNames = effectiveAvoid.map((hub) => CANONICAL_HUBS[hub]?.name_en || hub).join(", ");
+    replyText =
+      diagnosis.reason === "BUDGET"
+        ? `No route for **${originName} → ${destName}** fits your **${effectiveBudget} BDT** budget. The cheapest grounded route I found costs **${diagnosis.available_fare_bdt} BDT** — say "budget ${diagnosis.available_fare_bdt}" or "no budget" to see it.`
+        : diagnosis.reason === "AVOIDED_HUBS"
+          ? `Every route for **${originName} → ${destName}** passes through a hub you asked to avoid (**${avoidedNames}**). Remove one to get a route.`
+          : `**${originName}** and **${destName}** are cut off right now by verified disruptions. Try again later or pick a nearby hub.`;
   }
 
   return {

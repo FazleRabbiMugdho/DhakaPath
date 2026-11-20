@@ -24,7 +24,8 @@ export interface HubRideSharePoolState {
   readonly perPersonFareBdt: number;
   readonly totalSurgedFareBdt: number;
   readonly savingsBdt: number;
-  readonly memberSessionIds: ReadonlyArray<string>;
+  // Member session IDs are deliberately not exposed: other commuters' anonymous
+  // IDs must not be readable through the public pool endpoint.
   readonly isUserJoined: boolean;
   readonly lastResolvedActionId: string;
   readonly updatedTimestampMs: number;
@@ -75,7 +76,8 @@ interface PoolActionSnapshot {
 }
 
 interface PoolEntry {
-  readonly members: Set<string>;
+  /** session id -> joined-at ms (Infinity for the demo's seeded riders). */
+  readonly members: Map<string, number>;
   readonly baseFare: number;
   readonly surge: number;
   readonly hubId: string;
@@ -85,6 +87,8 @@ interface PoolEntry {
 
 const ACTION_HISTORY_MAX = 128;
 const ACTION_TTL_MS = 10 * 60 * 1000;
+// A join is a seat held for a ride that is about to leave; abandoned seats free up.
+export const POOL_MEMBER_TTL_MS = 15 * 60 * 1000;
 
 function createPoolEntry(
   baseFare: number,
@@ -93,7 +97,7 @@ function createPoolEntry(
   members: string[]
 ): PoolEntry {
   return {
-    members: new Set(members),
+    members: new Map(members.map((id) => [id, Number.POSITIVE_INFINITY])),
     baseFare,
     surge,
     hubId,
@@ -117,6 +121,12 @@ const inMemoryPoolRegistry: Map<string, PoolEntry> = new Map([
     createPoolEntry(40, 1.5, "H_MIRPUR10", ["commuter_seed_3", "commuter_seed_4", "commuter_seed_5"]),
   ],
 ]);
+
+function pruneExpiredMembers(entry: PoolEntry, nowMs: number): void {
+  for (const [sessionId, joinedAt] of entry.members) {
+    if (nowMs - joinedAt > POOL_MEMBER_TTL_MS) entry.members.delete(sessionId);
+  }
+}
 
 function pruneActionHistory(entry: PoolEntry, nowMs: number): void {
   for (const [actionId, snapshot] of entry.actionHistory) {
@@ -148,7 +158,6 @@ function buildState(
     perPersonFareBdt: split.perPersonFareBdt,
     totalSurgedFareBdt: split.totalSurgedFareBdt,
     savingsBdt: split.savingsBdt,
-    memberSessionIds: [...members],
     isUserJoined: members.includes(sessionUserId),
     lastResolvedActionId: actionId,
     updatedTimestampMs,
@@ -213,16 +222,18 @@ export function mutateRideSharePool(
     inMemoryPoolRegistry.set(edgeId, poolEntry);
   }
 
+  pruneExpiredMembers(poolEntry, now);
   if (direction === "JOIN") {
-    if (poolEntry.members.size < 4 && !poolEntry.members.has(sessionUserId)) {
-      poolEntry.members.add(sessionUserId);
+    // Re-joining refreshes the seat's expiry.
+    if (poolEntry.members.has(sessionUserId) || poolEntry.members.size < 4) {
+      poolEntry.members.set(sessionUserId, now);
     }
   } else if (poolEntry.members.has(sessionUserId)) {
     poolEntry.members.delete(sessionUserId);
   }
 
   poolEntry.lastActionId = actionId;
-  const members = Array.from(poolEntry.members);
+  const members = Array.from(poolEntry.members.keys());
   poolEntry.actionHistory.set(actionId, {
     direction,
     actorSessionId: sessionUserId,
@@ -246,6 +257,19 @@ export function getPoolSnapshot(
 ): HubRideSharePoolState {
   const poolEntry = inMemoryPoolRegistry.get(edgeId) ??
     createPoolEntry(50, 1.8, "H_MOTIJHEEL", ["commuter_seed_1", "commuter_seed_2"]);
+  const now = Date.now();
+  pruneExpiredMembers(poolEntry, now);
 
-  return buildState(edgeId, poolEntry, Array.from(poolEntry.members), sessionUserId, poolEntry.lastActionId, Date.now());
+  return buildState(edgeId, poolEntry, Array.from(poolEntry.members.keys()), sessionUserId, poolEntry.lastActionId, now);
+}
+
+/** Pool sizes for the pools this session currently holds a seat in (for fare verification). */
+export function getJoinedPoolSizes(sessionUserId: string): Record<string, number> {
+  const now = Date.now();
+  const sizes: Record<string, number> = {};
+  for (const [edgeId, entry] of inMemoryPoolRegistry) {
+    pruneExpiredMembers(entry, now);
+    if (entry.members.has(sessionUserId)) sizes[edgeId] = Math.min(4, entry.members.size);
+  }
+  return sizes;
 }

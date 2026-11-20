@@ -350,3 +350,33 @@ export function executeParetoSearch(
 export function clearRouteCache(): void {
   routeCache.clear();
 }
+
+export type EmptyRouteReason = "BUDGET" | "AVOIDED_HUBS" | "DISRUPTION";
+
+export interface EmptyRouteDiagnosis {
+  readonly reason: EmptyRouteReason;
+  /** For BUDGET: fare of the cheapest route found once the budget is lifted. */
+  readonly available_fare_bdt?: number;
+}
+
+/**
+ * Explains an empty search result by relaxing one constraint at a time:
+ * budget first, then the avoid list. If neither helps, live disruptions
+ * (severed corridors) are what disconnects the trip.
+ */
+export function diagnoseEmptyResult(
+  query: CommuterQuery,
+  preset: ScenarioPreset,
+  activeAlerts: ReadonlyArray<StreetAlert> = [],
+  poolSizes: Readonly<Record<string, number>> = {}
+): EmptyRouteDiagnosis {
+  const unlimited = executeParetoSearch({ ...query, max_budget_bdt: 0 }, preset, activeAlerts, poolSizes);
+  if (unlimited.routes.length > 0) {
+    return {
+      reason: "BUDGET",
+      available_fare_bdt: Math.min(...unlimited.routes.map((route) => route.total_effective_fare_bdt)),
+    };
+  }
+  const noAvoid = executeParetoSearch({ ...query, max_budget_bdt: 0, avoid_hub_ids: [] }, preset, activeAlerts, poolSizes);
+  return { reason: noAvoid.routes.length > 0 ? "AVOIDED_HUBS" : "DISRUPTION" };
+}

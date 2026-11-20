@@ -5,11 +5,13 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody } from "@/lib/http";
 import {
   clearAdminCookie,
   createAdminCookie,
   isAdminConfigured,
   isAdminRequest,
+  isRateLimited,
   rateLimit,
   clientKey,
   verifyAdminPasscode,
@@ -32,23 +34,39 @@ export async function GET(req: NextRequest) {
   );
 }
 
+const LOGIN_WINDOW_MS = 5 * 60 * 1000;
+// Failed logins from all callers combined: rotating IPs cannot brute-force the
+// passcode. Trade-off: a flood of failures can lock admin out for one window.
+const GLOBAL_FAILURE_KEY = "admin-login-failures:global";
+const GLOBAL_FAILURE_MAX = 20;
+
+function tooMany(retryAfterSeconds: number): NextResponse {
+  return noStore(
+    NextResponse.json(
+      { ok: false, error: "Too many login attempts" },
+      { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+    )
+  );
+}
+
 export async function POST(req: NextRequest) {
-  const limit = rateLimit(`admin-login:${clientKey(req)}`, 5, 5 * 60 * 1000);
-  if (!limit.ok) {
+  if (!isAdminConfigured()) {
     return noStore(
-      NextResponse.json(
-        { ok: false, error: "Too many login attempts" },
-        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
-      )
+      NextResponse.json({ ok: false, error: "Admin is disabled: ADMIN_PASSCODE is not set" }, { status: 503 })
     );
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return noStore(NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 }));
+  const global = isRateLimited(GLOBAL_FAILURE_KEY, GLOBAL_FAILURE_MAX);
+  if (global.limited) return tooMany(global.retryAfterSeconds);
+
+  const limit = rateLimit(`admin-login:${clientKey(req)}`, 5, LOGIN_WINDOW_MS);
+  if (!limit.ok) return tooMany(limit.retryAfterSeconds);
+
+  const parsed = await readJsonBody(req, 4 * 1024);
+  if (!parsed.ok) {
+    return noStore(NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status }));
   }
+  const body = parsed.body;
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return noStore(NextResponse.json({ ok: false, error: "Invalid request body" }, { status: 400 }));
@@ -56,6 +74,7 @@ export async function POST(req: NextRequest) {
 
   const passcode = (body as { passcode?: unknown }).passcode;
   if (!verifyAdminPasscode(passcode)) {
+    rateLimit(GLOBAL_FAILURE_KEY, GLOBAL_FAILURE_MAX, LOGIN_WINDOW_MS);
     return noStore(NextResponse.json({ ok: false, error: "Invalid passcode" }, { status: 401 }));
   }
 

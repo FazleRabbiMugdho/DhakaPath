@@ -101,9 +101,28 @@ export function verifyCandidateEdge(edge: Partial<TransitEdge>): {
 // ------------------------------------------------------------------------------
 // 2. Full Trajectory Verifier: V(P) = prod I(e_j in E) * I(T < inf) * I(|C - C_stat| < eps)
 // ------------------------------------------------------------------------------
+/**
+ * Server- or router-side pricing truth. Surge and pool size are never taken
+ * from the route payload: a client could otherwise claim a 4-way pool or no
+ * surge to make an under-priced leg look grounded.
+ */
+export interface VerifierPricingContext {
+  /** Scenario surge for connector legs (default 1.0). */
+  readonly surgeMultiplier?: number;
+  /** Pool sizes the commuter has actually joined, keyed by edge_id. Solo (1) is always allowed. */
+  readonly poolSizes?: Readonly<Record<string, number>>;
+}
+
+const SUM_EPSILON = 1e-6;
+
+function findEdgeById(edgeId: string): TransitEdge | undefined {
+  return CANONICAL_EDGE_MAP.get(edgeId) ?? getExtraEdges().find((e) => e.edge_id === edgeId);
+}
+
 export function verifySubgraphTrajectory(
   route: ParetoRouteOption,
-  isStudent: boolean
+  isStudent: boolean,
+  pricing: VerifierPricingContext = {}
 ): SubgraphVerificationResult {
   const startTime = performance.now();
 
@@ -148,22 +167,34 @@ export function verifySubgraphTrajectory(
       break;
     }
 
-    // Check 2: Canonical Edge Grounding in G_0
-    const edgeVerification = verifyCandidateEdge({
-      edge_id: leg.edge_id,
-      origin_hub_id: leg.origin_hub_id,
-      dest_hub_id: leg.dest_hub_id,
-      mode: leg.mode,
-    });
-
-    if (!edgeVerification.isValid) {
+    // Check 2: Edge Grounding — the leg's edge_id must exist in G_0 (or committed
+    // extensions) and connect exactly the hubs the leg claims. No hub-pair fallback:
+    // a hallucinated ID on a real hub pair is still a hallucination.
+    const canonicalEdge = findEdgeById(leg.edge_id);
+    if (
+      !canonicalEdge ||
+      canonicalEdge.origin_hub_id !== leg.origin_hub_id ||
+      canonicalEdge.dest_hub_id !== leg.dest_hub_id
+    ) {
       edgesGrounded = false;
-      violationReason = `Leg ${i + 1}: Edge ${leg.origin_hub_id} -> ${leg.dest_hub_id} (${leg.mode}) Not in Canonical Graph G_0`;
+      violationReason = canonicalEdge
+        ? `Leg ${i + 1}: Edge ${leg.edge_id} connects ${canonicalEdge.origin_hub_id} -> ${canonicalEdge.dest_hub_id}, not ${leg.origin_hub_id} -> ${leg.dest_hub_id}`
+        : `Leg ${i + 1}: Edge ${leg.edge_id} (${leg.origin_hub_id} -> ${leg.dest_hub_id}, ${leg.mode}) Not in Canonical Graph G_0`;
       failedIndex = i;
       break;
     }
 
-    const canonicalEdge = edgeVerification.groundedEdge;
+    // Check 2c: Duration — finite and never faster than the edge's base time
+    // (disruptions only slow a leg down).
+    if (
+      !Number.isFinite(leg.effective_duration_ms) ||
+      leg.effective_duration_ms + SUM_EPSILON < canonicalEdge.base_duration_ms
+    ) {
+      edgesGrounded = false;
+      violationReason = `Leg ${i + 1}: duration ${leg.effective_duration_ms} ms is below the edge's base ${canonicalEdge.base_duration_ms} ms`;
+      failedIndex = i;
+      break;
+    }
 
     // Check 2b: Mode must match the grounded edge. A leg cannot claim WALK (or
     // another cheap mode) while pointing at a motorized canonical edge ID.
@@ -176,8 +207,10 @@ export function verifySubgraphTrajectory(
 
     // Check 3: Statutory Fare Grounding Law — |C_hat_j - C_fare(e_j, u_stu, t)| < 1e-6.
     // The fare is recomputed independently from the fare engine, never trusted from the leg.
-    if (canonicalEdge) {
-      let expectedFare: number;
+    {
+      const surge = pricing.surgeMultiplier ?? 1;
+      let expectedFares: number[];
+      let expectedRegular: number;
       if (leg.mode === TransportMode.METRO) {
         // MRT-6 is a station-to-station ticket with zero student discount: continuation
         // legs only pay the incremental fare from the boarding station.
@@ -185,16 +218,27 @@ export function verifySubgraphTrajectory(
         while (boardIdx > 0 && route.legs[boardIdx - 1].mode === TransportMode.METRO) boardIdx--;
         const board = route.legs[boardIdx].origin_hub_id;
         try {
-          expectedFare = computeMrt6FareBdt(board, leg.dest_hub_id) - computeMrt6FareBdt(board, leg.origin_hub_id);
+          expectedRegular = computeMrt6FareBdt(board, leg.dest_hub_id) - computeMrt6FareBdt(board, leg.origin_hub_id);
         } catch {
-          expectedFare = Number.NaN; // no official MRT-6 fare for this station pair: ungrounded
+          expectedRegular = Number.NaN; // no official MRT-6 fare for this station pair: ungrounded
         }
+        expectedFares = [expectedRegular];
       } else {
-        expectedFare = computeLegCost(canonicalEdge, isStudent, leg.surge_multiplier, leg.pool_size_count);
+        // Solo is always a legal price; a pooled price only for a pool actually joined.
+        const joinedPool = pricing.poolSizes?.[leg.edge_id];
+        const pools = joinedPool && joinedPool > 1 ? [1, joinedPool] : [1];
+        expectedFares = pools.map((pool) => computeLegCost(canonicalEdge, isStudent, surge, pool));
+        expectedRegular = computeLegCost(canonicalEdge, false, surge, 1);
       }
-      if (!(Math.abs(leg.effective_fare_bdt - expectedFare) < 1e-6)) {
+      if (!expectedFares.some((fare) => Math.abs(leg.effective_fare_bdt - fare) < SUM_EPSILON)) {
         faresGrounded = false;
-        violationReason = `Leg ${i + 1}: ${leg.mode} fare ${leg.effective_fare_bdt} BDT does not match statutory fare ${expectedFare} BDT`;
+        violationReason = `Leg ${i + 1}: ${leg.mode} fare ${leg.effective_fare_bdt} BDT does not match statutory fare ${expectedFares.join(" or ")} BDT`;
+        failedIndex = i;
+        break;
+      }
+      if (!(Math.abs(leg.regular_fare_bdt - expectedRegular) < SUM_EPSILON)) {
+        faresGrounded = false;
+        violationReason = `Leg ${i + 1}: ${leg.mode} regular fare ${leg.regular_fare_bdt} BDT does not match statutory fare ${expectedRegular} BDT`;
         failedIndex = i;
         break;
       }
@@ -216,6 +260,24 @@ export function verifySubgraphTrajectory(
           break;
         }
       }
+    }
+  }
+
+  // Check 5: Route totals must equal the sum of their legs.
+  if (edgesGrounded && modesValid && faresGrounded && continuityValid) {
+    const sum = (pick: (leg: ParetoRouteOption["legs"][number]) => number) =>
+      route.legs.reduce((total, leg) => total + pick(leg), 0);
+    const mismatches = [
+      ["total_effective_fare_bdt", route.total_effective_fare_bdt, sum((l) => l.effective_fare_bdt)],
+      ["total_regular_fare_bdt", route.total_regular_fare_bdt, sum((l) => l.regular_fare_bdt)],
+      ["total_duration_ms", route.total_duration_ms, sum((l) => l.effective_duration_ms)],
+    ].filter(([, claimed, actual]) => !(Math.abs((claimed as number) - (actual as number)) < SUM_EPSILON));
+    if (mismatches.length > 0) {
+      const [field, claimed, actual] = mismatches[0];
+      if (field === "total_duration_ms") edgesGrounded = false;
+      else faresGrounded = false;
+      violationReason = `Route ${field} ${claimed} does not equal the sum of its legs (${actual})`;
+      failedIndex = -1;
     }
   }
 
@@ -265,7 +327,8 @@ export function verifySubgraphTrajectory(
 // ------------------------------------------------------------------------------
 export function sanitizeAndFilterParetoRoutes(
   routes: ReadonlyArray<ParetoRouteOption>,
-  isStudent: boolean
+  isStudent: boolean,
+  pricing: VerifierPricingContext = {}
 ): {
   verifiedRoutes: ParetoRouteOption[];
   interceptions: AuditInterceptionEvent[];
@@ -274,7 +337,7 @@ export function sanitizeAndFilterParetoRoutes(
   const interceptions: AuditInterceptionEvent[] = [];
 
   for (const route of routes) {
-    const result = verifySubgraphTrajectory(route, isStudent);
+    const result = verifySubgraphTrajectory(route, isStudent, pricing);
     if (result.isValid) {
       verifiedRoutes.push({
         ...route,
