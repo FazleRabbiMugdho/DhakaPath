@@ -34,6 +34,9 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "DhakaPath" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/icon-192.png" },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {

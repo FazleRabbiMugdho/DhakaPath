@@ -441,49 +441,65 @@ export async function POST(req: NextRequest) {
         return json({ ok: false, reason: "invalid or oversized image" }, 400);
       }
 
-      const geminiKey = process.env.GEMINI_API_KEY;
-      if (!geminiKey) return json({ ok: false, reason: "vision unavailable" });
+      const geminiKey = process.env.GEMINI_API_KEY?.trim();
+      if (!geminiKey) return json({ ok: false, reason: "vision unavailable" }, 200);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
       try {
-        const res = await fetch(
-          "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-goog-api-key": geminiKey,
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    {
-                      text:
-                        "This is a Dhaka bus signboard, printed fare chart or handwritten route note. " +
-                        "Transcribe every route as one line in the exact form: <Origin> -> <Destination> : <fare> BDT. " +
-                        "Add the word metro if it is a metro rail fare. Output only those lines, no commentary.",
-                    },
-                    { inline_data: { mime_type: image.mime, data: image.data } },
-                  ],
+        const models = ["gemini-1.5-flash", "gemini-2.0-flash"];
+        let data: any = null;
+        for (const model of models) {
+          try {
+            const res = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": geminiKey,
                 },
-              ],
-            }),
-            signal: controller.signal,
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      parts: [
+                        {
+                          text:
+                            "This is a Dhaka bus signboard, printed fare chart or handwritten route note. " +
+                            "Transcribe every route as one line in the exact form: <Origin> -> <Destination> : <fare> BDT. " +
+                            "Add the word metro if it is a metro rail fare. Output only those lines, no commentary.",
+                        },
+                        { inline_data: { mime_type: image.mime, data: image.data } },
+                      ],
+                    },
+                  ],
+                }),
+                signal: controller.signal,
+              }
+            );
+            if (res.ok) {
+              data = await res.json();
+              break;
+            } else {
+              const errBody = await res.text().catch(() => "");
+              console.warn(`Gemini OCR model ${model} returned ${res.status}:`, errBody);
+            }
+          } catch (modelErr) {
+            console.warn(`Gemini OCR model ${model} fetch error:`, modelErr);
           }
-        );
-        if (!res.ok) {
-          return json({ ok: false, reason: "vision error" }, 502);
         }
-        const data = await res.json();
+
+        if (!data) {
+          return json({ ok: false, reason: "vision error" }, 200);
+        }
+
         const text = String(data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").slice(
           0,
           MAX_OCR_TEXT_CHARS
         );
         return json({ ok: text.trim().length > 0, rawOcrText: text.trim() });
       } catch {
-        return json({ ok: false, reason: "vision timeout" }, 504);
+        return json({ ok: false, reason: "vision timeout" }, 200);
       } finally {
         clearTimeout(timeoutId);
       }
