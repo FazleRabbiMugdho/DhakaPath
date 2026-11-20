@@ -203,13 +203,20 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
       setBusy(true);
 
       try {
+        const effectiveContext: ConversationContext = {
+          ...context,
+          selected_route: context.selected_route || store.selectedRoute || null,
+          last_origin_hub_id: context.last_origin_hub_id || activeQuery.origin_hub_id,
+          last_dest_hub_id: context.last_dest_hub_id || activeQuery.dest_hub_id,
+        };
+
         const res = await fetch("/api/track-3-commute", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "chat_turn",
             query: trimmed,
-            context,
+            context: effectiveContext,
             preset: activePreset,
             activeAlerts: alerts,
           }),

@@ -179,8 +179,8 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
   let originResolved = false;
   let destResolved = false;
 
-  const thekeRegex = /^\s*(?:theke|thekey|from|থেকে)(?=$|[\s,;.!?।])/i;
-  const jaboRegex = /^\s*(?:jabo|zabo|porjonto|to|যাব|যেতে|পর্যন্ত)(?=$|[\s,;.!?।])/i;
+  const thekeRegex = /^\s*(?:theke|thekey|থেকে)(?=$|[\s,;.!?।])/i;
+  const jaboRegex = /^\s*(?:jabo|zabo|porjonto|যাব|যেতে|পর্যন্ত)(?=$|[\s,;.!?।])/i;
 
   let explicitOrigin: HubMention | null = null;
   let explicitDest: HubMention | null = null;
@@ -192,7 +192,7 @@ export function parseBanglishQueryDeterministic(rawText: string): BanglishParseR
     if (!explicitOrigin && (thekeRegex.test(postSnippet) || /\bfrom\s*$/i.test(preSnippet))) {
       explicitOrigin = hit;
     }
-    if (!explicitDest && (jaboRegex.test(postSnippet) || /\bto\s*$/i.test(preSnippet) || /(?:->|→)\s*$/i.test(preSnippet))) {
+    if (!explicitDest && (jaboRegex.test(postSnippet) || /\bto\s*$/i.test(preSnippet) || /(?:->|→|-|>)\s*$/i.test(preSnippet))) {
       explicitDest = hit;
     }
   }

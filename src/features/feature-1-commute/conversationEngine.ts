@@ -180,7 +180,7 @@ export function classifyConversationTurn(
   // 2. FARE_QUESTION check. This also catches "Mirpur 10 taka koto?" so the
   // number in the destination name is never mistaken for a 10 BDT budget.
   if (
-    /(?:why.*(?:fare|cost|price|48)|fare\s*breakdown|how\s*(?:much|is).*fare|kivabe.*holo|bhara.*kivabe|ভাড়া.*(?:কেন|হিসাব|কত)|student pass.*rule|10 taka keno|(?:\d+|taka|tk|bdt|৳|টাকা)\s*(?:koto|kto|কত)|(?:koto|kto|কত).*(?:taka|tk|bdt|৳|টাকা))/iu.test(normalized)
+    /(?:why.*(?:fare|cost|price|48)|fare\s*(?:breakdown|rule|details|chart|info)?|how\s*(?:much|is).*fare|how\s*does.*(?:student|pass|fare|discount)|(?:student|metro|bus)\s*(?:fare|pass|discount|rule|rate)|kivabe.*holo|bhara.*kivabe|ভাড়া.*(?:কেন|হিসাব|কত|নিয়ম|চার্ট)|(?:ছাত্র|স্টুডেন্ট|মেট্রো|বাস).*(?:ভাড়া|ছাড়)|student pass.*rule|10 taka keno|(?:\d+|taka|tk|bdt|৳|টাকা)\s*(?:koto|kto|কত)|(?:koto|kto|কত).*(?:taka|tk|bdt|৳|টাকা))/iu.test(normalized)
   ) {
     return {
       intent: "FARE_QUESTION",
@@ -260,6 +260,35 @@ export function processConversationTurn(
   // CASE 0: CLARIFY
   // ----------------------------------------------------------------------------
   if (intent === "CLARIFY") {
+    const isGreeting = /^(?:hi|hello|hey|salam|assalamu\s*alaikum|slm|hola|নমস্কার|সালাম|হ্যালো|হাই)(?:[!.\s]|$)/iu.test(rawUserText.trim());
+    const isThanks = /^(?:thank\s*you|thanks|thx|ধন্যবাদ|shukriya|shokriya)(?:[!.\s]|$)/iu.test(rawUserText.trim());
+
+    if (isGreeting) {
+      return {
+        replyText:
+          `Assalamu Alaikum! I am your Ask DhakaPath commute assistant. How can I help with your journey today?\n\n` +
+          `• 🗺️ **Find Routes:** *"Mirpur 10 to Motijheel, student"* or *"Uttara to Dhanmondi"*\n` +
+          `• 💰 **Fare Inquiries:** *"Why that fare?"* or *"How does student discount work?"*\n` +
+          `• ⚠️ **Live Conditions & Detours:** *"Avoid Farmgate"* or *"Shahbagh e pani uthse"*`,
+        intent: "CLARIFY",
+        updatedContext: {
+          ...context,
+          ...(targetHub ? { last_discussed_hub: targetHub } : {}),
+        },
+        badges: [{ label: "READY", variant: "emerald" }],
+      };
+    }
+
+    if (isThanks) {
+      return {
+        replyText:
+          `You're very welcome! Safe travels across Dhaka. Let me know if you need another route or live alert update anytime!`,
+        intent: "CLARIFY",
+        updatedContext: context,
+        badges: [{ label: "SAFE TRAVELS", variant: "emerald" }],
+      };
+    }
+
     return {
       replyText:
         `I can help with a route, a fare breakdown, a live alert check, or a street report. ` +
@@ -589,6 +618,16 @@ export function processConversationTurn(
   const effectiveDest = parsed.dest_resolved
     ? parsed.dest_hub_id
     : context.last_dest_hub_id;
+
+  if (effectiveOrigin === effectiveDest) {
+    const hubName = CANONICAL_HUBS[effectiveOrigin]?.name_en || effectiveOrigin;
+    return {
+      replyText: `Your starting point and destination are both set to **${hubName}**. Please specify where you would like to go from or to, e.g. *"from ${hubName} to Motijheel"*.`,
+      intent: "ROUTE_SEARCH",
+      updatedContext: context,
+      badges: [{ label: "SAME LOCATION", variant: "amber" }],
+    };
+  }
   const effectiveStudent =
     parsed.extracted_raw.student_token !== undefined ? parsed.is_student : context.is_student;
   const effectiveBudget =
