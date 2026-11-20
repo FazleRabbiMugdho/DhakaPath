@@ -488,7 +488,23 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     try {
       const effectivePools: Record<string, number> = {};
       for (const [edge, size] of Object.entries(poolJoined)) effectivePools[edge] = size;
-      const result = executeParetoSearch(activeQuery, activePreset, alerts, effectivePools);
+
+      // When bypassFlooded is enabled, automatically avoid confirmed severed hubs
+      const effectiveAvoid = new Set<HubId>(activeQuery.avoid_hub_ids);
+      if (options.bypassFlooded) {
+        for (const hub of disruptedHubIds) {
+          if (hub !== activeQuery.origin_hub_id && hub !== activeQuery.dest_hub_id) {
+            effectiveAvoid.add(hub);
+          }
+        }
+      }
+
+      const queryForSearch: CommuterQuery = {
+        ...activeQuery,
+        avoid_hub_ids: Array.from(effectiveAvoid),
+      };
+
+      const result = executeParetoSearch(queryForSearch, activePreset, alerts, effectivePools);
       const sanitized = sanitizeAndFilterParetoRoutes(result.routes, activeQuery.is_student);
       const walkBlocked = result.walk_bridge_active && !options.allowWalkBridge;
       const routes = walkBlocked ? [] : sanitized.verifiedRoutes;
@@ -503,7 +519,7 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return { ranked: [] as RankedRoute[], walkBridgeActive: false, walkBridgeBlocked: false, failed: true, interceptions: [] as AuditInterceptionEvent[], ms: 0 };
     }
-  }, [activeQuery, activePreset, alerts, poolJoined, options.allowWalkBridge, extraEdges]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeQuery, activePreset, alerts, disruptedHubIds, poolJoined, options.bypassFlooded, options.allowWalkBridge, extraEdges]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (routing.ms > 0) setEngineLatencyMs(Math.max(0.05, Number(routing.ms.toFixed(2))));
