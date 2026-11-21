@@ -30,7 +30,8 @@ import {
   TransportMode,
   ValidationStatus,
 } from "../../../contracts/schema";
-import { clientKey, rateLimit, resolveSession } from "../../../lib/serverAuth";
+import { limitClient, resolveSession } from "../../../lib/serverAuth";
+import { refreshExtraEdges } from "../../../lib/edgeStore";
 import { getScenarioParameters } from "../../../engine/scenarioStore";
 import { getJoinedPoolSizes } from "../../../features/feature-3-trust-cms/rideSharePool";
 import { isRecord, sanitizeAlerts, validHub, VALIDATION_STATUSES } from "../../../lib/payloadValidation";
@@ -233,6 +234,7 @@ export async function POST(req: NextRequest) {
   if (!isRecord(body)) {
     return json({ error: "Invalid request body" }, 400);
   }
+  await refreshExtraEdges();
 
   const action = body.action ?? "parse_intent";
   if (typeof action !== "string") {
@@ -252,7 +254,7 @@ export async function POST(req: NextRequest) {
         return json({ error: `query must be 1-${MAX_QUERY_CHARS} characters` }, 400);
       }
 
-      const parseLimit = rateLimit(`track3:parse:${clientKey(req)}`, 60, 60 * 1000);
+      const parseLimit = limitClient(req, "track3:parse", 60, 60 * 1000);
       if (!parseLimit.ok) {
         return json(
           { error: "Rate limit exceeded", retry_after_seconds: parseLimit.retryAfterSeconds },
@@ -298,7 +300,7 @@ export async function POST(req: NextRequest) {
     // ACTION 2: DIGITIZE SIGNBOARD VISION OCR
     // --------------------------------------------------------------------------
     if (action === "digitize_signboard") {
-      const ocrLimit = rateLimit(`track3:digitize:${clientKey(req)}`, 30, 60 * 1000);
+      const ocrLimit = limitClient(req, "track3:digitize", 30, 60 * 1000);
       if (!ocrLimit.ok) {
         return json(
           { error: "Rate limit exceeded", retry_after_seconds: ocrLimit.retryAfterSeconds },
@@ -359,7 +361,7 @@ export async function POST(req: NextRequest) {
     // ACTION 4: CONVERSATIONAL CHAT TURN ("Ask DhakaPath")
     // --------------------------------------------------------------------------
     if (action === "chat_turn") {
-      const chatLimit = rateLimit(`track3:chat:${clientKey(req)}`, 90, 60 * 1000);
+      const chatLimit = limitClient(req, "track3:chat", 90, 60 * 1000);
       if (!chatLimit.ok) {
         return json(
           { error: "Rate limit exceeded", retry_after_seconds: chatLimit.retryAfterSeconds },
@@ -428,7 +430,7 @@ export async function POST(req: NextRequest) {
     // runs the deterministic digitizer on the transcript, so grounding still applies.
     // --------------------------------------------------------------------------
     if (action === "ocr_image") {
-      const ocrLimit = rateLimit(`track3:ocr:${clientKey(req)}`, 10, 60 * 1000);
+      const ocrLimit = limitClient(req, "track3:ocr", 10, 60 * 1000);
       if (!ocrLimit.ok) {
         return json(
           { ok: false, reason: "rate limited", retry_after_seconds: ocrLimit.retryAfterSeconds },

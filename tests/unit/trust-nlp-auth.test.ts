@@ -15,8 +15,11 @@ import { processConversationTurn } from "../../src/features/feature-1-commute/co
 import { findHubMentions } from "../../src/features/feature-1-commute/hubMatching";
 import { CANONICAL_HUBS } from "../../src/contracts/canonicalGraph";
 import {
-  clientKey, createAdminCookie, rateLimit, resolveSession, verifyAdminPasscode, ADMIN_COOKIE, isAdminRequest,
+  clientKey, createAdminCookie, limitClient, rateLimit, resolveSession, verifyAdminPasscode, ADMIN_COOKIE, SESSION_COOKIE,
+  isAdminRequest,
 } from "../../src/lib/serverAuth";
+import { buildSyncRow, ownerTag } from "../../src/lib/syncRows";
+import { edgeFromRow } from "../../src/lib/edgeStore";
 
 const baseRoute = () => executeParetoSearch({
   action_id: "t", raw_query_text: "", origin_hub_id: HubId.H_MIRPUR10, dest_hub_id: HubId.H_MOTIJHEEL,
@@ -298,4 +301,70 @@ test("rate limiter: blocks after max within window", () => {
   const k = "unit-" + Date.now();
   const res = Array.from({ length: 6 }, () => rateLimit(k, 5, 60_000).ok);
   assert.deepEqual(res, [true, true, true, true, true, false]);
+});
+
+test("auth: without a trusted IP, a signed session keys the caller; forged sessions share one bucket", () => {
+  const a = resolveSession(req());
+  const b = resolveSession(req());
+  const keyA = clientKey(req({ cookie: `${SESSION_COOKIE}=${a.token}` }));
+  assert.equal(keyA, `session:${a.sessionId}`);
+  assert.notEqual(keyA, clientKey(req({ cookie: `${SESSION_COOKIE}=${b.token}` })));
+  assert.equal(clientKey(req({ cookie: `${SESSION_COOKIE}=session.9999999999999.anon_x.forged` })), "shared");
+  assert.equal(clientKey(req()), "shared");
+});
+
+test("rate limiter: per-session limit, plus a ceiling that minting new sessions cannot escape", () => {
+  const name = "unit-ceiling-" + Date.now();
+  const s1 = resolveSession(req());
+  const asS1 = req({ cookie: `${SESSION_COOKIE}=${s1.token}` });
+  assert.deepEqual([1, 2, 3].map(() => limitClient(asS1, name, 2, 60_000).ok), [true, true, false]);
+  // Fresh sessions each get their own limit until the shared ceiling (2 x 20) is used up.
+  let allowed = 2;
+  for (let i = 0; i < 60; i++) {
+    const s = resolveSession(req());
+    if (limitClient(req({ cookie: `${SESSION_COOKIE}=${s.token}` }), name, 2, 60_000).ok) allowed++;
+  }
+  assert.equal(allowed, 40);
+});
+
+test("sync rows: scoped to the sender, cannot claim a verified alert or overwrite others", () => {
+  const owner = ownerTag("anon_unit");
+  assert.match(owner, /^[0-9a-f]{16}$/);
+  const votes = Array.from({ length: 20 }, (_, i) => ({
+    vote_id: `v${i}`, voter_session_id: `fake_${i}`, direction: 1, reliability_weight: 1, timestamp_ms: 1_000_000 + i,
+  }));
+  const claimed = {
+    alert_id: "alert_farmgate_waterlogging", edge_id: "E_BUS_SURFACE_MIRPUR10_FARMGATE", hub_id: HubId.H_FARMGATE,
+    incident_type: "WATERLOGGING", status: AlertStatus.VERIFIED_ACTIVE, validation_status: ValidationStatus.GRAPH_GROUNDED,
+    severity_alpha: 10, confidence_pct: 100, half_life_remaining_ms: 1_800_000, created_timestamp_ms: 1_000_000, votes,
+  };
+  const row = buildSyncRow("street_alerts", claimed, owner)!;
+  assert.equal(row.alert_id, `${owner}:alert_farmgate_waterlogging`);
+  assert.equal(row.status, AlertStatus.PENDING_CORROBORATION);
+  assert.ok((row.confidence_pct as number) < 85);
+  assert.deepEqual((row.votes as Array<{ voter_session_id: string }>).map((v) => v.voter_session_id), [owner]);
+  // Closing one's own report is kept.
+  assert.equal(buildSyncRow("street_alerts", { ...claimed, status: AlertStatus.RESOLVED }, owner)!.status, AlertStatus.RESOLVED);
+  assert.equal(buildSyncRow("street_alerts", { ...claimed, hub_id: "H_NOWHERE" }, owner), null);
+
+  const log = buildSyncRow("interception_logs", {
+    event_id: "evt_1", timestamp_ms: 5, status: ValidationStatus.GRAPH_GROUNDED, rejected_payload_summary: "x", execution_time_ms: 1,
+  }, owner)!;
+  assert.equal(log.event_id, `${owner}:evt_1`);
+  assert.equal(buildSyncRow("interception_logs", { event_id: "evt_1" }, owner), null);
+});
+
+test("edge store: rows map to edges; canonical ids and malformed rows are dropped", () => {
+  const row = {
+    edge_id: "E_ADMIN_1", origin_hub_id: HubId.H_BADDA, dest_hub_id: HubId.H_DHANMONDI, mode: TransportMode.LEGUNA,
+    route_name: "L", distance_km: 9, base_fare_bdt: 30, base_duration_ms: 1_200_000, student_half_fare_eligible: false,
+    boarding_landmark: "Badda stop", created_at: "2026-01-01T00:00:00Z",
+  };
+  const edge = edgeFromRow(row)!;
+  assert.equal(edge.edge_id, "E_ADMIN_1");
+  assert.equal("created_at" in edge, false);
+  assert.equal(edgeFromRow({ ...row, edge_id: CANONICAL_GRAPH_G0[0].edge_id }), null);
+  assert.equal(edgeFromRow({ ...row, mode: "TELEPORT" }), null);
+  assert.equal(edgeFromRow({ ...row, distance_km: "9" }), null);
+  assert.equal(edgeFromRow(null), null);
 });

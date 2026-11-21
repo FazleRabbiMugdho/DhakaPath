@@ -1,5 +1,6 @@
 // ==============================================================================
 // src/app/api/admin/edges/route.ts — server-persisted graph extensions
+// Stored in Supabase `transit_edges` when a service key is set (src/lib/edgeStore.ts).
 // GET is public (all clients see committed links). POST/DELETE require the
 // HttpOnly admin session cookie.
 // ==============================================================================
@@ -12,9 +13,10 @@ import {
   TransportMode,
 } from "../../../../contracts/schema";
 import { CANONICAL_GRAPH_G0, CANONICAL_HUBS } from "../../../../contracts/canonicalGraph";
-import { getExtraEdges, setExtraEdges } from "../../../../engine/graphExtensions";
+import { getExtraEdges } from "../../../../engine/graphExtensions";
+import { addExtraEdge, refreshExtraEdges, removeExtraEdge } from "../../../../lib/edgeStore";
 import { computeApprovedBusFareBdt, computeMrt6FareBdt } from "../../../../engine/fareEngine";
-import { isAdminRequest } from "../../../../lib/serverAuth";
+import { attachSessionCookie, isAdminRequest, resolveSession } from "../../../../lib/serverAuth";
 import { haversineKm } from "../../../../data/dhakaRoadNetwork";
 
 export const dynamic = "force-dynamic";
@@ -132,8 +134,11 @@ function validateAndNormalizeEdge(raw: unknown): { edge?: TransitEdge; error?: s
   };
 }
 
-export async function GET() {
-  return noStore(NextResponse.json({ ok: true, edges: getExtraEdges() }));
+// The app loads this on start, so it also issues the anonymous session cookie
+// that keys rate limits and owns synced rows (see serverAuth.clientKey).
+export async function GET(req: NextRequest) {
+  await refreshExtraEdges();
+  return attachSessionCookie(noStore(NextResponse.json({ ok: true, edges: getExtraEdges() })), resolveSession(req));
 }
 
 export async function POST(req: NextRequest) {
@@ -141,6 +146,7 @@ export async function POST(req: NextRequest) {
     return noStore(NextResponse.json({ ok: false, error: "Admin authentication required" }, { status: 401 }));
   }
 
+  await refreshExtraEdges();
   if (getExtraEdges().length >= MAX_EXTRA_EDGES) {
     return noStore(NextResponse.json({ ok: false, error: "Extension graph is full" }, { status: 409 }));
   }
@@ -159,9 +165,14 @@ export async function POST(req: NextRequest) {
     return noStore(NextResponse.json({ ok: false, error: result.error ?? "Invalid edge" }, { status: 400 }));
   }
 
-  const next = [...getExtraEdges(), result.edge];
-  setExtraEdges(next);
-  return noStore(NextResponse.json({ ok: true, edge: result.edge, edges: next }));
+  const saved = await addExtraEdge(result.edge);
+  if (saved === "duplicate") {
+    return noStore(NextResponse.json({ ok: false, error: "Duplicate edge_id" }, { status: 400 }));
+  }
+  if (saved === "failed") {
+    return noStore(NextResponse.json({ ok: false, error: "Could not save the link; try again" }, { status: 502 }));
+  }
+  return noStore(NextResponse.json({ ok: true, edge: result.edge, edges: getExtraEdges() }));
 }
 
 export async function DELETE(req: NextRequest) {
@@ -188,11 +199,12 @@ export async function DELETE(req: NextRequest) {
     return noStore(NextResponse.json({ ok: false, error: "Canonical graph edges cannot be deleted" }, { status: 403 }));
   }
 
-  const current = getExtraEdges();
-  const next = current.filter((edge) => edge.edge_id !== edgeId);
-  if (next.length === current.length) {
+  await refreshExtraEdges();
+  if (!getExtraEdges().some((edge) => edge.edge_id === edgeId)) {
     return noStore(NextResponse.json({ ok: false, error: "Edge not found" }, { status: 404 }));
   }
-  setExtraEdges(next);
-  return noStore(NextResponse.json({ ok: true, edges: next }));
+  if ((await removeExtraEdge(edgeId)) === "failed") {
+    return noStore(NextResponse.json({ ok: false, error: "Could not delete the link; try again" }, { status: 502 }));
+  }
+  return noStore(NextResponse.json({ ok: true, edges: getExtraEdges() }));
 }

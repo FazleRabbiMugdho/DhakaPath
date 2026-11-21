@@ -73,7 +73,7 @@ function LegRow({ leg, isStudent, last }: { leg: RouteLeg; isStudent: boolean; l
           {discounted && <Pill tone="green" icon={<GraduationCap className="h-3 w-3" />}>{t("স্টুডেন্ট ৫০%", "Student 50%")}</Pill>}
           {leg.mode === TransportMode.METRO && isStudent && <Pill tone="gray">{t("মেট্রোতে স্টুডেন্ট ছাড় নেই", "No student discount on metro")}</Pill>}
           {leg.mode === TransportMode.RICKSHAW && leg.surge_multiplier > 1 && <Pill tone="amber">{t("সার্জ", "Surge")} ×{n(leg.surge_multiplier.toFixed(1))}</Pill>}
-          {leg.mode === TransportMode.RICKSHAW && leg.pool_size_count > 1 && <Pill tone="green">{t("পুল", "Pool")} {n(leg.pool_size_count)}/৪</Pill>}
+          {leg.mode === TransportMode.RICKSHAW && leg.pool_size_count > 1 && <Pill tone="green">{t("পুল", "Pool")} {n(leg.pool_size_count)}/{n(4)}</Pill>}
         </div>
         {leg.mode === TransportMode.RICKSHAW && edge && (
           <div className="mt-1.5 text-[12.5px] text-ink-soft">
@@ -159,8 +159,8 @@ export function RouteCard({
               <div className="text-[14px] font-extrabold text-ink">{t("এই রিকশা ভাগ করুন", "Share this rickshaw")}</div>
               <p className="mt-0.5 text-[13px] text-ink-soft">
                 {p.joined
-                  ? `${t("আপনি পুলে আছেন", "You are in the pool")} (${n(p.size)}/৪) — ${n(p.perPersonBdt)} ৳ ${t("জন প্রতি", "each")}`
-                  : `${n(p.size)}/৪ ${t("জন অপেক্ষায়", "waiting")} — ${t("যোগ দিলে জন প্রতি", "join for")} ${n(p.perPersonBdt)} ৳`}
+                  ? `${t("আপনি পুলে আছেন", "You are in the pool")} (${n(p.size)}/${n(4)}) — ${n(p.perPersonBdt)} ৳ ${t("জন প্রতি", "each")}`
+                  : `${n(p.size)}/${n(4)} ${t("জন অপেক্ষায়", "waiting")} — ${t("যোগ দিলে জন প্রতি", "join for")} ${n(p.perPersonBdt)} ৳`}
               </p>
               <Btn
                 size="sm"
@@ -168,7 +168,7 @@ export function RouteCard({
                 className="mt-2.5"
                 onClick={() => (p.joined ? leavePool(p.edge.edge_id) : joinPool(p.edge.edge_id))}
               >
-                {p.joined ? `${t("পুল ছাড়ুন", "Leave pool")} (${t("একা", "solo")} ${n(p.soloBdt)} ৳)` : `${t("পুলে যোগ দিন", "Join pool")} (${n(p.size)}/৪ → ${n(Math.min(4, p.size + 1))}/৪)`}
+                {p.joined ? `${t("পুল ছাড়ুন", "Leave pool")} (${t("একা", "solo")} ${n(p.soloBdt)} ৳)` : `${t("পুলে যোগ দিন", "Join pool")} (${n(p.size)}/${n(4)} → ${n(Math.min(4, p.size + 1))}/${n(4)})`}
               </Btn>
             </div>
           ))}

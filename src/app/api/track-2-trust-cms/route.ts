@@ -29,7 +29,8 @@ import { getExtraEdges } from "../../../engine/graphExtensions";
 import { getScenarioParameters } from "../../../engine/scenarioStore";
 import { supabase, isSupabaseConfigured } from "../../../lib/supabase";
 import { SUPABASE_TIMEOUT_MS } from "../../../lib/supabaseServer";
-import { attachSessionCookie, clientKey, rateLimit, resolveSession } from "../../../lib/serverAuth";
+import { attachSessionCookie, limitClient, resolveSession } from "../../../lib/serverAuth";
+import { refreshExtraEdges } from "../../../lib/edgeStore";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
     return noStore(NextResponse.json({ status: "error", message: "Invalid payload" }, { status: 400 }));
   }
   const payload = payloadRaw;
+  await refreshExtraEdges();
 
   try {
     switch (action) {
@@ -204,7 +206,7 @@ export async function POST(req: NextRequest) {
             session
           );
         }
-        const poolLimit = rateLimit(`pool:${clientKey(req)}`, 30, 60 * 1000);
+        const poolLimit = limitClient(req, "pool", 30, 60 * 1000);
         if (!poolLimit.ok) {
           return noStore(
             NextResponse.json(

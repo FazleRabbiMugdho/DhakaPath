@@ -22,7 +22,7 @@ import {
   ChatMessage,
   ConversationContext,
 } from "@/features/feature-1-commute/conversationEngine";
-import { CommuterQuery, DEFAULT_BUDGET_BDT, HubId, StreetAlert } from "@/contracts/schema";
+import { CommuterQuery, HubId, StreetAlert } from "@/contracts/schema";
 
 type ChatTurnResponse = {
   replyText?: string;
@@ -142,9 +142,21 @@ function FormattedChatText({ text }: { text: string }) {
   );
 }
 
+/** App-written messages carry both languages so they follow the language toggle. */
+type LocalChatMessage = ChatMessage & { i18n?: { bn: string; en: string } };
+
+function tripContext(q: CommuterQuery): Omit<ConversationContext, "selected_route"> {
+  return {
+    last_origin_hub_id: q.origin_hub_id,
+    last_dest_hub_id: q.dest_hub_id,
+    last_budget_bdt: q.max_budget_bdt,
+    is_student: q.is_student,
+    avoid_hub_ids: [...q.avoid_hub_ids],
+  };
+}
+
 export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
   const { lang, t } = useLang();
-  const store = useDhakaPathStore();
   const {
     activeQuery,
     activePreset,
@@ -153,29 +165,29 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
     updateCommuterQuery,
     options,
     disruptedHubIds,
-  } = store;
+    selectedRoute,
+  } = useDhakaPathStore();
 
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const [context, setContext] = useState<ConversationContext>({
-    last_origin_hub_id: activeQuery.origin_hub_id,
-    last_dest_hub_id: activeQuery.dest_hub_id,
-    last_budget_bdt: activeQuery.max_budget_bdt,
-    is_student: activeQuery.is_student,
-    avoid_hub_ids: [...activeQuery.avoid_hub_ids],
-    selected_route: store.selectedRoute || null,
-  });
+  const [context, setContext] = useState<ConversationContext>(() => ({
+    ...tripContext(activeQuery),
+    selected_route: selectedRoute ?? null,
+  }));
+  // The planner query the chat last saw; a different one means the trip was changed outside the chat.
+  const seenQueryRef = useRef(activeQuery);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<LocalChatMessage[]>(() => [
     {
       id: "greeting",
       sender: "assistant",
-      text:
-        lang === "bn"
-          ? "আসসালামু আলাইকুম! আমি DhakaPath সহকারী। কোথায় যাবেন বলুন — যেমন: `মিরপুর ১০ থেকে মতিঝিল, স্টুডেন্ট আইডি আছে`। আমি বিকল্প রুট, ভাড়ার অডিট বা রাস্তার রিপোর্ট দিতে পারি।"
-          : "Assalamu Alaikum! I am your DhakaPath commute assistant. Tell me where you want to go — e.g. `Mirpur 10 to Motijheel, 55 BDT`. I remember context, suggest detours, audit fares, and record alerts.",
+      text: "",
+      i18n: {
+        bn: "আসসালামু আলাইকুম! আমি DhakaPath সহকারী। কোথায় যাবেন বলুন — যেমন: `মিরপুর ১০ থেকে মতিঝিল, স্টুডেন্ট আইডি আছে`। আমি বিকল্প রুট, ভাড়ার অডিট বা রাস্তার রিপোর্ট দিতে পারি।",
+        en: "Assalamu Alaikum! I am your DhakaPath commute assistant. Tell me where you want to go — e.g. `Mirpur 10 to Motijheel, 55 BDT`. I remember context, suggest detours, audit fares, and record alerts.",
+      },
       timestamp_ms: Date.now(),
       badges: [{ label: "Context Memory", variant: "emerald" }, { label: "SAT Verified", variant: "cyan" }],
     },
@@ -203,11 +215,13 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
       setBusy(true);
 
       try {
+        const plannerChanged = seenQueryRef.current !== activeQuery;
+        seenQueryRef.current = activeQuery;
         const effectiveContext: ConversationContext = {
           ...context,
-          selected_route: context.selected_route || store.selectedRoute || null,
-          last_origin_hub_id: context.last_origin_hub_id || activeQuery.origin_hub_id,
-          last_dest_hub_id: context.last_dest_hub_id || activeQuery.dest_hub_id,
+          ...(plannerChanged ? tripContext(activeQuery) : {}),
+          // Explain the route the user has selected now, not the one the chat last proposed.
+          selected_route: selectedRoute ?? null,
         };
 
         const res = await fetch("/api/track-3-commute", {
@@ -287,10 +301,11 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
           {
             id: `err_${Date.now()}`,
             sender: "assistant",
-            text:
-              lang === "bn"
-                ? "দুঃখিত, অনুরোধ প্রক্রিয়া করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।"
-                : "Apologies, could not process that request right now. Please try again.",
+            text: "",
+            i18n: {
+              bn: "দুঃখিত, অনুরোধ প্রক্রিয়া করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+              en: "Apologies, could not process that request right now. Please try again.",
+            },
             timestamp_ms: Date.now(),
             badges: [{ label: "Error", variant: "crimson" }],
           },
@@ -299,26 +314,22 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
         setBusy(false);
       }
     },
-    [busy, context, activePreset, alerts, addStreetAlert, updateCommuterQuery, activeQuery, options, disruptedHubIds, lang]
+    [busy, context, activePreset, alerts, addStreetAlert, updateCommuterQuery, activeQuery, options, disruptedHubIds, selectedRoute]
   );
 
   const resetThread = () => {
-    setContext({
-      last_origin_hub_id: HubId.H_MIRPUR10,
-      last_dest_hub_id: HubId.H_MOTIJHEEL,
-      last_budget_bdt: DEFAULT_BUDGET_BDT,
-      is_student: true,
-      avoid_hub_ids: [],
-      selected_route: null,
-    });
+    // Forget the conversation; start again from the trip on screen.
+    setContext({ ...tripContext(activeQuery), selected_route: null });
+    seenQueryRef.current = activeQuery;
     setMessages([
       {
         id: `reset_${Date.now()}`,
         sender: "assistant",
-        text:
-          lang === "bn"
-            ? "স্মৃতি মুছে নতুন করে শুরু করা হয়েছে। পরবর্তী যাত্রা কোথায়?"
-            : "Conversation memory cleared. Where would you like to travel next?",
+        text: "",
+        i18n: {
+          bn: "স্মৃতি মুছে নতুন করে শুরু করা হয়েছে। পরবর্তী যাত্রা কোথায়?",
+          en: "Conversation memory cleared. Where would you like to travel next?",
+        },
         timestamp_ms: Date.now(),
         badges: [{ label: "Fresh Context", variant: "emerald" }],
       },
@@ -386,7 +397,7 @@ export function AskDhakaPathChat({ fill = false }: { fill?: boolean }) {
                   <p className="text-[13.5px] font-medium leading-relaxed">{m.text}</p>
                 ) : (
                   <>
-                    <FormattedChatText text={m.text} />
+                    <FormattedChatText text={m.i18n ? t(m.i18n.bn, m.i18n.en) : m.text} />
                     {m.badges && m.badges.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {m.badges.map((b, i) => (

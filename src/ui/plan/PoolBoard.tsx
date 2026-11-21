@@ -69,7 +69,7 @@ function PoolRow({ entry }: { entry: PoolBoardEntry }) {
         <Btn size="sm" variant={entry.joined ? "outline" : "primary"} className="mt-3" disabled={locked} onClick={act}>
           {entry.joined
             ? `${t("পুল ছাড়ুন", "Leave pool")} (${t("একা", "solo")} ${n(entry.soloBdt)} ৳)`
-            : `${t("পুলে যোগ দিন", "Join pool")} (${n(entry.size)}/৪ → ${n(nextSize)}/৪) · ${t("ভাগ লক", "lock split")}`}
+            : `${t("পুলে যোগ দিন", "Join pool")} (${n(entry.size)}/${n(4)} → ${n(nextSize)}/${n(4)}) · ${t("ভাগ লক", "lock split")}`}
         </Btn>
       </li>
     </CardMotion>

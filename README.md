@@ -31,18 +31,26 @@ npm run build && npm start
 Create `.env.local` (every key is optional; the app degrades gracefully without them):
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=...           # alerts, logs and pools are written through to Supabase when set
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_SUPABASE_URL=...           # alerts and logs are written through to Supabase when set
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...       # read-only in the browser (migration 0002)
+SUPABASE_SERVICE_ROLE_KEY=...          # server-only; needed for writes and for sharing admin links across instances
 GROQ_API_KEY=...                       # online Banglish parsing (800 ms timeout, then local lexer)
 OPENROUTER_API_KEY=...                 # free-tier LLM fallback when Groq is absent
 GEMINI_API_KEY=...                     # signboard photo transcription
 ADMIN_PASSCODE=...                     # server-only admin login (required; admin is disabled until set)
 SESSION_SECRET=...                     # signs anonymous + admin cookies; use a long random value in production
+TRUST_PROXY=1                          # only behind a proxy that overwrites X-Forwarded-For (automatic on Vercel)
 ```
 
 Admin authentication is verified by `/api/admin/auth` and carried in an HttpOnly, SameSite=Strict cookie. No passcode or session token is exposed through `NEXT_PUBLIC_*`. There is no default passcode: admin stays disabled until `ADMIN_PASSCODE` is set.
 
-The SQL for the four tables with open anonymous RLS is in `supabase/migrations/0001_dhakapath_core.sql`.
+The SQL for the four tables is in `supabase/migrations/`: `0001_dhakapath_core.sql` creates them and `0002_lock_down_rls.sql` makes them read-only for the browser's anon key. All writes go through the server with the service-role key.
+
+**Rate limits and sessions.** Each browser gets a signed, HttpOnly anonymous session cookie when the app loads (from `GET /api/admin/edges`, which `/app` calls on start, and `GET /api/admin/auth` on `/admin`). Rate limits key on the client IP when a trusted source exists (Vercel, or `TRUST_PROXY=1`), otherwise on that session; callers without a cookie share one bucket. Limits are kept in memory per server instance.
+
+**What `/api/sync` stores.** Each browser runs its own simulated demo, so synced rows are that session's report: row ids are prefixed with a hash of the session, so a browser cannot overwrite another browser's or the seeded rows, and an alert's status is recomputed with the session counted as one reporter (it never stores as `VERIFIED_ACTIVE`). Pool sizes are not synced.
+
+**Admin links.** With `SUPABASE_SERVICE_ROLE_KEY` set, links added in `/admin` are stored in `transit_edges` and every server instance reloads them at most every 5 s, so they survive restarts and all instances route on the same graph. Without it they live in one server process. Ride-share pools behind `/api/track-2-trust-cms` are kept in memory per instance.
 
 **Keyboard shortcuts:** `Alt+1/2/3` switch scenario, `Alt+R` reset, `Ctrl+Shift+D` show the math. Bangla / English can be switched from the header on every screen.
 
@@ -129,7 +137,7 @@ Maps fall back automatically to a 15-hub schematic when tiles cannot load. The r
 
 ## Honest limits
 
-All telemetry in the demo is simulated and labelled as such on every screen. Supabase is written to but not read back, so the demo stays deterministic. Photo transcription needs a Gemini key and a connection; presets and typed text work offline.
+All telemetry in the demo is simulated and labelled as such on every screen. Simulated telemetry (alerts, logs) is written to Supabase but not read back, so the demo stays deterministic; only admin-added links are read back. Photo transcription needs a Gemini key and a connection; presets and typed text work offline.
 
 
 ## Update — conversational assistant, admin console, PWA
