@@ -177,11 +177,18 @@ export function attachSessionCookie(
   return response;
 }
 
+/** The caller's anonymous session id from a valid signed cookie, or null. Never issues one. */
+export function readSession(req: NextRequest): string | null {
+  return verifyToken("session", req.cookies.get(SESSION_COOKIE)?.value);
+}
+
 /**
  * Rate-limit key for the caller. Only headers written by a trusted proxy are
  * read; a client can set X-Forwarded-For to anything, so it is ignored unless
  * TRUST_PROXY=1 says a proxy in front of us overwrites it. Without a trusted
- * source every caller shares one bucket — strict, but impossible to spoof.
+ * IP, a signed session cookie (issued when the app loads; see GET
+ * /api/admin/edges and /api/admin/auth) keys the
+ * caller; cookie-less callers share one bucket — strict, but not spoofable.
  */
 export function clientKey(req: NextRequest): string {
   if (process.env.VERCEL === "1") {
@@ -198,7 +205,25 @@ export function clientKey(req: NextRequest): string {
     const realIp = req.headers.get("x-real-ip")?.trim();
     if (realIp) return realIp;
   }
-  return "shared";
+  const session = readSession(req);
+  return session ? `session:${session}` : "shared";
+}
+
+// Sessions cost nothing to mint, so session-keyed callers together also get a
+// site-wide ceiling: farming cookies cannot multiply the per-caller limit forever.
+const SESSION_CEILING_FACTOR = 20;
+
+/** Per-caller rate limit for `name`, plus the shared ceiling when the caller is known only by session. */
+export function limitClient(
+  req: NextRequest,
+  name: string,
+  max: number,
+  windowMs: number
+): { ok: boolean; retryAfterSeconds: number } {
+  const key = clientKey(req);
+  const own = rateLimit(`${name}:${key}`, max, windowMs);
+  if (!own.ok || !key.startsWith("session:")) return own;
+  return rateLimit(`${name}:all-sessions`, max * SESSION_CEILING_FACTOR, windowMs);
 }
 
 interface Bucket {

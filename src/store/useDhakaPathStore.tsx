@@ -300,7 +300,7 @@ function uid(prefix: string): string {
 // Writes go through /api/sync (validated, service-role key on the server);
 // the browser's anon key is read-only. Fire-and-forget: the demo keeps working
 // in memory when the backend is down.
-function persist(table: "street_alerts" | "interception_logs" | "ride_share_pools", row: object): void {
+function persist(table: "street_alerts" | "interception_logs", row: object): void {
   if (!isSupabaseConfigured) return;
   void fetch("/api/sync", {
     method: "POST",
@@ -955,12 +955,6 @@ export function DhakaPathProvider({ children }: { children: React.ReactNode }) {
       const state = mutateRideSharePool(uid("POOL_JOIN"), edgeId, "session_current_user", "JOIN", edge.base_fare_bdt, surge, edge.origin_hub_id);
       setPoolSizes((prev) => ({ ...prev, [edgeId]: state.poolSizeCount }));
       setPoolJoined((prev) => ({ ...prev, [edgeId]: state.poolSizeCount }));
-      persist("ride_share_pools", {
-        edge_id: edgeId,
-        hub_id: edge.origin_hub_id,
-        pool_size_count: state.poolSizeCount,
-        updated_timestamp_ms: Date.now(),
-      });
     },
     [activePreset]
   );

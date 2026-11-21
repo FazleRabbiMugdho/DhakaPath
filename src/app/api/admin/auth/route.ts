@@ -7,12 +7,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/http";
 import {
+  attachSessionCookie,
   clearAdminCookie,
   createAdminCookie,
   isAdminConfigured,
   isAdminRequest,
   isRateLimited,
   rateLimit,
+  resolveSession,
   clientKey,
   verifyAdminPasscode,
 } from "../../../../lib/serverAuth";
@@ -24,13 +26,18 @@ function noStore(response: NextResponse): NextResponse {
   return response;
 }
 
+// The admin page loads this first; it also issues the anonymous session cookie,
+// so the login rate limit keys on this browser rather than one shared bucket.
 export async function GET(req: NextRequest) {
-  return noStore(
-    NextResponse.json({
-      ok: true,
-      authenticated: isAdminRequest(req),
-      configured: isAdminConfigured(),
-    })
+  return attachSessionCookie(
+    noStore(
+      NextResponse.json({
+        ok: true,
+        authenticated: isAdminRequest(req),
+        configured: isAdminConfigured(),
+      })
+    ),
+    resolveSession(req)
   );
 }
 

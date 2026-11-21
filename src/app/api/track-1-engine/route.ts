@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/http";
+import { refreshExtraEdges } from "@/lib/edgeStore";
+import { limitClient } from "@/lib/serverAuth";
 import { CommuterQuery, DEFAULT_BUDGET_BDT, ScenarioPreset, HubId } from "@/contracts/schema";
 import { diagnoseEmptyResult, executeParetoSearch } from "@/engine/paretoRouter";
 import { computeCounterfactualRoi } from "@/engine/shadowBaseline";
@@ -32,10 +34,19 @@ function noStore(response: NextResponse): NextResponse {
 export async function POST(req: NextRequest) {
   const startTime = performance.now();
 
+  const limit = limitClient(req, "track1", 600, 60 * 1000);
+  if (!limit.ok) {
+    return noStore(NextResponse.json(
+      { success: false, error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    ));
+  }
+
   const parsed = await readJsonBody(req);
   if (!parsed.ok) {
     return noStore(NextResponse.json({ success: false, error: parsed.error }, { status: parsed.status }));
   }
+  await refreshExtraEdges();
   const body = parsed.body;
 
   if (!isRecord(body)) {

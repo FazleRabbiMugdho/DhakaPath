@@ -93,7 +93,7 @@ test("T2 validation errors", async () => {
   assert.equal((await t2("CALCULATE_BAYESIAN_DECAY", { votes })).status, 400);
 });
 
-test("T2 fare validation knows admin-added edges", async () => {
+test("T2 fare validation treats non-canonical edges as unknown", async () => {
   const r = await t2("VALIDATE_FARE", { edgeId: "E_ADMIN_ONLY_EDGE", submittedFareBdt: 20 });
   // Only canonical G0 edges are known; admin edges are always "unknown".
   assert.equal(r.json.result.status, "GROUNDING_INTERCEPTED");
@@ -224,6 +224,18 @@ test("Admin: bus edge with absurd duration/distance ratio accepted (600 km/h)", 
   const short = await call("/api/admin/edges", { headers: { cookie }, body: { edge: { edge_id: `${edgeId}_S`, origin_hub_id: "H_UTTARA",
     dest_hub_id: "H_JATRABARI", mode: "BUS", distance_km: 2, base_duration_ms: 3_600_000 } } });
   assert.equal(short.status, 400, "2 km between hubs ~20 km apart was accepted");
+});
+
+// ---------------- Sync ----------------
+test("Sync: needs a session; pool sizes are not client-writable", async () => {
+  const log = { event_id: `it_${Date.now()}`, timestamp_ms: Date.now(), status: "GRAPH_GROUNDED", rejected_payload_summary: "it", execution_time_ms: 1 };
+  assert.equal((await call("/api/sync", { body: { table: "interception_logs", row: log } })).status, 401);
+  const load = await fetch(new URL("/api/admin/edges", BASE));
+  const cookie = load.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+  assert.match(cookie, /dp_session=/, "app start-up call issues the session cookie");
+  assert.ok([200, 202].includes((await call("/api/sync", { body: { table: "interception_logs", row: log }, headers: { cookie } })).status));
+  const pool = { edge_id: "E_RICK_MOTIJHEEL_LASTMILE", pool_size_count: 4 };
+  assert.equal((await call("/api/sync", { body: { table: "ride_share_pools", row: pool }, headers: { cookie } })).status, 400);
 });
 
 // ---------------- headers ----------------
