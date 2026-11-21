@@ -1,6 +1,6 @@
 // ==============================================================================
 // src/lib/supabase.ts — SAFE SUPABASE CLIENT INITIALIZATION
-// Graceful Offline / Fallback Support for 0-Friction Hackathon Execution
+// Graceful Offline / Fallback Support for 0-Friction Resilient Execution
 // ==============================================================================
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";

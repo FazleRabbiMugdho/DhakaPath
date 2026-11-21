@@ -1,6 +1,6 @@
 "use client";
 
-// "Show the math": the three audit lines a judge can verify — piecewise fare, Bayesian decay
+// "Show the math": the three audit lines an evaluator can verify — piecewise fare, Bayesian decay
 // posterior, and the grounding check — computed live from the current state (Ctrl+Shift+D).
 
 import React, { useEffect, useMemo } from "react";

@@ -1,7 +1,7 @@
 // ==============================================================================
 // src/features/feature-1-commute/signboardVision.ts
 // Bonus 1 Bus Signboard & BRTA Tariff Chart OCR Digitizer with Fuzzy Hub Matching
-// INIF 2026 DhakaPath — Track 3 (Dev 3: AI, NLP & Vision Engineer)
+// DhakaPath — Signboard Vision OCR Engine
 // ==============================================================================
 
 import { HubId, TransitEdge, TransportMode } from "../../contracts/schema";
@@ -197,7 +197,7 @@ function validateDigitizedFare(
 }
 
 // ------------------------------------------------------------------------------
-// 2. Demonstration Presets (Pre-calibrated for Hackathon Judging)
+// 2. Demonstration Presets (Pre-calibrated for Rapid Verification)
 // ------------------------------------------------------------------------------
 const OCR_PRESETS: Record<string, { title: string; rawText: string; edges: TransitEdge[] }> = {
   BIHANGA_TARIFF: {

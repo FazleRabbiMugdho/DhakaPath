@@ -1,6 +1,6 @@
 # DhakaPath — live urban transit & route intelligence for Dhaka
 
-IAIT National IT Fest (INIF) 2026 · Smart City hackathon · 100% free stack (Next.js, Leaflet + OpenStreetMap, Supabase free tier, Groq/Gemini free tiers, browser Web Speech + Canvas).
+Smart City Urban Transit Intelligence Initiative · 100% open & resilient stack (Next.js, Leaflet + OpenStreetMap, Supabase free tier, Groq/Gemini free tiers, browser Web Speech + Canvas).
 
 ## The 30-second story
 
@@ -48,9 +48,11 @@ The SQL for the four tables with open anonymous RLS is in `supabase/migrations/0
 
 ## Documentation & Technical Guides
 
+- 📋 **[Smart City Problem Statement & Functional Requirements](docs/Smart_City_Problem_Statement.md)** — Core problem statement, domain challenges, and functional specifications.
+- 🎙️ **[5-Minute Pitch Script](docs/PITCH_SCRIPT_5MIN.md)** — Structured 5-minute presentation script covering Problem, Solution, Workflow, AI Approach, and Impact.
 - 🗺️ **[Map Routing & Road-Aligned Path Implementation Guide](docs/MAP_AND_ROUTING_IMPLEMENTATION.md)** — Production specification for road-following path extraction (OSRM), GeoJSON-to-Leaflet coordinate normalization, 0.0-meter transfer continuity, and dual-stroke polyline casing.
 - 📖 **[Comprehensive Technical Documentation](docs/DOCUMENTATION.md)** — Complete system architecture, Pareto routing algorithm, statutory fare engine, and grounding specifications.
-- 🎬 **[5-Minute Demo Video Script & Shot List](docs/VIDEO_SCRIPT_5MIN.md)** — Video walkthrough guide for hackathon presentations.
+- 🎬 **[5-Minute Demo Video Script & Shot List](docs/VIDEO_SCRIPT_5MIN.md)** — Synchronized video walkthrough guide.
 
 ## Architecture
 

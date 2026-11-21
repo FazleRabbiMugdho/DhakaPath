@@ -1,15 +1,15 @@
 # BUILD.md — DhakaPath Master Parallel Execution Playbook
 
 **Project:** DhakaPath — Multi-Objective Spatio-Temporal Transit Engine & Zero-Hallucination Route Verifier[cite: 1, 2, 3]  
-**Competition Track:** IAIT National IT Fest (INIF) 2026 — Smart City Hackathon[cite: 1, 3]  
-**Execution Window:** 5 Hours 40 Minutes (340 Minutes)[cite: 1, 2, 3]  
+**Domain Initiative:** Smart City Innovation & Urban Transit Intelligence[cite: 1, 3]  
+**Architecture Window:** Production-Grade Modular Specification[cite: 1, 2, 3]  
 **Team Structure:** 4 Developers (Wave 0 Foundation -> Wave 1 Four 100% Isolated Parallel Tracks -> Wave 2 Sequential Integration)[cite: 1, 2, 3]
 
 ---
 
 ## 1. Context of the Entire Project
 
-### 1.1 The Core Problem & Championship Thesis
+### 1.1 The Core Problem & Value Proposition
 For daily Dhaka commuters and university students, when sudden monsoon waterlogging, intersection blockades, or rush-hour surges disrupt normal transit corridors, the **DhakaPath** platform turns live crowd-verified street alerts, statutory fare rules, and Banglish trip queries into a mathematically verified, multi-leg detour and exact BDT fare split, unlike scattered Facebook traffic posts or private-car navigation maps[cite: 1].
 
 Standard Western navigation apps fail in Dhaka due to four compounding regional asymmetries[cite: 1]:
@@ -18,11 +18,11 @@ Standard Western navigation apps fail in Dhaka due to four compounding regional 
 3. **Linguistic Fragmentation & Poisoned Social Telemetry:** Commuters query routes in phonetic Banglish (e.g., *"bhai Mirpur 10 theke Motijheel jabo, student id ache, 55 takar moddhe. Farmgate e naki pani uthse?"*) and rely on Facebook traffic groups where posts become stale within 15–60 minutes or are spoofed by trolls[cite: 1, 2].
 4. **3G Dropouts & Dead Batteries in Transit Corridors:** Heavy single-page apps crash when mobile data drops inside concrete MRT-6 stations or monsoon gridlock at <5% smartphone battery[cite: 1, 2, 3].
 
-### 1.2 Zero Generic Bloat Policy & Winner Rules
+### 1.2 Zero Generic Bloat Policy & Architectural Principles
 - **Strictly Banned:** No `/login`, `/signup`, JWT middleware, OAuth redirects, password reset flows, user profile pages, multi-page admin CRUD tables, or unconstrained LLM chatbot wrappers that invent transit routes or calculate BDT fares in prose[cite: 2, 3].
-- **Synchronized 4-Zone Single-Screen Command Center (`100vw x 100vh`):** Role A (Stranded Student/Commuter "Rafi"), Role B (Transit Admin & Crowd Verifier), and Role C (Lead Hackathon Judge) operate simultaneously on one unified viewport with zero tab switches[cite: 3]:
+- **Synchronized 4-Zone Single-Screen Command Center (`100vw x 100vh`):** Role A (Stranded Student/Commuter "Rafi"), Role B (Transit Admin & Crowd Verifier), and Role C (Scenario Time-Machine & X-Ray Telemetry) operate simultaneously on one unified viewport with zero tab switches[cite: 3]:
   - **Zone 0 (Top Global Bar — 64px fixed height):** Stage Time-Machine & Chaos Injector (`[1. Normal Baseline]`, `[2. Peak Crisis Surge]`, `[3. Adversarial / Corrupt Input]`), simulated clock scrub slider (`+0m`, `+15m`, `+45m`, `+90m`), global X-Ray Telemetry Pill, and persistent **`[SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY]`** honesty badge[cite: 2, 3].
-  - **Zone 1 (Left Column — 28% width):** Banglish NL/Voice Input bar, 1-tap judge query chips, Extracted Constraints Pill Row, ranked Pareto Multi-Leg Route Cards, **Hub Ride-Share Pool Bot**, and **Offline Canvas/Speech Exporter**[cite: 3].
+  - **Zone 1 (Left Column — 28% width):** Banglish NL/Voice Input bar, 1-tap query chips, Extracted Constraints Pill Row, ranked Pareto Multi-Leg Route Cards, **Hub Ride-Share Pool Bot**, and **Offline Canvas/Speech Exporter**[cite: 3].
   - **Zone 2 (Center Stage — 44% width):** Top 70% renders the **Dual-Layer Leaflet.js + OpenStreetMap & 15-Hub Metro-Style SVG Schematic Graph**; Bottom 30% renders the **Counterfactual Shadow Baseline vs. DhakaPath Optimal ROI Ledger** (`+64 mins saved`, `+28 BDT saved`, `-82.0% risk`, `8.5 min -> 1.4 sec` latency benchmark)[cite: 2, 3].
   - **Zone 3 (Right Column — 28% width):** X-Ray Security & Sanity Audit Log (`ANOMALOUS_FARE_REJECTED`, `GROUNDING_INTERCEPTED`), Bayesian Crowd Alert Feed with live **30-Minute Half-Life Decay Bars**, `+1 Confirm / -1 Resolve` buttons, and the **Bonus 1 Vision Signboard OCR Ingestor**[cite: 3].
 
@@ -30,7 +30,7 @@ Standard Western navigation apps fail in Dhaka due to four compounding regional 
 
 ## 2. Tech Stack & Zero-Hassle Deployment
 
-| Need | Selected Technology | Hackathon Justification |
+| Need | Selected Technology | Architecture Justification |
 | :--- | :--- | :--- |
 | **Frontend & API Framework** | **Next.js 14 (App Router, TypeScript)** | Single codebase for the 4-Zone UI and sandboxed API routes; zero-config Vercel deployment[cite: 4]. |
 | **Database & Realtime** | **Supabase (`@supabase/supabase-js`)** | Stores `transit_edges`, `street_alerts`, `ride_share_pools`, and `interception_logs` with open anonymous RLS (no login wall!) and automatic in-memory fallback if venue Wi-Fi drops[cite: 2, 3, 4]. |
@@ -75,7 +75,7 @@ graph TD
   Start(["0:00 Stage Open: 5-Second Main Screen<br/>15-Hub Dual-Layer Map + Velocity Alert (4.8 km/h)<br/>Badge: [SIMULATED DEMO TELEMETRY]"]) --> Step1
 
   subgraph Zone0_Scenario ["Feature 0: Stage Time-Machine & Chaos Injector (Top Bar)"]
-    Step1["Presenter / Judge Triggers Scenario Preset<br/>[1. Normal] | [2. Peak Crisis Surge] | [3. Adversarial Input]"]
+    Step1["Presenter / User Triggers Scenario Preset<br/>[1. Normal] | [2. Peak Crisis Surge] | [3. Adversarial Input]"]
     Step1 -->|150ms Debounce Lock| PureProj["Pure Graph Projection: G(t) = f(G_0, S_k, delta_t_sim)<br/>Object.freeze(CANONICAL_GRAPH_G0)"]
   end
 
@@ -174,7 +174,7 @@ src/
 
 ## 4. Master Design System Prompt ("Midnight Aurora" × "Holographic Night City" × "Tactical Obsidian")
 
-All prompts in Wave 0, Wave 1, and Wave 2 are wired to this exact design system derived from **`Hackathon UI Playbook`** and **`03_uxflow.md`**[cite: 3, 4]:
+All prompts in Wave 0, Wave 1, and Wave 2 are wired to this exact design system derived from **`Smart_City_Problem_Statement.md`** and **`03_uxflow.md`**[cite: 3, 4]:
 
 ```markdown
 ### MASTER UI/UX DESIGN SPECIFICATION (MANDATORY FOR ALL TRACKS)
@@ -228,7 +228,7 @@ All prompts in Wave 0, Wave 1, and Wave 2 are wired to this exact design system 
 
 ##### Copy-Paste Prompt for Wave 0:
 ```text
-You are the Principal Systems Architect for DhakaPath (INIF 2026 Smart City Hackathon).
+You are the Principal Systems Architect for DhakaPath (Smart City Urban Transit Intelligence).
 Always give me full, complete, working code for every file—never use placeholders, `// TODO`, or truncated snippets.
 
 Build the complete Wave 0 Foundation for our Next.js 14 (App Router, TypeScript, Tailwind CSS) + Supabase project so our 4 developers can work 100% in parallel in Wave 1 with zero file collisions.
@@ -242,7 +242,7 @@ Create the PostgreSQL schema and seed data:
   - `street_alerts` (`alert_id` text primary key, `edge_id` text not null, `hub_id` text not null, `incident_type` text not null, `status` text not null, `validation_status` text not null, `severity_alpha` float8 not null, `confidence_pct` float8 not null, `half_life_remaining_ms` int4 not null, `created_timestamp_ms` int8 not null, `votes` jsonb not null default '[]'::jsonb)
   - `ride_share_pools` (`edge_id` text primary key, `hub_id` text not null, `pool_size_count` int4 not null default 2, `member_session_ids` jsonb not null default '["seed_commuter_1","seed_commuter_2"]'::jsonb, `updated_timestamp_ms` int8 not null)
   - `interception_logs` (`event_id` text primary key, `timestamp_ms` int8 not null, `status` text not null, `rejected_payload_summary` text not null, `execution_time_ms` float8 not null)
-- Enable RLS on all 4 tables and create open anonymous access policies (`CREATE POLICY "Allow public read/write for hackathon demo" ON <table_name> FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);`) because `/login` is strictly banned.
+- Enable RLS on all 4 tables and create open anonymous access policies (`CREATE POLICY "Allow public read/write" ON <table_name> FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);`) for zero-friction client access.
 - Seed initial rows for `street_alerts` (`H_FARMGATE` WATERLOGGING at 91.8% confidence and `H_MALIBAGH` SEVERE_GRIDLOCK at 89.2% confidence) and `ride_share_pools`.
 
 2. `src/contracts/schema.ts` (LOCKED CONTRACT — DO NOT MODIFY IN WAVE 1)
@@ -385,7 +385,7 @@ Implement `computeSafeTimeDeltaMin(shadowMin: number, optimalMin: number): numbe
 Implement pure functional scenario projections `projectScenario(preset: ScenarioPreset, simOffsetMs: number)` derived strictly from frozen `CANONICAL_GRAPH_G0` with a `150ms` idempotent lock (`action_id = "SCENARIO_" + preset + "_" + simOffsetMs`).
 
 ### 5. `src/app/api/track-1-engine/route.ts` and `src/app/track-1-engine/page.tsx`
-Build the POST API handler and a Tactical Obsidian interactive benchmark page at `/track-1-engine` where judges or developers can test all 15 hubs, inspect the 16-bit bitmask cycle guard, run a "5x Rapid Click Idempotency Stress Test", and view the live `0.78 ms` execution trace.
+Build the POST API handler and a Tactical Obsidian interactive benchmark page at `/track-1-engine` where evaluators or developers can test all 15 hubs, inspect the 16-bit bitmask cycle guard, run a "5x Rapid Click Idempotency Stress Test", and view the live `0.78 ms` execution trace.
 ```
 
 ##### Track 1 Verification Checklist:
@@ -461,7 +461,7 @@ Implement `computePoolSplit(baseFareBdt: number, surgeMultiplier: number, poolSi
 Build the complete **Zone 3 Right Column UI** following the Master Design System (`#0F172A` panel, `#1E293B` cards, `1.5px solid #334155` borders, `JetBrains Mono tabular-nums`):
 - **Top Section — X-Ray Security & Sanity Audit Log:**
   - Displays live crimson interception badges: **`[ANOMALOUS_FARE_REJECTED: 500 BDT > 62.5 BDT (2.5x Base)]`** and **`[GROUNDING_INTERCEPTED: Edge H_BADDA -> H_DHANMONDI (FERRY) Not in G_0]`** with execution latency (`0.08 ms`).
-  - Includes 1-click judge stress-test buttons: **`[Inject 400 BDT Spoofed Fare]`** and **`[Submit Single Uncorroborated Shahbagh Report]`** + **`[Override Decay & Quarantine Anomaly]`**.
+  - Includes 1-click stress-test buttons: **`[Inject 400 BDT Spoofed Fare]`** and **`[Submit Single Uncorroborated Shahbagh Report]`** + **`[Override Decay & Quarantine Anomaly]`**.
 - **Middle Section — Bayesian Crowd Alert Feed:**
   - Renders active street alerts (`H_FARMGATE` Waterlogging `91.8%`, `H_MALIBAGH` Gridlock `89.2%`, etc.) with `BayesianHalfLifeBar`, live decay countdown, and idempotent **`[Corroborate Blockade (+1 Vote)]`** and **`[Mark Corridor Cleared (-1)]`** buttons.
 - **Bottom Section — Bonus 1 Signboard & Fare-Chart Vision Digitizer Drawer:**
@@ -535,7 +535,7 @@ Implement `digitizeSignboardImage(input: { base64Image?: string; presetId?: stri
 
 ### 4. `src/features/feature-1-commute/useCommuteCommand.ts` & `CommuteCommandPanel.tsx`
 Build the complete **Zone 1 Left Column UI** (`CommuteCommandPanel.tsx`) following the Master Design System:
-- **Top 30% — Banglish Input, 1-Tap Judge Chips & X-Ray Intent Pills:**
+- **Top 30% — Banglish Input, 1-Tap Query Chips & X-Ray Intent Pills:**
   - Textarea/input supporting Banglish & Bangla Unicode + Web Speech mic button + **`[Compute Verified Pareto Detour]`** (`IdempotentActionButton`).
   - 1-tap human-in-the-loop override toggles: **`[Force Student Pass: ON]`**, **`[Bypass Flooded Hubs]`**, **`[Unlock Walk-Bridge (4.5 km/h)]`**.
   - 3 one-tap demo query pills:
@@ -592,7 +592,7 @@ Do NOT modify `src/contracts/schema.ts` or any file in `src/engine/` or `src/fea
 
 ### 1. `src/shell/ScenarioInjectorBar.tsx` & `src/shell/useScenarioInjector.ts` (Zone 0 — Mandatory Feature 0)
 Build the `64px` fixed Top Global Bar:
-- **Left (25%):** Brand mark (`DhakaPath // INIF-26`), live surface velocity badge (`Peak Velocity: 4.8 km/h` in Crisis or `14.5 km/h` in Baseline), and the persistent honesty badge **`[SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY]`**.
+- **Left (25%):** Brand mark (`DhakaPath // SmartCity-26`), live surface velocity badge (`Peak Velocity: 4.8 km/h` in Crisis or `14.5 km/h` in Baseline), and the persistent honesty badge **`[SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY]`**.
 - **Center (50%):**
   - 3 segmented preset buttons with `150ms` debounce lock (`action_id = "SCENARIO_" + preset + "_" + simOffsetMin`):
     1. **`[1. Normal Baseline]`** (`Alt+1`)
@@ -678,7 +678,7 @@ Always give me full, complete, working code for every file—never use placehold
 All 4 Wave 1 tracks (`src/engine/*`, `src/features/feature-3-trust-cms/*`, `src/features/feature-1-commute/*`, and `src/shell/*`) are now merged into our repository.
 
 ### 1. Wire `src/contracts/adapter.ts` and `src/store/useDhakaPathStore.tsx` to the Live Track 1–4 Modules
-Connect the global reactive state so that every user or judge interaction flows across all 4 zones in `< 1 ms`:
+Connect the global reactive state so that every user interaction flows across all 4 zones in `< 1 ms`:
 1. **Scenario Preset / Time-Machine Slider (`Zone 0` -> All Zones):**
    - Invokes `projectScenario()` (`src/engine/scenarioStore.ts`) and recomputes `computePosteriorConfidence()` (`src/features/feature-3-trust-cms/bayesianTruth.ts`) for all alerts at `now_ms + simOffsetMs`.
    - When `ScenarioPreset.ADVERSARIAL_CORRUPT_INPUT` is triggered (`Alt+3`), automatically runs the `500 BDT` spoofed Mirpur->Farmgate bus fare through `validateFareSubmission()` (`sanityFilter.ts`), runs the hallucinated `"Underground Ferry Badda -> Dhanmondi"` through `verifySubgraphTrajectory()` (`subgraphVerifier.ts`), and ages the stale alert by `90 min` so its confidence drops below `25%` (`EXPIRED`)—logging all audit events in Zone 3.
@@ -700,12 +700,12 @@ Build `src/app/page.tsx` with:
   - **Center Stage (Zone 2 — `44%` width on desktop):** Top 68% `<TopologicalMap/>` + Bottom 32% `<CounterfactualRoiLedger/>`.
   - **Right Column (Zone 3 — `28%` width on desktop):** `<TrustShieldAndCmsPanel/>` (Role B: Transit Admin & Crowd Verifier).
 - **Toggleable "Holographic Night City" Pitch Intro Overlay (`[✦ Pitch Story Overlay]` button in Top Bar):**
-  - Implements the 7-layer `Hackathon UI Playbook` showcase modal for the first 25 seconds of the stage pitch (glowing badge `"✦ Deterministic Spatio-Temporal Engine for Bangladesh"`, `64px` tight-tracked headline with gradient word, 3D-tilted glass telemetry preview frame with cyan/blue aurora glow, 3 animated proof counters: `"4.8 km/h Peak Gridlock Bypassed"`, `"0.78 ms Pareto Graph Search"`, `"8.5m -> 1.4s Route & Fare Verification"`, and a primary **`[Enter Live 15-Hub Command Center ->]`** button that closes the overlay into the live 4-Zone Command Center).
+  - Implements the 7-layer UI Playbook showcase modal for the first 25 seconds of the stage pitch (glowing badge `"✦ Deterministic Spatio-Temporal Engine for Bangladesh"`, `64px` tight-tracked headline with gradient word, 3D-tilted glass telemetry preview frame with cyan/blue aurora glow, 3 animated proof counters: `"4.8 km/h Peak Gridlock Bypassed"`, `"0.78 ms Pareto Graph Search"`, `"8.5m -> 1.4s Route & Fare Verification"`, and a primary **`[Enter Live 15-Hub Command Center ->]`** button that closes the overlay into the live 4-Zone Command Center).
 ```
 
 ##### Wave 2 Verification Checklist:
 - [ ] `http://localhost:3000` loads the unified **4-Zone Command Center** with all 4 zones wired and reactive in `< 1 second`[cite: 3].
-- [ ] **15-Second Pitch Climax Check:** Pressing `Alt+2` (`[2. Peak Crisis Surge]`) causes the judge's eyes to sweep across the screen with zero reloads:
+- [ ] **15-Second Pitch Climax Check:** Pressing `Alt+2` (`[2. Peak Crisis Surge]`) causes the viewer's eyes to sweep across the screen with zero reloads:
   - Zone 3 logs `R_Farmgate = 91.8% (SEVERED)` and `R_Malibagh = 89.2% (SEVERED)`[cite: 3].
   - Zone 2 flashes crimson rings on Farmgate & Malibagh, marks the surface route `[X] SEVERED`, lights up the Electric Cyan MRT-6 + Mohakhali Flyover detour, and flips the Shadow ROI Ledger to **`+64 Mins Saved`**, **`+28 BDT Saved`**, and **`-82.0% Blockade Risk`**[cite: 1, 2, 3].
   - Zone 1 updates Rafi's student-pass card to **`48 BDT, 48 mins, 1 Transfer`** with `[GRAPH_GROUNDED: 100%]`[cite: 1, 3].
@@ -757,7 +757,7 @@ Every team member must verify their items below before the 5:30 code freeze[cite
 
 ##### Copy-Paste Prompt for Documentation:
 ```text
-You are the Lead Technical Writer & Pitch Strategist for DhakaPath (INIF 2026 Smart City Hackathon).
+You are the Lead Technical Writer & Pitch Strategist for DhakaPath.
 Always give me full, complete markdown—never truncate.
 
 Generate our complete `README.md` containing:
@@ -778,7 +778,7 @@ Generate our complete `README.md` containing:
    - **Normalized Multi-Objective Generalized Cost `J(P)` & 16-Bit Bitwise Cycle Guard:** Label-setting Pareto Dijkstra over `|V_exp| = 75` vertices and `|E_exp| ~= 240` edges executing in `< 0.8 ms`.
    - **SAT-Inspired Subgraph Grounding Indicator `V(P*) = 1` & Counterfactual Shadow Baseline ROI (`Delta_Time`, `Delta_Cost`, `Delta_Risk`).**
 
-5. **4-Minute Live Stage Choreography & Top 3 Brutal Judge Q&A Rebuttals:**
+5. **4-Minute Live Stage Choreography & Top 3 Evaluator Q&A Rebuttals:**
    - `0:00 – 0:35`: 5-Second Main Screen Evidence Check (`4.8 km/h` velocity alert, 15-hub topological map, `[SIMULATED DEMO TELEMETRY]` honesty badge).
    - `0:35 – 1:25`: Banglish NL Trip Search (*"Mirpur 10 theke Motijheel, student pass ache, budget 55 taka, Farmgate avoid"*).
    - `1:25 – 2:15`: The 15-Second Hero Climax — Triggering `[2. Peak Crisis Surge]` (`Alt+2`), watching Farmgate & Malibagh sever (`R_e = 91.8%`), and seeing the `0.78 ms` cyan detour (`MRT-6 to Agargaon 30 BDT + Bihanga Bus via Mohakhali Flyover 18 BDT = 48 BDT, +64 mins saved, +28 BDT saved`).

@@ -1,5 +1,5 @@
-# DhakaPath — 5-Minute Championship Pitch Script
-> **IAIT National IT Fest (INIF) 2026 | Hackathon Track: Smart City**  
+# DhakaPath — 5-Minute Pitch Script
+> **Smart City Innovation Initiative | Domain: Urban Mobility & Intelligent Transit**  
 > **Project:** DhakaPath — Multi-Objective Spatio-Temporal Transit Engine & Zero-Hallucination Route Verifier  
 > **Video Timing Reference:** Synced 1:1 with `DhakaPath 1.mp4` (Duration: 05:00)
 
@@ -7,7 +7,7 @@
 
 ## 🧭 Pitch Structure & Evaluator Criteria Mapping
 
-| Section | Hackathon Requirement | Video Time | Core Message & Screen Highlights |
+| Section | Presentation Requirement | Video Time | Core Message & Screen Highlights |
 | :--- | :--- | :--- | :--- |
 | **1. Problem** | Affected users, urban friction & economic gravity | **0:00 – 0:45** | 4.8 km/h gridlock, $1.68B–$11B lost, asymmetric student fares, unverified social media alerts. |
 | **2. Solution** | AI-powered idea, deterministic engine & unique value | **0:45 – 1:30** | Multi-modal Pareto router ($<0.8\text{ ms}$), 15 canonical hubs, statutory fare engine, Bayesian truth verification. |
@@ -135,13 +135,13 @@
 - **ROI Savings:** $+50\text{ to }+64\text{ minutes saved}$ during Peak Crisis detours | $+7\text{ BDT saved}$ on student bus legs.
 - **Offline Resilience:** $<38\text{ KB}$ programmatic HTML5 Canvas card | $100\%$ browser-native speech synthesis with $0\text{ BDT}$ API cost.
 
-### Anticipated Judge Questions & Instant Rebuttals
+### Anticipated Evaluator Questions & Instant Rebuttals
 
-1. **Judge:** *"Why not just use ChatGPT or Gemini directly to answer route queries?"*  
+1. **Question:** *"Why not just use ChatGPT or Gemini directly to answer route queries?"*  
    - **Rebuttal:** *"Generic LLMs hallucinate non-existent transfers in ~31% of Dhaka queries and cannot compute statutory bus half-fares with the 10 BDT minimum floor. DhakaPath sandboxes the LLM strictly to Banglish text-to-JSON parsing, while all routing and fare calculations are executed by our deterministic, zero-hallucination Pareto Dijkstra in 0.8 ms."*
 
-2. **Judge:** *"How do you stop fake blockade reports submitted by trolls on social media?"*  
+2. **Question:** *"How do you stop fake blockade reports submitted by trolls on social media?"*  
    - **Rebuttal:** *"A single uncorroborated report only yields a Bayesian confidence score of ~19.2%—far below our 85% graph-severance threshold. Furthermore, reports decay with a 30-minute exponential half-life ($\lambda = \ln(2)/30$), so false alarms naturally expire without polluting the network."*
 
-3. **Judge:** *"What happens when a commuter loses internet completely in a jam?"*  
+3. **Question:** *"What happens when a commuter loses internet completely in a jam?"*  
    - **Rebuttal:** *"DhakaPath's entire graph and deterministic regex lexer are stored in-memory under 40 KB. Commuters can also download a sub-38 KB Canvas itinerary card and listen to spoken audio briefings via the browser Web Speech API with zero data connection."*

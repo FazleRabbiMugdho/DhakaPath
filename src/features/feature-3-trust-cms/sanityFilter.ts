@@ -195,7 +195,7 @@ export function validateAlertResolution(
 }
 
 /**
- * Deterministic Stress-Test Helper for Judges:
+ * Deterministic Stress-Test Helper:
  * Injects a 400 BDT or 500 BDT spoofed bus fare for Mirpur-10 -> Farmgate
  * (engine-derived statutory base: 17 BDT, max allowed: 42.5 BDT).
  */
@@ -207,7 +207,7 @@ export function injectSpoofedFareStressTest(
 }
 
 /**
- * Deterministic Stress-Test Helper for Judges:
+ * Deterministic Stress-Test Helper:
  * Submits a single uncorroborated blockade at Shahbagh (w_1 = 0.30, prior = 0.15).
  */
 export function createUncorroboratedShahbaghAlert(nowMs: number = Date.now()): StreetAlert {

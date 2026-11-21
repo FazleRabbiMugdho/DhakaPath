@@ -1,7 +1,7 @@
 // ==============================================================================
 // src/features/feature-1-commute/subgraphVerifier.ts
 // SAT-Style Boolean Grounding Verifier: V(P) = prod I(e in E) * I(T < inf) * I(|C - C_stat| < eps)
-// INIF 2026 DhakaPath — Track 3 (Dev 3: AI, NLP & Vision Engineer)
+// DhakaPath — Subgraph Verifier (AI & Grounding Engine)
 // ==============================================================================
 
 import {

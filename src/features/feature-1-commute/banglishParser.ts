@@ -1,7 +1,7 @@
 // ==============================================================================
 // src/features/feature-1-commute/banglishParser.ts
 // Sandboxed LLM Parser + 0.2ms Deterministic Phonetic Lexer Fallback
-// INIF 2026 DhakaPath — Track 3 (Dev 3: AI, NLP & Vision Engineer)
+// DhakaPath — Commute Intelligence (AI, NLP & Vision Engine)
 // ==============================================================================
 
 import { DEFAULT_BUDGET_BDT, HubId } from "../../contracts/schema";

@@ -1,5 +1,5 @@
 // ==============================================================================
-// src/contracts/schema.ts — LOCKED CONTRACT FOR DHAKAPATH (INIF 2026)
+// src/contracts/schema.ts — LOCKED CONTRACT FOR DHAKAPATH
 // Zero-Drift Serialization Law:
 // 1. Zero raw magic strings: Always use shared enums
 // 2. Strict unit suffixes: _ms, _bdt, _pct

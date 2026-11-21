@@ -1,5 +1,5 @@
 # DhakaPath — 4-Person Team Presentation & Defense Guide
-> **IAIT National IT Fest (INIF) 2026 | Hackathon Track: Smart City**  
+> **Smart City Innovation Initiative | Domain: Urban Mobility & Intelligent Transit**  
 > **Project:** DhakaPath — Multi-Objective Spatio-Temporal Transit Engine & Zero-Hallucination Route Verifier  
 
 ---
@@ -70,11 +70,11 @@ Standard navigation apps fail in Dhaka because of asymmetric constraints: non-me
   - `src/ui/MathDrawer.tsx` (Telemetry drawer displaying real-time execution speeds and formula traces).
 - **Spoken Script:**
   > *"I engineered the 4-zone Single-Viewport Command Center, the dual-layer transit map, and the offline survival protocol. Presenting complex transit telemetry requires clean, projector-safe contrast (>7.5:1) without page switches.*  
-  > *Our Stage Time-Machine lets judges trigger a 'Peak Crisis Surge' in one click, immediately showing flooded corridors in pulsing red and the optimal detour in cyan. For commuters stranded with $<5\%$ battery and spotty 3G, our offline protocol exports a $<45\text{ KB}$ programmatic Canvas summary card paired with zero-bandwidth browser-native audio briefings."*
+  > *Our Stage Time-Machine lets evaluators trigger a 'Peak Crisis Surge' in one click, immediately showing flooded corridors in pulsing red and the optimal detour in cyan. For commuters stranded with $<5\%$ battery and spotty 3G, our offline protocol exports a $<45\text{ KB}$ programmatic Canvas summary card paired with zero-bandwidth browser-native audio briefings."*
 
 ---
 
-## 🎯 3 Crucial Judge Technical Questions & Rebuttals
+## 🎯 3 Crucial Evaluator Technical Questions & Rebuttals
 
 1. **"Why not simply prompt an LLM like ChatGPT or Gemini to suggest the best route?"**  
    - **Answer:** LLMs hallucinate non-existent transfers in ~31% of Dhaka transit queries, fail at piecewise student fare floors, and introduce 1.5–3.0 seconds of latency. Our deterministic Pareto Dijkstra computes verified, constraint-checked routes in $<0.8\text{ ms}$ with $100\%$ mathematical reproducibility.

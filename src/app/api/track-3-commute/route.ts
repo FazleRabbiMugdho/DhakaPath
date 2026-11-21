@@ -1,7 +1,7 @@
 // ==============================================================================
 // src/app/api/track-3-commute/route.ts
 // Sandboxed LLM Intent Parser, SAT Grounding Verifier & Vision OCR Server API
-// INIF 2026 DhakaPath — Track 3 (Dev 3: AI, NLP & Vision Engineer)
+// DhakaPath — Commute Intelligence (AI, NLP & Vision Engine)
 // ==============================================================================
 
 import { NextRequest, NextResponse } from "next/server";

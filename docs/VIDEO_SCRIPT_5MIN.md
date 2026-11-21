@@ -1,6 +1,6 @@
 # DhakaPath — 5:00 Demo Video Script & Shot List
 
-> Goal: a judge who has never seen Dhaka should understand, in 5 minutes:
+> Goal: an evaluator who has never seen Dhaka should understand, in 5 minutes:
 > 1. the Dhaka-specific problem, 2. the working multi-constraint search,
 > 3. the trust layer (statutory fares, crowd truth, grounding), 4. the offline/bonus features,
 > and 5. that the telemetry is simulated and the math is deterministic.
@@ -8,7 +8,7 @@
 > Golden rule: **show, don't tell.** One action every 5–8 seconds. Pause 2 seconds after every
 > state change so the viewer's eye catches up. Say one idea per sentence. Never read the UI.
 >
-> **If you only read one page:** §2 is the 5:00 shot list. **If a judge asks "can you show X?"**
+> **If you only read one page:** §2 is the 5:00 shot list. **If an evaluator asks "can you show X?"**
 > use §12 (every feature → exact click path) and §13 (micro-demo scripts for the controls that do
 > not fit in the main take). §14 is a 6:30 extended feature tour you can record separately.
 
@@ -296,7 +296,7 @@ but the point is stronger in Q&A.
 ### 5.3 Architecture card (5 seconds)
 
 A simple title card with three boxes — `Banglish/voice → deterministic graph engine → verifier
-→ route card` — helps judges who need the mental model. Put it at 0:00 or 4:20, not both.
+→ route card` — helps viewers who need the mental model. Put it at 0:00 or 4:20, not both.
 
 ---
 
@@ -334,7 +334,7 @@ legs are blocked".
 
 ---
 
-## 8. Judge Q&A cheat sheet (2 minutes)
+## 8. Evaluator Q&A cheat sheet (2 minutes)
 
 **"Why not just ask ChatGPT/Gemini for the route?"**
 LLMs invent transfers, cannot guarantee the 10 BDT student floor or the MRT station-pair table,
@@ -435,7 +435,7 @@ login. That's DhakaPath."
 ## 12. Complete feature coverage map (every control → exact click path)
 
 Legend: **✅ main take** = already in the 5:00 script · **🟡 optional** = exact steps in §13,
-use it only if you have time or a judge asks · **⛔ skip on camera** = real, but not worth stage
+use it only if you have time or an evaluator asks · **⛔ skip on camera** = real, but not worth stage
 time (mention in Q&A).
 
 The app has roughly fifty interactive surfaces. A five-minute video can show about twenty.
@@ -449,7 +449,7 @@ This table is the audit so nothing is a surprise in Q&A.
 | Stat bar (4.8 km/h · 0.78 ms · 15 hubs · 8.5m→1.4s) | Scroll 200 px, hold 3 s, scroll back | 🟡 | 0.78 ms is marketing; say "sub-millisecond" |
 | Services / trust / pool / download sections | Not shown | ⛔ | Marketing copy, not product |
 | Pool split card (2/4, 3/4, 4/4) | Click **3/4 pool**, watch 45৳ → 30৳ | ⛔ | The live board is stronger |
-| Language toggle | Click **English** / **বাংলা** in header | 🟡 2 s | Only if a judge asks in Bangla |
+| Language toggle | Click **English** / **বাংলা** in header | 🟡 2 s | Only if an evaluator asks in Bangla |
 
 ### 12.2 App chrome (`/app`)
 
@@ -742,7 +742,7 @@ resort, and it costs zero taka."*
 ### 13.15 Language switch — 2 s
 
 Click **English** / **বাংলা** in the header. Every label and numeral switches, and the choice
-persists in `localStorage`. Use only if a judge asks in Bangla.
+persists in `localStorage`. Use only if an evaluator asks in Bangla.
 
 ### 13.16 Reset — 2 s
 

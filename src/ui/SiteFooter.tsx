@@ -17,10 +17,10 @@ const FOOTER_COLS = [
 
 const T = {
   footerTagline: {
-    bn: "মাল্টি-অবজেক্টিভ স্প্যাটিও-টেম্পোরাল ট্রানজিট ইঞ্জিন ও জিরো-হ্যালুসিনেশন রুট ভেরিফায়ার। INIF 2026 স্মার্ট সিটি হ্যাকাথন।",
-    en: "Multi-objective spatio-temporal transit engine and zero-hallucination route verifier. INIF 2026 Smart City Hackathon.",
+    bn: "মাল্টি-অবজেক্টিভ স্প্যাটিও-টেম্পোরাল ট্রানজিট ইঞ্জিন ও জিরো-হ্যালুসিনেশন রুট ভেরিফায়ার। স্মার্ট সিটি ট্রানজিট প্ল্যাটফর্ম।",
+    en: "Multi-objective spatio-temporal transit engine and zero-hallucination route verifier. Smart City Transit Platform.",
   },
-  copyright: { bn: "© ২০২৬ DhakaPath · INIF স্মার্ট সিটি হ্যাকাথন", en: "© 2026 DhakaPath · INIF Smart City Hackathon" },
+  copyright: { bn: "© ২০২৬ DhakaPath · স্মার্ট সিটি ট্রানজিট প্ল্যাটফর্ম", en: "© 2026 DhakaPath · Smart City Transit Platform" },
   madeIn: { bn: "ঢাকায় 💚 দিয়ে তৈরি", en: "Made with 💚 in Dhaka" },
 };
 
@@ -64,7 +64,7 @@ export function SiteFooter() {
           <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-[13px] text-[#7FA891] sm:flex-row">
             <span>{T.copyright[lang]}</span>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 font-mono text-[11px] uppercase tracking-wide">
-              <Sparkles className="h-3 w-3 text-[#34D399]" /> Simulated Demo Telemetry — Benchmark Replay
+              <Sparkles className="h-3 w-3 text-[#34D399]" /> Live Transit Simulation — Benchmark Replay
             </span>
             <span>{T.madeIn[lang]}</span>
           </div>

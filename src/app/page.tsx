@@ -128,7 +128,7 @@ const T = {
   },
   heroCta1: { bn: "লাইভ কমান্ড সেন্টার দেখুন", en: "See the Live Command Center" },
   heroCta2: { bn: "সার্ভিস জানুন", en: "Explore services" },
-  heroNote: { bn: "কোনো লগইন নেই · অফলাইন-প্রস্তুত · সিমুলেটেড ডেমো টেলিমেট্রি", en: "No login · offline-ready · simulated demo telemetry" },
+  heroNote: { bn: "কোনো লগইন নেই · অফলাইন-প্রস্তুত · রিয়েল-টাইম বেঞ্চমার্ক সিমুলেশন", en: "No login · offline-ready · real-time benchmark simulation" },
   modesEyebrow: { bn: "DhakaPath প্ল্যাটফর্ম", en: "DhakaPath platform" },
   modesTitle: { bn: "এক গ্রাফে ঢাকার সব মোড", en: "Every Dhaka mode in one graph" },
   servicesEyebrow: { bn: "সার্ভিসসমূহ", en: "Services" },

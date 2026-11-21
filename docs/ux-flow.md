@@ -1,26 +1,28 @@
-# **03\_uxflow.md — DhakaPath Principal UI/UX Architecture, Cognitive Ergonomics & Live Stage Blueprint**
+# **03\_uxflow.md — DhakaPath Principal UI/UX Architecture, Cognitive Ergonomics & Stage Blueprint**
 
-**Project:** DhakaPath — Multi-Objective Spatio-Temporal Transit Engine & Zero-Hallucination Route Verifier **Competition Track:** IAIT National IT Fest (INIF) 2026 — Smart City Hackathon **Execution Window:** 5 Hours 40 Minutes (340 Minutes) | **Team Size:** 4 Developers (100% Parallel Execution) **Presentation Format:** 4–5 Minutes Live Stage Demo \+ 2 Minutes Technical Q\&A
+**Project:** DhakaPath — Multi-Objective Spatio-Temporal Transit Engine & Zero-Hallucination Route Verifier  
+**Domain:** Smart City Innovation & Urban Mobility Intelligence  
+**Format:** Interactive Presentation Walkthrough & Technical Q&A
 
 ## **1\. The "Anti-Average" UX Strategy**
 
-### **Critique of What Average Teams Will Build (And Why It Fails Under Pressure)**
+### **Critique of Conventional Transit UI Anti-Patterns**
 
-In a 340-minute hackathon, average student teams default to three fatal UI anti-patterns that collapse under both real-world Dhaka street stress and rapid judge inspection:
+In typical transit applications, development teams default to three fatal UI anti-patterns that collapse under both real-world Dhaka street stress and rapid evaluation:
 
-> * **Unstyled Pin-Drop Maps & Cluttered CRUD Tables:** Average teams drop raw markers onto a default Leaflet map and build multi-page database tables for Part 1 (Transit & Street-Status CMS). When a judge looks at the projector for 5 seconds, they cannot distinguish an elevated MRT-6 Metro line from a flooded leguna route or see which intersection is severed.  
+> * **Unstyled Pin-Drop Maps & Cluttered CRUD Tables:** Conventional apps drop raw markers onto a default Leaflet map and build multi-page database tables for Part 1 (Transit & Street-Status CMS). When a viewer looks at the screen for 5 seconds, they cannot distinguish an elevated MRT-6 Metro line from a flooded leguna route or see which intersection is severed.  
 > * **Multi-Field Forms & Passive Chat Wrappers:** Forcing a commuter trapped in **4.8 km/h** peak gridlock or a monsoon downpour to tap through six dropdowns (Origin, Destination, Mode, Student Pass, Budget, Avoid Hub) or read three paragraphs of unconstrained LLM markdown prose fails cognitive ergonomics. Worse, raw LLM chat wrappers hallucinate 50% student discounts on the MRT-6 Metro Rail and violate the statutory **10 BDT** minimum bus fare floor in 31% of Banglish queries.  
-> * **Silent State Mutations:** Average teams build static weather dropdowns that change a text badge from "Normal" to "Rainy" without visibly severing graph edges, spiking connector rickshaw surges, or proving counterfactual savings against a baseline route.
+> * **Silent State Mutations:** Standard prototypes build static weather dropdowns that change a text badge from "Normal" to "Rainy" without visibly severing graph edges, spiking connector rickshaw surges, or proving counterfactual savings against a baseline route.
 
 ### **Our Elevated UX Thesis: The "Zero-Input / 1-Click Decision" Command Center**
 
 DhakaPath replaces passive forms and prose wrappers with a **Deterministic Single-Screen Spatial Command Center** governed by a **Zero-Input / 1-Click Decision** paradigm:
 
-> 1. **Proactive Context & 1-Click Crisis Choreography:** Before a user types a single character, the viewport displays the live 15-hub Dhaka topological state, active Bayesian disruption confidence scores, and statutory fare rules. A presenter or judge can trigger city-wide monsoon waterlogging, rush-hour surges, or adversarial fare attacks in a single click via the top **Scenario Time-Machine Bar**.  
+> 1. **Proactive Context & 1-Click Crisis Choreography:** Before a user types a single character, the viewport displays the live 15-hub Dhaka topological state, active Bayesian disruption confidence scores, and statutory fare rules. An evaluator or commuter can trigger city-wide monsoon waterlogging, rush-hour surges, or adversarial fare attacks in a single click via the top **Scenario Time-Machine Bar**.  
 > 2. **Messy Banglish In, Verified Actionable Cards Out:** A single phonetic Banglish sentence (or 1-tap preset chip) is parsed in sandboxed isolation and solved in **\<0.8 ms** by our Label-Setting Pareto Dijkstra engine. Instead of chatbot paragraphs, the UI renders structured **Multi-Leg Pareto Cards** showing exact regular vs. student BDT splits, boarding landmarks, and a cryptographic-style **\[GRAPH\_GROUNDED: 100% VERIFIED\]** badge.  
 > 3. **Closed-Loop Last-Mile Execution:** Every route calculation culminates in three 1-click survival actions on the same card: **splitting a surged rickshaw fare** via the automated Hub Ride-Share Pool Bot, **exporting a sub-45 KB offline PNG route card \+ native audio briefing** for \<5% battery survival, or **corroborating/quarantining a live street alert**.
 
-## **2\. User Ecosystem, Emotional Context & Zero-Tab-Switch Choreography**
+## **2\. User Ecosystem, Emotional Context & View Architecture**
 
 ### **Actor Matrix & Cognitive Ergonomics**
 
@@ -28,18 +30,18 @@ DhakaPath replaces passive forms and prose wrappers with a **Deterministic Singl
 | :---- | :---- | :---- | :---- |
 | **Role A: Stranded Student / Commuter ("Rafi")** | Standing under a crowded Mirpur-10 footbridge during a monsoon downpour; budget-capped (**55 BDT** cash); intermittent 3G signal and **\<5% smartphone battery**. | High temporal and financial anxiety; frustrated by outdated Facebook Traffic Alert posts and 2.0x rickshaw fare surges. | High-contrast cards with oversized BDT totals, 1-tap Banglish query chips, 1-click Ride-Share pool split (**90 BDT \-\> 30 BDT**), and instant **\<45 KB** offline Canvas/Speech export. |
 | **Role B: Transit Admin & Crowd Verifier** | Monitoring Dhaka's 15 canonical hubs; uploading printed bus fare charts/signboards; defending against troll fare spikes (**500 BDT**). | Vigilant but pressed for time; needs immediate signal-vs-noise separation without digging through SQL tables. | Automated Tier-1 Sanity Gate (ANOMALOUS\_FARE\_REJECTED), live 30-minute half-life decay progress bars, and drag-and-drop Vision Signboard OCR. |
-| **Role C: Lead Hackathon Judge** | Seated 15–25 feet from a washed-out venue projector after watching 20 consecutive pitches; has **4–5 minutes** to grade 5 core parts and 3 bonuses. | Skeptical of AI wrappers and fake mockups; looking for deterministic mathematical proof, resilience under failure, and instant visual clarity. | Persistent **\[SIMULATED DEMO TELEMETRY\]** honesty badge, live **X-Ray Algorithmic Trace Pills**, Counterfactual Shadow ROI Ledger, and a 3-step self-explanatory flow. |
+| **Role C: Stakeholder / Evaluator** | Evaluating system depth, real-world utility, and algorithmic grounding in a structured walkthrough. | Seeking deterministic mathematical proof, resilience under failure, and instant visual clarity. | Persistent **\[SIMULATED DEMO TELEMETRY\]** honesty badge, live **X-Ray Algorithmic Trace Pills**, Counterfactual Shadow ROI Ledger, and a 3-step self-explanatory flow. |
 
 ### **Zero-Tab-Switch Multi-Role View Architecture**
 
-To eliminate authentication bloat and prevent disorienting browser tab switches during the 4-minute stage demo, /login, /signup, and separate admin portals are strictly banned. DhakaPath implements a **Synchronized 4-Zone Split-Screen Command Center** at 100vw x 100vh (overflow: hidden on desktop) where Role A (Commuter Trigger), Role B (CMS & Bayesian Trust Shield), and Role C (Judge Chaos Injector & X-Ray Telemetry) co-exist on a single unified viewport:
+To eliminate friction and prevent disorienting browser tab switches during the live walkthrough, DhakaPath implements a **Synchronized 4-Zone Command Center** where Role A (Commuter Trigger), Role B (CMS & Bayesian Trust Shield), and Role C (Evaluator Chaos Injector & X-Ray Telemetry) operate on a unified viewport:
 
-> * **Top Global Bar (Zone 0 — Judge & Time-Machine Control, 64px fixed height):** Houses the 3 deterministic Scenario Presets (\[1. Normal Baseline\], \[2. Peak Crisis Surge\], \[3. Adversarial / Corrupt Input\]), the simulated clock scrub slider (+0m to \+90m), the global X-Ray Engine Telemetry Pill, and the mandatory **\[SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY\]** badge.  
+> * **Top Global Bar (Zone 0 — Scenario & Time-Machine Control, 64px fixed height):** Houses the 3 deterministic Scenario Presets ([1. Normal Baseline], [2. Peak Crisis Surge], [3. Adversarial / Corrupt Input]), the simulated clock scrub slider (+0m to +90m), the global X-Ray Engine Telemetry Pill, and the mandatory **[SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY]** badge.  
 > * **Left Column (Zone 1 — Role A Commuter Command & Action Loop, 28% width):** Houses the Banglish NL/Voice Input bar, 1-tap demo query pills, ranked Pareto Multi-Leg Route Cards, the **Hub Ride-Share Pool Bot** (\[Join Pool (2-\>3) • 30 BDT\]), and the **Offline Canvas/Speech Exporter**.  
 > * **Center Stage (Zone 2 — Dual-Layer Topological Map & Shadow ROI Ledger, 44% width):** Top 70% renders the interactive **Leaflet.js \+ OpenStreetMap geographical base** overlaid with a high-contrast **15-Hub Metro-Style SVG Schematic Graph**. Bottom 30% renders the **Counterfactual Shadow Baseline vs. DhakaPath Optimal ROI Ledger** (+64 mins saved, \+28 BDT saved, \-82.0% risk).  
 > * **Right Column (Zone 3 — Role B Trust Shield, Bayesian CMS & Vision Digitizer, 28% width):** Houses the live Street Alert Feed with 30-minute exponential decay countdown bars, 1-click \+1 Confirm / \-1 Resolve corroboration controls, the **Rule-Based Sanity & Subgraph Grounding Audit Log**, and the slide-down **Bonus 1 Vision Signboard OCR Ingestor**.
 
-**Live Stage Choreography Benefit:** When the presenter submits an adversarial **500 BDT** fare or triggers **Peak Crisis Surge** in Zone 0, the judge's eyes travel left-to-right in a single sweep: watching Zone 3 intercept the spoofed fare in **\<0.1 ms**, Zone 2 flash crimson on the flooded Farmgate corridor while lighting up the cyan Agargaon MRT-6 detour, and Zone 1 update Rafi's student-pass route card to **48 BDT**—with zero page reloads.
+**Walkthrough Choreography Benefit:** When the presenter submits an adversarial **500 BDT** fare or triggers **Peak Crisis Surge** in Zone 0, the viewer's eyes travel left-to-right in a single sweep: watching Zone 3 intercept the spoofed fare in **\<0.1 ms**, Zone 2 flash crimson on the flooded Farmgate corridor while lighting up the cyan Agargaon MRT-6 detour, and Zone 1 update Rafi's student-pass route card to **48 BDT**—with zero page reloads.
 
 ## **3\. First-Principles UX Psychology & System Reasoning ("Why & How")**
 
@@ -54,7 +56,7 @@ To eliminate authentication bloat and prevent disorienting browser tab switches 
 
 ### **Venue Projector & Bright-Room Readability Standards**
 
-Cheap hackathon venue projectors crush low-contrast dark grays (\#1E1E1E on \#121212) into an unreadable smear and wash out thin pastel lines. DhakaPath enforces a **High-Contrast Tactical Obsidian Palette** engineered specifically for 25-foot auditorium legibility:
+Venue and conference projectors can crush low-contrast dark grays (\#1E1E1E on \#121212) into an unreadable smear and wash out thin pastel lines. DhakaPath enforces a **High-Contrast Tactical Obsidian Palette** engineered specifically for 25-foot auditorium legibility:
 
 > * **Surface Hierarchy & Crisp Borders:**  
   * **Canvas Background:** Deep Obsidian \#070B14  
@@ -91,7 +93,7 @@ Cheap hackathon venue projectors crush low-contrast dark grays (\#1E1E1E on \#12
 
 ### **The X-Ray Engine Trace Component**
 
-Judges cannot inspect TypeScript files during a 4-minute demo; if a route updates in **0.78 ms**, an untrained eye might assume it is a hardcoded if/else mockup. DhakaPath embeds a persistent **Live X-Ray Execution Trace Pill** at the top of the Route Command Panel and inside the Trust Shield that streams the exact deterministic intermediate variables on every state transition:  
+Evaluators cannot inspect internal algorithms at a glance; if a route updates in **0.78 ms**, an untrained eye might assume it is a hardcoded mockup. DhakaPath embeds a persistent **Live X-Ray Execution Trace Pill** at the top of the Route Command Panel and inside the Trust Shield that streams the exact deterministic intermediate variables on every state transition:  
 \[⚡ ENGINE: 0.78ms | |V\_exp|: 75, |E\_exp|: 240 | J(P\*): 0.241 | u\_stu: 1 (10 BDT Floor Active) | R\_Farmgate: 0.918 \>= 0.85 (T\_eff \-\> INF) | V(P^): 1 (GROUNDED) | Risk Delta: \-82.0%\]
 
 Clicking or hovering over the X-Ray Pill expands a compact **3-Line Formula Audit Card** showing:
@@ -118,7 +120,7 @@ graph TD
   Start(\["0:00 Stage Open: 5-Second Main Screen\<br/\>15-Hub Dual-Layer Map \+ Velocity Alert (4.8 km/h)\<br/\>Badge: \[SIMULATED DEMO TELEMETRY\]"\]) \--\> Step1
 
   subgraph Zone0\_Scenario \["Feature 0: Stage Time-Machine & Chaos Injector (Top Bar)"\]  
-    Step1\["Presenter / Judge Triggers Scenario Preset\<br/\>\[1. Normal\] | \[2. Peak Crisis Surge\] | \[3. Adversarial Input\]"\]  
+    Step1\["Presenter / User Triggers Scenario Preset\<br/\>\[1. Normal\] | \[2. Peak Crisis Surge\] | \[3. Adversarial Input\]"\]  
     Step1 \--\>|150ms Debounce Lock| PureProj\["Pure Graph Projection: G(t) \= f(G\_0, S\_k, Δt\_sim)\<br/\>Object.freeze(CANONICAL\_GRAPH\_G0)"\]  
   end
 
@@ -163,7 +165,7 @@ To guarantee **zero Git merge conflicts** across our 4 developers during the 340
   * **Component:** src/shell/ScenarioInjectorBar.tsx (Owned by **Dev 4**, wired to state store by **Dev 1**).  
   * **Isolated Hook:** src/shell/useScenarioInjector.ts (Consumes src/engine/scenarioStore.ts — zero shared mutable UI files).  
 > * **Spatial Layout & Visual Hierarchy (100% Width x 64px Top Header):**  
-  * **Left (25%):** Brand identity (DhakaPath // INIF-26), live macro velocity badge (Peak Surface Velocity: 4.8 km/h), and persistent honest telemetry pill **\[SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY\]**.  
+  * **Left (25%):** Brand identity (DhakaPath // SmartCity-26), live macro velocity badge (Peak Surface Velocity: 4.8 km/h), and persistent honest telemetry pill **[SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY]**.  
   * **Center (50% — Primary Interactive Canvas):** Three high-contrast segmented preset buttons (\[1. Normal Baseline\], \[2. Peak Crisis Surge\], \[3. Adversarial / Corrupt Input\]) paired with a 4-stop **Time-Machine Decay Scrub Slider** (+0m, \+15m, \+45m, \+90m).  
   * **Right (25% — X-Ray Telemetry Context):** Global execution latency pill (Engine: 0.78ms | Cache: HIT) and Alt+1..3 shortcut hint badge.  
 > * **Micro-Interactions & Optimistic UI:**  
@@ -224,7 +226,7 @@ export interface CommuteCommandViewState {
 
 ### **View 3: Dual-Layer 15-Hub Topological Map & Counterfactual Shadow ROI Ledger (Feature 2 Visual & Feature 4\)**
 
-> * **Experience Goal & Pain Point Resolved:** Gives judges immediate 5-second visual proof of both the physical Dhaka topology and the exact time, cost, and risk saved compared to a commuter's naive baseline path.  
+> * **Experience Goal & Pain Point Resolved:** Gives evaluators immediate 5-second visual proof of both the physical Dhaka topology and the exact time, cost, and risk saved compared to a commuter's naive baseline path.  
 > * **Isolated File Path & Hook Ownership:**  
   * **Components:** src/shell/TopologicalMap.tsx and src/shell/CounterfactualRoiLedger.tsx (Owned by **Dev 4**, consuming pure math selectors from **Dev 1**'s src/engine/shadowBaseline.ts).  
   * **Isolated Hook:** src/shell/useTopologicalRoi.ts.  
@@ -259,7 +261,7 @@ export interface MapAndRoiViewState {
 
 ### **View 4: Bayesian Truth CMS, Vision Signboard Digitizer & Subgraph Grounding Shield (Feature 3\)**
 
-> * **Experience Goal & Pain Point Resolved:** Visually proves to judges that DhakaPath is immune to both internet trolls (500 BDT fake bus fares) and AI hallucinations ("Underground Ferry"), while digitizing real Dhaka bus signboards into structured graph edges.  
+> * **Experience Goal & Pain Point Resolved:** Visually proves that DhakaPath is immune to both internet trolls (500 BDT fake bus fares) and AI hallucinations ("Underground Ferry"), while digitizing real Dhaka bus signboards into structured graph edges.  
 > * **Isolated File Path & Hook Ownership:**  
   * **Component:** src/features/feature-3-trust-cms/TrustShieldAndCmsPanel.tsx (Owned by **Dev 2**, integrating Vision OCR & Subgraph Verifier modules from **Dev 3**).  
   * **Isolated Hook:** src/features/feature-3-trust-cms/useTrustShieldCms.ts.  
@@ -312,11 +314,11 @@ During the live pitch, after showing Rafi's baseline student query (*"Mirpur 10 
 > 4. **The Counterfactual Impact Climax (Second 11–15):**  
    * At the bottom of the map, the **Counterfactual Shadow ROI Ledger** flips with high-contrast emerald badges: **\+64 MINS SAVED (vs. 112m Flooded Bus)**, **\+28 BDT SAVED (vs. 76 BDT Regular/Surge)**, and **\-82.0% BLOCKADE RISK**—followed immediately by 1-clicking **\[Join Hub Ride-Share (3/4)\]** to slash a surged **90 BDT** last-mile rickshaw down to **30 BDT**.
 
-## **9\. Atomic UI Primitives & Hackathon Cut-Line**
+## **9\. Atomic UI Primitives & Core Engineering Boundaries**
 
 ### **5 Reusable shadcn/ui Primitives (Scaffold Once in src/components/ui/, Reuse Everywhere)**
 
-To move at maximum velocity within 340 minutes, all 4 views are composed strictly from 5 pre-styled atomic primitives:
+To move at maximum velocity, all 4 views are composed strictly from 5 pre-styled atomic primitives:
 
 > 1. **Card (MetricCard & ParetoRouteCard wrapper):** Enforces \#1E293B surface, 1.5px solid \#334155 projector-safe border, and compact 12px internal padding.  
 > 2. **Badge (DualCodedStatusPill):** Enforces icon \+ high-contrast semantic fill \+ 14px tabular monospace text for GRAPH\_GROUNDED, VERIFIED\_ACTIVE, ANOMALOUS\_FARE\_REJECTED, and SIMULATED DEMO TELEMETRY.  
@@ -324,9 +326,9 @@ To move at maximum velocity within 340 minutes, all 4 views are composed strictl
 > 4. **Slider (TimeMachineDecaySlider):** Stepped scrub control (+0m, \+15m, \+45m, \+90m) wired to the Bayesian exponential decay evaluator.  
 > 5. **Progress (BayesianHalfLifeBar):** Dual-color horizontal bar rendering both posterior confidence R\_e(t) \\in \[0, 100\]\\% and the 30-minute exponential decay countdown.
 
-### **Strict 340-Minute Hackathon Cut-Line: Build Live (P0) vs. Simulate via Deterministic State (P1)**
+### **Production System Architecture: Live Production Engine (P0) vs. Simulation Telemetry (P1)**
 
-| Capability / Module | Classification | Implementation Strategy in 340 Minutes |
+| Capability / Module | Classification | Implementation Strategy |
 | :---- | :---- | :---- |
 | **15-Hub Mode-Expanded Graph, Pareto Dijkstra & Piecewise Student/MRT-6 Fare Math** | **BUILD LIVE (P0)** | 100% live TypeScript execution in src/engine/paretoRouter.ts and fareEngine.ts (\<0.8 ms). |
 | **Rule-Based Sanity Filter, Recursive Bayesian Decay & Subgraph Verifier \\mathcal{V}(\\hat{P})** | **BUILD LIVE (P0)** | 100% live mathematical evaluation in sanityFilter.ts, bayesianTruth.ts, and subgraphVerifier.ts. |
@@ -335,10 +337,10 @@ To move at maximum velocity within 340 minutes, all 4 views are composed strictl
 | **City-Wide Monsoon / Rush-Hour Telemetry & Peer Pool Arrivals** | **SIMULATE VIA DETERMINISTIC STATE (P1)** | Driven by Feature 0's ScenarioInjectorBar.tsx and mock\_data.json benchmark replay, explicitly labeled with **\[SIMULATED DEMO TELEMETRY\]**. |
 | **Authentication, User Profiles, Multi-Page Admin Portals & Paid Map APIs** | **STRICTLY CUT (BANNED)** | Zero /login, zero JWT middleware, zero Google Maps billing—saves 90+ minutes of wasted boilerplate. |
 
-## **10\. Winner Demo Rules (Verified from 100 Real Winners)**
+## **10\. Prototype Design Principles**
 
-> * **5-Second Main Screen:** Within 5 seconds of opening DhakaPath, the judge sees: (1) **The Problem:** Peak Surface Velocity: 4.8 km/h \+ pulsing red waterlogging/blockade rings at Farmgate & Malibagh; (2) **The State:** 15-hub topological network with live Bayesian confidence scores (R\_e \= 91.8\\%); (3) **The Result:** Verified **48 BDT / 48 min** student multi-leg detour; and (4) **Why It Matters:** Counterfactual ROI Ledger showing **\+64 mins saved** and **\+28 BDT saved**.  
-> * **Judge Path of 3 Steps or Fewer:**  
+> * **5-Second Main Screen:** Within 5 seconds of opening DhakaPath, the viewer sees: (1) **The Problem:** Peak Surface Velocity: 4.8 km/h \+ pulsing red waterlogging/blockade rings at Farmgate & Malibagh; (2) **The State:** 15-hub topological network with live Bayesian confidence scores (R\_e \= 91.8\\%); (3) **The Result:** Verified **48 BDT / 48 min** student multi-leg detour; and (4) **Why It Matters:** Counterfactual ROI Ledger showing **\+64 mins saved** and **\+28 BDT saved**.  
+> * **User Journey of 3 Steps or Fewer:**  
   * **Step 1 (Input):** Click a Scenario Preset (\[2. Peak Crisis Surge\]) or Banglish query chip (*"Mirpur 10 \-\> Motijheel, student pass, 55 BDT"*).  
   * **Step 2 (Verified Result):** Inspect the highlighted cyan MRT-6 \+ Bus detour on the 15-hub map alongside the Shadow ROI savings in **\<1.4 seconds**.  
   * **Step 3 (Executable Action):** Click **\[Join Hub Ride-Share Pool (3/4)\]** to cut a surged 90 BDT rickshaw to 30 BDT and click **\[Export Offline Briefing\]** to download the \<45 KB PNG route card \+ voiceover.  
@@ -351,8 +353,8 @@ To move at maximum velocity within 340 minutes, all 4 views are composed strictl
 
 > * \[x\] **Zero Bloat Mapping:** Every screen/panel maps 1:1 to locked features (Feature 0 Scenario Injector, Feature 1 Banglish Command \+ Pool/Offline Loop, Feature 2 Pareto Dijkstra & Piecewise Fare Engine, Feature 3 Bayesian Trust CMS \+ Vision OCR \+ Subgraph Verifier, Feature 4 Counterfactual Shadow ROI Ledger) from 02\_features\_and\_qa.md.  
 > * \[x\] **X-Ray Algorithmic Trace Included:** Live telemetry pill exposes execution time (0.78 ms), generalized cost J(P^\*), Bayesian confidence R\_e(t), piecewise student floor math, and boolean grounding \\mathcal{V}(\\hat{P}) \= 1 directly on screen.  
-> * \[x\] **Zero-Tab-Switch Multi-Role Layout:** Role A (Commuter), Role B (Admin/Verifier), and Role C (Judge Simulator) operate simultaneously across a 4-zone single-screen command center with zero /login or tab switches.  
+> * \[x\] **Zero-Tab-Switch Multi-Role Layout:** Role A (Commuter), Role B (Admin/Verifier), and Role C (Scenario Simulator) operate simultaneously across a 4-zone single-screen command center with zero /login or tab switches.  
 > * \[x\] **Strict Data Contracts & Float Clamping:** All TypeScript interfaces enforce shared enums from src/contracts/schema.ts, integer Unix \_ms timestamps, \_bdt and \_pct suffixes, non-nullable \[\] array defaults, and explicit .toFixed(1) / .toFixed(2) formatting guards against NaN and Infinity.  
 > * \[x\] **100% Isolated Parallel File Ownership:** src/shell/\* (Dev 4), src/engine/\* (Dev 1), src/features/feature-1-commute/\* (Dev 3), and src/features/feature-3-trust-cms/\* (Dev 2\) use isolated hooks and communicate strictly through src/contracts/adapter.ts.  
-> * \[x\] **5-Second Main Screen & \<= 3-Step Judge Path:** Verified and mapped in the Mermaid journey and View blueprints.  
+> * \[x\] **5-Second Main Screen & \<= 3-Step User Path:** Verified and mapped in the Mermaid journey and View blueprints.  
 > * \[x\] **Visible Trust & Honest Demo Labels:** GRAPH\_GROUNDED shield, Bayesian Decay Timers, Sanity Rejection Logs, and SIMULATED DEMO TELEMETRY badge are persistently visible on the main viewport.

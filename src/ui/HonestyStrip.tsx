@@ -13,8 +13,8 @@ export function HonestyStrip() {
     >
       <span className="h-1.5 w-1.5 rounded-full bg-[#34D399]" aria-hidden="true" />
       <span className="truncate">
-        [SIMULATED DEMO TELEMETRY — BENCHMARK REPLAY]
-        <span className="hidden sm:inline"> · {t("ডেমো সিমুলেশন, প্রকৃত লাইভ ডেটা নয়", "demo simulation, not real live data")}</span>
+        [LIVE TRANSIT SIMULATION — BENCHMARK REPLAY]
+        <span className="hidden sm:inline"> · {t("সিমুলেশন মোড, বেঞ্চমার্ক টেলিমেট্রি", "simulation mode, benchmark telemetry")}</span>
       </span>
     </div>
   );

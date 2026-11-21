@@ -1,6 +1,6 @@
 "use client";
 
-// Demo story: the 25-second stage opener. Three proof counters and one button into the live app.
+// Overview: the 25-second stage opener. Three proof counters and one button into the live app.
 
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, animate, motion, useReducedMotion } from "framer-motion";
@@ -48,7 +48,7 @@ export function PitchOverlay({ open, onClose }: { open: boolean; onClose: () => 
           className="fixed inset-0 z-[90] grid place-items-center overflow-y-auto bg-[#0B3321]/55 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-label={t("ডেমো স্টোরি", "Demo story")}
+          aria-label={t("ওভারভিউ", "Overview")}
           onClick={onClose}
         >
           <motion.div

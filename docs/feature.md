@@ -12,9 +12,9 @@ To maximize engineering points within the 5-hour-40-minute (340-minute) competit
 > * **No Unvalidated CRUD Tables:** No multi-page admin database viewers or generic tabular forms without live topological and mathematical feedback.  
 > * **No Unconstrained Chatbot Wrappers:** No standalone free-text chat screens where an LLM directly invents transit routes or calculates Bangladeshi Taka (BDT) fares in prose.
 
-### **Unspoken Problem-Setter & Post-Mortem Needs Uncovered**
+### **Unspoken Operational Needs Uncovered**
 
-Reverse-engineering the INIF 2026 Smart City rubric alongside urban transport literature and hackathon post-mortems reveals four critical operational failure modes that average teams miss:
+Analyzing urban transit requirements alongside mobility literature and field tests reveals four critical operational failure modes that standard systems miss:
 
 > 1. **Non-Linear Piecewise Student Fare Sub-Optimality:** Standard shortest-path algorithms assume additive edge weights. In Dhaka, the statutory 50% student discount applies exclusively to local buses with a strict **10 BDT minimum fare floor**, while offering zero discount on the MRT-6 Metro Rail (stepped in 10 BDT increments from 20 BDT to 100 BDT at 5 BDT/km), legunas, or rickshaws. Splitting one bus trip across two short bus transfers artificially triggers the 10 BDT minimum floor twice (costing 20 BDT instead of 12 BDT), which breaks naive breadth-first or single-scalar Dijkstra routers.  
 > 2. **Subgraph Partitioning Under Simultaneous Blockades:** When flash monsoon waterlogging hits Malibagh while an intersection blockade severs Shahbagh or Farmgate, motorized surface edges can partition into disconnected components. Average engines crash or return No Route Found; our engine automatically activates a **Graceful Fallback Walk-Bridge Protocol** (4.5\\text{ km/h} footpath bypass edges) to bridge severed hubs.  
@@ -23,7 +23,7 @@ Reverse-engineering the INIF 2026 Smart City rubric alongside urban transport li
 
 ### **Championship Feature Calibration Overview**
 
-| Feature ID & Role | Feature Name | INIF 2026 Rubric Alignment | Primary Owner |
+| Feature ID & Role | Feature Name | Requirements Alignment | Primary Owner |
 | :---- | :---- | :---- | :---- |
 | **Feature 0 (Mandatory Stage Time-Machine)** | **Deterministic Scenario & Chaos Injector Bar** | Part 3 (Scenario Simulation) & Part 4 (Sanity/Decay Stress Test) | Dev 4 (Shell/UI) \+ Dev 1 (State) |
 | **Feature 1 (The Core Pain-Killer)** | **Banglish Multi-Constraint Command Center & Action Loop (Ride-Share Split \+ Offline Canvas/Audio Briefing)** | Part 2 (Search), Part 5 (Chat), Bonus 2 (Offline Briefing) & Bonus 3 (Ride-Share Bot) | Dev 3 (NL Parser) \+ Dev 4 (UX/Canvas) |
@@ -33,7 +33,7 @@ Reverse-engineering the INIF 2026 Smart City rubric alongside urban transport li
 
 ### **Winner Rules Enforcement**
 
-> * **3-Step Judge Path:** **Step 1 (Input):** Judge clicks a Feature 0 crisis preset or submits a Banglish trip query ("Mirpur 10 theke Motijheel, student pass, budget 55 taka") \\rightarrow **Step 2 (Result):** Engine renders the GRAPH\_GROUNDED Pareto route on the 15-hub schematic map alongside the Shadow Baseline ROI savings (+64 mins, \+28 BDT saved) in \<1.4\\text{ seconds} \\rightarrow **Step 3 (Action):** Commuter clicks **\[Join Hub Ride-Share Pool (3/4)\]** to split a surged rickshaw fare from 90 BDT down to 30 BDT and clicks **\[Export Offline Briefing\]** to download the sub-45 KB PNG route card and trigger native voice readout.  
+> * **3-Step User Path:** **Step 1 (Input):** User clicks a Feature 0 crisis preset or submits a Banglish trip query ("Mirpur 10 theke Motijheel, student pass, budget 55 taka") \\rightarrow **Step 2 (Result):** Engine renders the GRAPH\_GROUNDED Pareto route on the 15-hub schematic map alongside the Shadow Baseline ROI savings (+64 mins, \+28 BDT saved) in \<1.4\\text{ seconds} \\rightarrow **Step 3 (Action):** Commuter clicks **\[Join Hub Ride-Share Pool (3/4)\]** to split a surged rickshaw fare from 90 BDT down to 30 BDT and clicks **\[Export Offline Briefing\]** to download the sub-45 KB PNG route card and trigger native voice readout.  
 > * **Close the Loop:** Every route discovery ends in three concrete executable actions: mutating the live hub ride-share pool, exporting a standalone offline PNG briefing card \+ audio voiceover, or corroborating/resolving an active street alert.  
 > * **Every Panel Earns Its Place:** The single-screen command center contains strictly four functional zones: (1) Top Scenario Time-Machine Bar, (2) Center Dual-Layer 15-Hub Topological Map, (3) Left Banglish Assistant & Vision Signboard Ingestor, and (4) Right Pareto Route Cards, Trust Audit Shield & Shadow ROI Ledger.  
 > * **One Demoable Trust Feature:** Feature 3 embeds both a cryptographic-style **\[GRAPH\_GROUNDED: 100% VERIFIED\]** subgraph audit badge and a live **30-Minute Half-Life Bayesian Decay Timer** with explicit rule-based rejection logs (ANOMALOUS\_FARE\_REJECTED).  
@@ -46,7 +46,7 @@ Reverse-engineering the INIF 2026 Smart City rubric alongside urban transport li
 
 #### **Plain-English Explanation (What & Why)**
 
-Judges do not have three days to wait for monsoon floods, rush-hour gridlock, or internet trolls to hit the transit network during a five-minute pitch. This global header bar lets the presenter switch the entire city of Dhaka across three realistic traffic emergencies in a single click. Within one millisecond, the map, street alerts, rickshaw surge prices, and detour routes update simultaneously so judges can witness three days of edge cases in thirty seconds.
+Evaluators and commuters need to observe how the platform handles monsoon floods, rush-hour gridlock, or unexpected disruptions without waiting days for rare weather events. This global header bar lets the user switch the entire city of Dhaka across three realistic traffic scenarios in a single click. Within one millisecond, the map, street alerts, rickshaw surge prices, and detour routes update simultaneously so stakeholders can witness edge cases in seconds.
 
 #### **How We Build It (Plain-English Technical Architecture)**
 
@@ -67,7 +67,7 @@ Judges do not have three days to wait for monsoon floods, rush-hour gridlock, or
 > * **Top 3 Breakage Points:**  
   1. **Cumulative Multiplier Drift:** Clicking \[2. Peak Crisis Surge\] twice multiplies a 30 BDT rickshaw fare to 60 BDT and then to 120 BDT because the state reducer mutates the active fare instead of recalculating from base\_fare\_bdt.  
   2. **Stale React Closure on Time Slider:** Scrubbing the time-machine slider from \+0m to \+90m reads a stale incident snapshot if the Bayesian decay evaluator is not keyed to simulated\_timestamp\_ms.  
-  3. **Unlabeled Synthetic Telemetry Penalty:** Judges penalize teams that pretend simulated disruptions are live satellite feeds; missing the persistent SIMULATED DEMO TELEMETRY badge violates Winner Rule 6\.  
+  3. **Unlabeled Synthetic Telemetry Penalty:** Evaluators penalize prototypes that pretend simulated disruptions are live municipal GPS feeds; maintaining an honest simulation label ensures full integrity.  
 > * **Idempotency & Double-Click Lock:** Enforces finite state machine transition IDLE \-\> PROCESSING \-\> RESOLVED keyed by deterministic action\_id \= "SCENARIO\_" \+ presetEnum \+ "\_" \+ simOffsetMin. While status is PROCESSING (or if the incoming action\_id matches the currently active last\_resolved\_action\_id), subsequent clicks are ignored at the dispatcher boundary.  
 > * **QA Verification Checkpoint:**  
   * *Test Input:* Rapidly click \[2. Peak Crisis Surge\] 5 times within 1 second, then click \[3. Adversarial / Corrupt Input\], then click \[1. Normal Baseline\].  
@@ -164,7 +164,7 @@ Crowd-sourced traffic apps fail when one prankster submits a fake 500-Taka bus f
 
 #### **How We Build It (Plain-English Technical Architecture)**
 
-> 1. **Frontend Trigger:** Users or judges interact with src/features/feature-3-trust-cms/TrustShieldAndCmsPanel.tsx to: (a) submit or corroborate/resolve a street disruption or fare report, (b) drop a photo of a bus signboard or printed fare chart into the Bonus 1 Vision uploader, or (c) ask the Part 5 chat assistant a trick question.  
+> 1. **Frontend Trigger:** Users or evaluators interact with src/features/feature-3-trust-cms/TrustShieldAndCmsPanel.tsx to: (a) submit or corroborate/resolve a street disruption or fare report, (b) drop a photo of a bus signboard or printed fare chart into the Bonus 1 Vision uploader, or (c) ask the Part 5 chat assistant a trick question.  
 > 2. **Tier 1 — Rule-Based Sanity Gate:** Before any report mutates the Part 1 CMS store, SanityFilter.validateReport() checks hard statutory domain invariants: bus fares outside \[10\\text{ BDT}, \\, 2.5 \\times F\_{\\text{base}}(e)\] are immediately blocked as ValidationStatus.ANOMALOUS\_FARE\_REJECTED, and single uncorroborated "road clear" claims against high-confidence blockades (R\_e(t) \\ge 0.80) are queued as ValidationStatus.PENDING\_CORROBORATION.  
 > 3. **Tier 2 — Recursive Bayesian Truth & Exponential Decay Engine:** Validated reports update the edge log-odds \\mathcal{L}\_e(t) weighted by reporter reliability w\_k and an exponential time-decay kernel with a 30-minute half-life (\\lambda \= \\ln(2)/30), driving a live countdown bar on every alert card.  
 > 4. **Tier 3 — SAT-Inspired Subgraph Grounding & Vision Signboard Gate:** Whether a route candidate comes from the Part 5 conversational assistant or the Bonus 1 Vision OCR signboard parser, SubgraphVerifier.verifyTrajectory() cross-checks 100% of hub IDs, directed edges, and BDT fares against the canonical adjacency matrix G\_0. Only verified outputs receive the green **\[GRAPH\_GROUNDED\]** audit badge.
@@ -210,7 +210,7 @@ Crowd-sourced traffic apps fail when one prankster submits a fake 500-Taka bus f
 
 #### **Plain-English Explanation (What & Why)**
 
-When judges see a recommended route on a screen, their immediate question is how much time, money, and risk it actually saves compared to what a commuter normally does. This live comparison panel runs two calculations side-by-side on every single search: the naive traditional route a commuter takes using static maps or guesswork versus our disruption-aware student-optimized route. It displays the exact minutes saved, Bangladeshi Taka saved, and flood or blockade risk avoided in real time.
+When evaluators see a recommended route on a screen, their immediate question is how much time, money, and risk it actually saves compared to what a commuter normally does. This live comparison panel runs two calculations side-by-side on every single search: the naive traditional route a commuter takes using static maps or guesswork versus our disruption-aware student-optimized route. It displays the exact minutes saved, Bangladeshi Taka saved, and flood or blockade risk avoided in real time.
 
 #### **How We Build It (Plain-English Technical Architecture)**
 
@@ -463,5 +463,5 @@ Every UI feature and engine module communicates through this unified service bou
 > * \[x\] Every math, algo, and hardware trap is explicitly documented with defensive bounds.  
 > * \[x\] Idempotency locks and enum/Unix-ms serialization laws are enforced across all features.  
 > * \[x\] File and folder ownership is 100% isolated across 4 developers to guarantee zero Git merge conflicts.  
-> * \[x\] Features form one judge path of 3 steps or fewer, ending in a real user action.  
+> * \[x\] Features form one clear user journey of 3 steps or fewer, ending in a real user action.  
 > * \[x\] At least one trust feature and one honest metric against a baseline are included and demoable.

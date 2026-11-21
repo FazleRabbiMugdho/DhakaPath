@@ -1,10 +1,10 @@
 # DhakaPath: Complete Technical Architecture, Algorithmic Engine & Execution Manual
 
-> **IAIT National IT Fest (INIF) 2026 | Hackathon Track: Smart City**  
+> **Smart City Innovation Initiative | Domain: Urban Mobility & Intelligent Transit**  
 > **Project:** DhakaPath — Multi-Objective Spatio-Temporal Transit Engine & Zero-Hallucination Route Verifier  
-> **Execution Window:** 5 Hours 40 Minutes (340 Minutes) | **Target Platform:** 100% Free Open Stack  
+> **Target Platform:** 100% Free Open Stack  
 > **Source Documents Consolidated:**
-> - [Hackathon Problem Statement](file:///g:/Hackaton/DhakaPath/docs/Hackathon_Problem_Statement_INIF_2026.md)
+> - [Smart City Problem Statement](file:///g:/Hackaton/DhakaPath/docs/Smart_City_Problem_Statement.md)
 > - [01 Idea & Thesis (idea.md)](file:///g:/Hackaton/DhakaPath/docs/idea.md)
 > - [02 Features & QA Matrix (feature.md)](file:///g:/Hackaton/DhakaPath/docs/feature.md)
 > - [03 UI/UX Flow & Stage Blueprint (ux-flow.md)](file:///g:/Hackaton/DhakaPath/docs/ux-flow.md)
@@ -36,7 +36,7 @@
    - [7.3 The X-Ray Algorithmic Telemetry Trace](#73-the-x-ray-algorithmic-telemetry-trace)
 8. [System Data Contracts & Serialization Laws](#8-system-data-contracts--serialization-laws)
 9. [Master Parallel Execution Playbook (4 Developers, 340 Minutes)](#9-master-parallel-execution-playbook-4-developers-340-minutes)
-10. [Live Stage Pitch Choreography & Judge Defense](#10-live-stage-pitch-choreography--judge-defense)
+10. [Live Stage Pitch Choreography & Defense](#10-live-stage-pitch-choreography--defense)
 11. [Cross-Reference Document Index](#11-cross-reference-document-index)
 
 ---
@@ -89,9 +89,9 @@ The system addresses four empirical transport asymmetries unique to Dhaka:
 
 ## 3. Technical Constraints & 100% Free Stack Architecture
 
-To guarantee strict compliance with the INIF 2026 Hackathon rules, zero credit-card-gated or paid APIs are used:
+To guarantee open accessibility and sustainability, zero credit-card-gated or paid APIs are used:
 
-| Operational Dimension | Selected Technology | Hackathon Justification |
+| Operational Dimension | Selected Technology | Architecture Justification |
 | :--- | :--- | :--- |
 | **Frontend & API Framework** | **Next.js 14 (App Router, TypeScript)** | Unified codebase for the 4-zone single-screen command center and sandboxed API routes. |
 | **Map & Topological Layer** | **Leaflet.js + OpenStreetMap + SVG Schematic** | 100% free dark raster tiles overlaid with an interactive 15-hub SVG topological network. |
@@ -277,7 +277,7 @@ graph TD
   Start(["0:00 Stage Open: 5-Second Main Screen<br/>15-Hub Dual-Layer Map + Velocity Alert (4.8 km/h)<br/>Badge: [SIMULATED DEMO TELEMETRY]"]) --> Step1
 
   subgraph Zone0_Scenario ["Feature 0: Stage Time-Machine & Chaos Injector (Top Bar)"]
-    Step1["Presenter / Judge Triggers Scenario Preset<br/>[1. Normal] | [2. Peak Crisis Surge] | [3. Adversarial Input]"]
+    Step1["Presenter / User Triggers Scenario Preset<br/>[1. Normal] | [2. Peak Crisis Surge] | [3. Adversarial Input]"]
     Step1 -->|150ms Debounce Lock| PureProj["Pure Graph Projection: G(t) = f(G_0, S_k, delta_t_sim)<br/>Object.freeze(CANONICAL_GRAPH_G0)"]
   end
 
@@ -316,7 +316,7 @@ graph TD
 
 ### 7.3 The X-Ray Algorithmic Telemetry Trace
 
-Embedded directly on screen to give judges live mathematical transparency:
+Embedded directly on screen to give evaluators live mathematical transparency:
 
 ```text
 [⚡ ENGINE: 0.78ms | |V_exp|: 75, |E_exp|: 240 | J(P*): 0.241 | u_stu: 1 (10 BDT Floor Active) | R_Farmgate: 0.918 >= 0.85 (T_eff -> INF) | V(P^): 1 (GROUNDED) | Risk Delta: -82.0%]
@@ -440,7 +440,7 @@ src/
 
 ---
 
-## 10. Live Stage Pitch Choreography & Judge Defense
+## 10. Live Stage Pitch Choreography & Defense
 
 ### 4-Minute Presentation Schedule
 - **0:00 – 0:35 (Problem & 5-Second Evidence):** Show the 15-hub topological map, the 4.8 km/h peak velocity alert, and the persistent `[SIMULATED DEMO TELEMETRY]` badge.
@@ -449,7 +449,7 @@ src/
 - **2:15 – 3:05 (Adversarial Stress Test):** Click `[3. Adversarial / Corrupt Input]`. Show the sanity filter instantly rejecting a spoofed 500 BDT fare and blocking an "Underground Ferry" hallucination.
 - **3:05 – 3:55 (Triple-Bonus Finale):** Drop a bus signboard photo into the Vision scanner, join a hub pool to split a surged 90 BDT rickshaw down to 30 BDT, and download the `<45 KB` offline Canvas card.
 
-### 3 Brutal Judge Technical Questions & Rebuttals
+### 3 Crucial Evaluator Technical Questions & Rebuttals
 1. **"Why build a custom Pareto Dijkstra instead of asking Gemini or Groq to choose the best route?"**  
    *Rebuttal:* LLMs hallucinate non-existent transfers in 31% of Banglish queries, miscalculate student fare floors, and require 1,200–2,500 ms. Our deterministic graph router executes in $0.78\text{ ms}$ with 100% mathematical reproducibility and zero rate-limiting.
 2. **"How do you stop spammers from faking blockades at Shahbagh to manipulate routing?"**  
@@ -465,8 +465,8 @@ For granular engineering specifications, refer to the individual modular documen
 
 | Document Name | File Link | Focus Area |
 | :--- | :--- | :--- |
-| **Official Problem Statement** | [Hackathon_Problem_Statement_INIF_2026.md](file:///g:/Hackaton/DhakaPath/docs/Hackathon_Problem_Statement_INIF_2026.md) | Official INIF 2026 competition rubric, Parts 1–5 specifications, and bonus rules. |
-| **01 Idea & Thesis** | [idea.md](file:///g:/Hackaton/DhakaPath/docs/idea.md) | Comprehensive engineering thesis, mathematical formulations, literature review, and judge rubric reverse-engineering. |
+| **Official Problem Statement** | [Smart_City_Problem_Statement.md](file:///g:/Hackaton/DhakaPath/docs/Smart_City_Problem_Statement.md) | Official challenge statement & functional criteria. |
+| **01 Idea & Thesis** | [idea.md](file:///g:/Hackaton/DhakaPath/docs/idea.md) | Comprehensive engineering thesis, mathematical formulations, literature review, and evaluation rubric. |
 | **02 Features & QA Matrix** | [feature.md](file:///g:/Hackaton/DhakaPath/docs/feature.md) | Feature calibrations, Senior QA failure matrices, zero-drift serialization laws, and TypeScript contracts. |
 | **03 UI/UX Flow & Stage Blueprint** | [ux-flow.md](file:///g:/Hackaton/DhakaPath/docs/ux-flow.md) | Cognitive ergonomics, Tactical Obsidian design tokens, Mermaid stage journey, and view-by-view layout specs. |
 | **04 Master Build Playbook** | [Build Prompt.md](file:///g:/Hackaton/DhakaPath/docs/Build%20Prompt.md) | Copy-paste developer prompts across Wave 0, Wave 1 (Tracks 1–4), and Wave 2 integration. |

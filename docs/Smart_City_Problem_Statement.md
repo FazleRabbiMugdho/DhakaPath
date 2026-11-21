@@ -1,14 +1,14 @@
 # DhakaPath: Live Urban Transit & Route Intelligence
 
-**IAIT National IT Fest 2026 | Hackathon Theme: Smart City**
-**Official Hackathon Problem Statement | INIF 2026**
+**Smart City Innovation Initiative | Domain: Urban Mobility & Intelligent Transportation**
+**Problem Statement & Functional Requirements Specification**
 
 | | |
 |---|---|
-| **Theme** | Smart City |
-| **Duration** | 5 Hours 40 Minutes |
-| **Platform** | Open Tech Stack |
-| **Presentation** | 4–5 Mins Demo + 2 Mins Q&A |
+| **Theme** | Smart City & Urban Mobility |
+| **Objective** | Multi-Modal Transit Intelligence, Disruption Routing & Grounded Fare Engine |
+| **Platform** | Open Tech Stack & Resilient Offline Architecture |
+| **Deliverables** | Interactive Platform Prototype, System Specification & Pitch Presentation |
 
 ---
 
@@ -16,15 +16,15 @@
 
 Standard navigation platforms are built primarily for private vehicles and cities with fixed, predictable transit schedules. In Dhaka, daily travel relies on a complex, fragmented network of local buses, the MRT-6 Metro Rail, legunas, and connector rickshaws. Existing map tools fail to account for student half-fares, rickshaw fare surges during bad weather, or sudden route disruptions caused by monsoon waterlogging and intersection blockades. Commuters are left depending on scattered social media posts that become outdated within minutes.
 
-Your challenge is to design and build an intelligent multi-modal transit, fare calculation, and live street-alert platform tailored for Dhaka. The system must organize transit routes and live street reports, support natural language trip queries, calculate accurate fares and detours, validate crowd-sourced data, and provide a conversational interface for commuters.
+The core challenge is to design and build an intelligent multi-modal transit, fare calculation, and live street-alert platform tailored for Dhaka. The system must organize transit routes and live street reports, support natural language trip queries, calculate accurate fares and detours, validate crowd-sourced data, and provide a conversational interface for commuters.
 
-## Technical & Fair-Use Constraints (100% Free Stack)
+## Architectural Principles (100% Open & Sustainable Stack)
 
-To ensure a level playing field for all participants, paid APIs or credit-card-gated services are not required or rewarded:
+To ensure universal accessibility, zero reliance on expensive proprietary mapping billing, and long-term civic sustainability:
 
-- **Mapping & Visualization:** Paid map services (such as Google Maps) must not be used. Teams may use Leaflet.js with OpenStreetMap (free, no API key required) or build an interactive node-graph / schematic transit map covering 12–15 major Dhaka hubs (e.g., Motijheel, Banasree, Malibagh, Shahbagh, Farmgate, Science Lab, Dhanmondi, Mohammadpur, Mirpur, Agargaon, Mohakhali, Badda, Uttara, and Jatrabari).
-- **AI & Language Models:** Teams must use free-tier APIs or local models, such as the Google Gemini API (Google AI Studio free tier), Groq Cloud free tier, HuggingFace Serverless Inference, OpenRouter free models, or local instances via Ollama.
-- **Media & Speech (Optional):** Browser-native APIs (such as the Web Speech API or HTML Canvas) or free open-source libraries should be used for any bonus features.
+- **Mapping & Visualization:** Open-access geospatial layers using Leaflet.js with OpenStreetMap or an interactive node-graph / schematic transit map covering major Dhaka hubs (e.g., Motijheel, Banasree, Malibagh, Shahbagh, Farmgate, Science Lab, Dhanmondi, Mohammadpur, Mirpur, Agargaon, Mohakhali, Badda, Uttara, and Jatrabari).
+- **AI & Language Models:** Efficient, scalable APIs and local models (e.g., Google Gemini Flash, Groq Cloud, OpenRouter, or local Ollama instances) with client-side deterministic fallback engines.
+- **Media & Speech:** Browser-native APIs (such as the Web Speech API and HTML Canvas) ensuring lightweight performance without external image or speech cloud dependencies.
 
 ## System Overview
 
@@ -39,7 +39,7 @@ Admins manage the core route network and moderate reports, while commuters inter
 
 ## Part 1: Transit & Street-Status Management (CMS)
 
-Build a content and state management system where admins and users can maintain transit connections and live street disruptions, including:
+Build a content and state management system where administrators and commuters maintain transit connections and live street disruptions, including:
 
 - Public transport links (local bus routes, MRT-6 Metro stations, leguna routes, and connector rickshaw segments)
 - Live street incident reports (waterlogging, road construction, severe gridlock, or intersection blockades)
@@ -53,7 +53,7 @@ Implement an intelligent search system that allows commuters to find routes and 
 
 - **Natural Language Parsing:** Support intent extraction beyond simple keywords (e.g., querying routes within a budget or avoiding specific congested intersections).
 - **Multi-Leg Combinations:** Return valid multi-leg route options (such as rickshaw to metro, metro to walking leg) ranked by total cost, estimated duration, and number of transfers.
-- **Bonus:** Include specific landmark boarding and transfer instructions for each leg of the journey.
+- **Landmark Guidance:** Include specific landmark boarding and transfer instructions for each leg of the journey.
 
 ## Part 3: Dynamic Fare Estimation & Disruption Rerouting
 
@@ -85,12 +85,12 @@ Provide a chat-based interface supporting English and Banglish through which use
 
 ## Expected Deliverables
 
-- Working software prototype (deployed online or demonstrated locally)
-- GitHub repository with source code developed during the session and setup instructions
+- Working software prototype (deployed online or run locally)
+- Complete technical repository with source code, architecture specifications, and setup instructions
 - Explanation of system architecture, routing logic, and AI components
-- Live demonstration during the 4–5 minute presentation
+- Interactive pitch presentation and live walkthrough
 
-## Bonus Tasks
+## Specialized Capabilities
 
 1. **Signboard & Notice Digitization:** Allow users to upload a photo of a local bus signboard, printed fare chart, or handwritten route note to automatically extract structured route data into the platform.
 2. **Audio/Visual Route Briefing:** Convert a selected multi-leg route and active street alerts into a concise audio briefing or downloadable offline visual summary card for commuters with low battery or poor connectivity.

@@ -67,7 +67,7 @@ export function AppHeader({
         <div className="flex items-center gap-2">
           <button type="button" onClick={onStory} className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-2 text-[13px] font-bold text-ink-soft transition-colors hover:border-brand hover:text-brand-dark sm:inline-flex">
             <Sparkles className="h-4 w-4" />
-            {t("ডেমো স্টোরি", "Demo story")}
+            {t("ওভারভিউ", "Overview")}
           </button>
           <button type="button" onClick={onMath} title="Ctrl+Shift+D" className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-2 text-[13px] font-bold text-ink-soft transition-colors hover:border-brand hover:text-brand-dark md:inline-flex">
             <Sigma className="h-4 w-4" />

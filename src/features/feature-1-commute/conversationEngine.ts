@@ -2,7 +2,7 @@
 // src/features/feature-1-commute/conversationEngine.ts
 // Contextual English/Banglish Conversational Commute Assistant ("Ask DhakaPath")
 // Multi-turn Memory, Intent Classification, Graph Grounding, and Incident Reporting
-// INIF 2026 DhakaPath — Track 3 & Conversational Commute Assistant
+// DhakaPath — Conversational Commute Assistant
 // ==============================================================================
 
 import {
